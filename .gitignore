@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+**/node_modules/
+**/.npm-cache/
+**/*.tsbuildinfo
+**/dist/
+**/__pycache__/
+**/.venv/
+**/.pytest_cache/
+*.db
+*.db-*
+*.sqlite*
+data/
+uploads/
+.clasp.json
+**/*.egg-info/

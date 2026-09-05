@@ -1,0 +1,44 @@
+<section id="view-form-builder" class="view" data-view="form-builder" aria-labelledby="form-builder-title" hidden>
+  <div class="page-header">
+    <div><p class="eyebrow">Configuración</p><h1 id="form-builder-title">Constructor de formularios</h1><p class="page-description">Diseñe preguntas, reglas y opciones sin modificar código.</p></div>
+    <div class="header-actions"><button class="button button--secondary" type="button" data-action="preview-current-form" disabled>Vista previa</button><button class="button button--primary" type="button" data-action="new-form"><span aria-hidden="true">＋</span> Crear formulario</button></div>
+  </div>
+
+  <div class="builder-layout">
+    <aside class="builder-sidebar card">
+      <div class="card-header builder-list-header"><div><h2>Formularios</h2><p id="form-count">0 configurados</p></div></div>
+      <label class="search-field"><span aria-hidden="true">⌕</span><span class="sr-only">Buscar formulario</span><input id="form-list-search" type="search" placeholder="Buscar formulario…" autocomplete="off"></label>
+      <div class="segmented-control" role="group" aria-label="Filtrar por estado">
+        <button class="is-active" type="button" data-form-status-filter="ALL">Todos</button><button type="button" data-form-status-filter="PUBLICADO">Publicados</button><button type="button" data-form-status-filter="BORRADOR">Borradores</button>
+      </div>
+      <div id="form-list" class="builder-form-list" aria-live="polite"><p class="empty-state compact">Cargando formularios…</p></div>
+    </aside>
+
+    <div id="builder-empty" class="card empty-panel builder-empty">
+      <span class="empty-icon" aria-hidden="true">✎</span><h2>Seleccione un formulario</h2><p>Edite un formulario existente o cree uno nuevo.</p><button class="button button--primary" type="button" data-action="new-form">Crear formulario</button>
+    </div>
+
+    <div id="builder-editor" class="builder-editor" hidden>
+      <article class="card form-settings-card">
+        <div class="card-header"><div><p class="eyebrow">Datos generales</p><h2 id="builder-form-name">Formulario sin título</h2></div><span id="builder-form-status-badge" class="badge badge--draft">Borrador</span></div>
+        <form id="form-settings" class="form-grid" novalidate>
+          <input id="builder-form-id" type="hidden">
+          <div class="field field--span-2"><label for="builder-name">Nombre <span class="required-mark">*</span></label><input id="builder-name" required maxlength="150" placeholder="Ej. Registro de atención social"></div>
+          <div class="field field--span-2"><label for="builder-description">Descripción</label><textarea id="builder-description" rows="2" maxlength="500" placeholder="Explique cuándo debe utilizarse"></textarea></div>
+          <div class="field"><label for="builder-process">Proceso <span class="required-mark">*</span></label><select id="builder-process" required><option value="">Seleccionar…</option><option value="ATENCION">Atención</option><option value="CASO">Caso</option><option value="NOVEDAD">Novedad</option><option value="RECORRIDO">Recorrido</option><option value="HALLAZGO">Hallazgo</option><option value="SEGUIMIENTO">Seguimiento</option><option value="DERIVACION">Derivación</option><option value="COMPROMISO">Compromiso</option><option value="CIERRE">Cierre</option><option value="OTRO">Otro</option></select></div>
+          <div class="field"><label for="builder-status">Estado</label><select id="builder-status"><option value="BORRADOR">Borrador</option><option value="PUBLICADO">Publicado</option><option value="INACTIVO">Inactivo</option></select></div>
+          <div class="field"><label for="builder-category">Categoría</label><input id="builder-category" maxlength="100" placeholder="Opcional"></div>
+          <div class="field"><label for="builder-owner">Responsable</label><input id="builder-owner" readonly></div>
+          <div class="field field--span-2 form-actions-row"><span id="form-settings-message" class="save-status" aria-live="polite"></span><button class="button button--primary" type="submit">Guardar datos generales</button></div>
+        </form>
+      </article>
+
+      <article class="card questions-card">
+        <div class="card-header"><div><h2>Preguntas y secciones</h2><p id="question-count">0 elementos</p></div><button class="button button--primary" type="button" data-action="new-question"><span aria-hidden="true">＋</span> Agregar pregunta</button></div>
+        <div class="builder-tip"><span aria-hidden="true">i</span><p>Use los controles de orden para mantener una secuencia estable. Las preguntas desactivadas no aparecen en formularios publicados.</p></div>
+        <ol id="question-list" class="question-list" aria-live="polite"></ol>
+        <div id="questions-empty" class="empty-state"><span class="empty-icon" aria-hidden="true">＋</span><h3>Aún no hay preguntas</h3><p>Agregue la primera pregunta para comenzar a diseñar el formulario.</p></div>
+      </article>
+    </div>
+  </div>
+</section>

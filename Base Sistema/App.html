@@ -1,0 +1,73 @@
+<div id="app" class="app-shell" aria-busy="true">
+  <header class="topbar">
+    <button id="sidebar-toggle" class="icon-button mobile-only" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="sidebar">
+      <span aria-hidden="true">☰</span>
+    </button>
+    <a class="brand" href="#dashboard" data-nav="dashboard" aria-label="Ir al inicio">
+      <span class="brand-mark" aria-hidden="true">TS</span>
+      <span class="brand-copy">
+        <strong id="app-name">Gestión de Trabajo Social</strong>
+        <small>Plataforma interna</small>
+      </span>
+    </a>
+    <div class="topbar-actions">
+      <button id="global-search-trigger" class="search-trigger" type="button" data-nav="search" aria-label="Abrir consulta general">
+        <span aria-hidden="true">⌕</span><span class="desktop-only">Buscar casos, personas y registros</span><kbd class="desktop-only">/</kbd>
+      </button>
+      <button id="notifications-button" class="icon-button" type="button" aria-label="Notificaciones" title="Notificaciones">
+        <span aria-hidden="true">◌</span><span id="notification-dot" class="notification-dot" hidden></span>
+      </button>
+      <button id="user-menu-button" class="user-chip" type="button" aria-haspopup="menu" aria-expanded="false">
+        <span id="user-avatar" class="avatar" aria-hidden="true">U</span>
+        <span class="user-copy desktop-only"><strong id="user-name">Cargando…</strong><small id="user-role">—</small></span>
+        <span aria-hidden="true">⌄</span>
+      </button>
+      <div id="user-menu" class="popover user-menu" role="menu" hidden>
+        <div class="popover-header"><strong id="user-email">—</strong></div>
+        <button type="button" role="menuitem" data-action="refresh-session">Actualizar sesión</button>
+        <button type="button" role="menuitem" data-nav="admin" data-permission="ADMINISTRACION:read">Administración</button>
+      </div>
+    </div>
+  </header>
+
+  <aside id="sidebar" class="sidebar" aria-label="Navegación principal">
+    <nav id="main-nav" class="main-nav">
+      <p class="nav-label">Principal</p>
+      <button class="nav-item is-active" type="button" data-nav="dashboard" data-module="DASHBOARD" data-permission-action="read">
+        <span class="nav-icon" aria-hidden="true">⌂</span><span>Inicio</span>
+      </button>
+      <p class="nav-label">Registro</p>
+      <button class="nav-item" type="button" data-nav="capture" data-process="ATENCION" data-module="ATENCIONES" data-permission-action="create"><span class="nav-icon" aria-hidden="true">＋</span><span>Nueva atención</span></button>
+      <button class="nav-item" type="button" data-nav="capture" data-process="CASO" data-module="CASOS" data-permission-action="create"><span class="nav-icon" aria-hidden="true">◇</span><span>Nuevo caso</span></button>
+      <button class="nav-item" type="button" data-nav="capture" data-process="NOVEDAD" data-module="NOVEDADES" data-permission-action="create"><span class="nav-icon" aria-hidden="true">!</span><span>Nueva novedad</span></button>
+      <button class="nav-item" type="button" data-nav="capture" data-process="RECORRIDO" data-module="RECORRIDOS" data-permission-action="create"><span class="nav-icon" aria-hidden="true">↗</span><span>Nuevo recorrido</span></button>
+      <p class="nav-label">Gestión</p>
+      <button class="nav-item" type="button" data-nav="cases" data-module="CASOS" data-permission-action="read"><span class="nav-icon" aria-hidden="true">▣</span><span>Casos</span></button>
+      <button class="nav-item" type="button" data-nav="search" data-module="BUSQUEDA" data-permission-action="read"><span class="nav-icon" aria-hidden="true">⌕</span><span>Consulta general</span></button>
+      <button class="nav-item" type="button" data-nav="search" data-record-type="SEGUIMIENTO" data-module="SEGUIMIENTOS" data-permission-action="read"><span class="nav-icon" aria-hidden="true">↻</span><span>Seguimientos</span></button>
+      <button class="nav-item" type="button" data-nav="search" data-record-type="DERIVACION" data-module="DERIVACIONES" data-permission-action="read"><span class="nav-icon" aria-hidden="true">⇢</span><span>Derivaciones</span></button>
+      <button class="nav-item" type="button" data-nav="search" data-record-type="COMPROMISO" data-module="COMPROMISOS" data-permission-action="read"><span class="nav-icon" aria-hidden="true">✓</span><span>Compromisos</span></button>
+      <button class="nav-item" type="button" data-nav="documents" data-module="DOCUMENTOS" data-permission-action="read"><span class="nav-icon" aria-hidden="true">▤</span><span>Documentos</span></button>
+      <button class="nav-item" type="button" data-nav="reports" data-module="REPORTES" data-permission-action="read"><span class="nav-icon" aria-hidden="true">▥</span><span>Reportes</span></button>
+      <p class="nav-label" data-admin-nav>Configuración</p>
+      <button class="nav-item" type="button" data-nav="form-builder" data-module="FORMULARIOS" data-permission-action="edit"><span class="nav-icon" aria-hidden="true">✎</span><span>Formularios</span></button>
+      <button class="nav-item" type="button" data-nav="catalogs" data-module="CATALOGOS" data-permission-action="read"><span class="nav-icon" aria-hidden="true">≡</span><span>Catálogos</span></button>
+      <button class="nav-item" type="button" data-nav="admin" data-module="ADMINISTRACION" data-permission-action="read"><span class="nav-icon" aria-hidden="true">⚙</span><span>Administración</span></button>
+    </nav>
+    <div class="sidebar-footer">
+      <span class="status-indicator" aria-hidden="true"></span>
+      <span><strong>Conexión activa</strong><small id="app-version">Versión —</small></span>
+    </div>
+  </aside>
+
+  <div id="sidebar-scrim" class="sidebar-scrim" hidden></div>
+</div>
+
+<div id="boot-screen" class="boot-screen" role="status" aria-live="polite">
+  <div class="boot-card">
+    <span class="brand-mark brand-mark--large" aria-hidden="true">TS</span>
+    <div class="spinner" aria-hidden="true"></div>
+    <strong>Preparando su espacio de trabajo…</strong>
+    <small>Validando sesión y permisos</small>
+  </div>
+</div>

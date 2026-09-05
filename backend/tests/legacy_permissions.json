@@ -1,0 +1,1082 @@
+[
+  {
+    "role": "ROLE_ADMIN",
+    "module": "DASHBOARD",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": true,
+      "sensitive": true,
+      "export": true
+    }
+  },
+  {
+    "role": "ROLE_ADMIN",
+    "module": "ATENCIONES",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": true,
+      "sensitive": true,
+      "export": true
+    }
+  },
+  {
+    "role": "ROLE_ADMIN",
+    "module": "CASOS",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": true,
+      "sensitive": true,
+      "export": true
+    }
+  },
+  {
+    "role": "ROLE_ADMIN",
+    "module": "NOVEDADES",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": true,
+      "sensitive": true,
+      "export": true
+    }
+  },
+  {
+    "role": "ROLE_ADMIN",
+    "module": "RECORRIDOS",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": true,
+      "sensitive": true,
+      "export": true
+    }
+  },
+  {
+    "role": "ROLE_ADMIN",
+    "module": "SEGUIMIENTOS",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": true,
+      "sensitive": true,
+      "export": true
+    }
+  },
+  {
+    "role": "ROLE_ADMIN",
+    "module": "DERIVACIONES",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": true,
+      "sensitive": true,
+      "export": true
+    }
+  },
+  {
+    "role": "ROLE_ADMIN",
+    "module": "COMPROMISOS",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": true,
+      "sensitive": true,
+      "export": true
+    }
+  },
+  {
+    "role": "ROLE_ADMIN",
+    "module": "PERSONAS",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": true,
+      "sensitive": true,
+      "export": true
+    }
+  },
+  {
+    "role": "ROLE_ADMIN",
+    "module": "FORMULARIOS",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": true,
+      "sensitive": true,
+      "export": true
+    }
+  },
+  {
+    "role": "ROLE_ADMIN",
+    "module": "RESPUESTAS",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": true,
+      "sensitive": true,
+      "export": true
+    }
+  },
+  {
+    "role": "ROLE_ADMIN",
+    "module": "CATALOGOS",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": true,
+      "sensitive": true,
+      "export": true
+    }
+  },
+  {
+    "role": "ROLE_ADMIN",
+    "module": "DOCUMENTOS",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": true,
+      "sensitive": true,
+      "export": true
+    }
+  },
+  {
+    "role": "ROLE_ADMIN",
+    "module": "BUSQUEDA",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": true,
+      "sensitive": true,
+      "export": true
+    }
+  },
+  {
+    "role": "ROLE_ADMIN",
+    "module": "REPORTES",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": true,
+      "sensitive": true,
+      "export": true
+    }
+  },
+  {
+    "role": "ROLE_ADMIN",
+    "module": "IMPORTACION",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": true,
+      "sensitive": true,
+      "export": true
+    }
+  },
+  {
+    "role": "ROLE_ADMIN",
+    "module": "AUDITORIA",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": true,
+      "sensitive": true,
+      "export": true
+    }
+  },
+  {
+    "role": "ROLE_ADMIN",
+    "module": "ADMINISTRACION",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": true,
+      "sensitive": true,
+      "export": true
+    }
+  },
+  {
+    "role": "ROLE_COORDINADOR",
+    "module": "DASHBOARD",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_COORDINADOR",
+    "module": "ATENCIONES",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_COORDINADOR",
+    "module": "CASOS",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_COORDINADOR",
+    "module": "NOVEDADES",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_COORDINADOR",
+    "module": "RECORRIDOS",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_COORDINADOR",
+    "module": "SEGUIMIENTOS",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_COORDINADOR",
+    "module": "DERIVACIONES",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_COORDINADOR",
+    "module": "COMPROMISOS",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_COORDINADOR",
+    "module": "PERSONAS",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_COORDINADOR",
+    "module": "FORMULARIOS",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_COORDINADOR",
+    "module": "RESPUESTAS",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_COORDINADOR",
+    "module": "CATALOGOS",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_COORDINADOR",
+    "module": "DOCUMENTOS",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_COORDINADOR",
+    "module": "BUSQUEDA",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": true
+    }
+  },
+  {
+    "role": "ROLE_COORDINADOR",
+    "module": "REPORTES",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": true
+    }
+  },
+  {
+    "role": "ROLE_COORDINADOR",
+    "module": "IMPORTACION",
+    "rights": {
+      "create": false,
+      "read": false,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_COORDINADOR",
+    "module": "AUDITORIA",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_COORDINADOR",
+    "module": "ADMINISTRACION",
+    "rights": {
+      "create": false,
+      "read": false,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_TRABAJADOR_SOCIAL",
+    "module": "DASHBOARD",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_TRABAJADOR_SOCIAL",
+    "module": "ATENCIONES",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_TRABAJADOR_SOCIAL",
+    "module": "CASOS",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_TRABAJADOR_SOCIAL",
+    "module": "NOVEDADES",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_TRABAJADOR_SOCIAL",
+    "module": "RECORRIDOS",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_TRABAJADOR_SOCIAL",
+    "module": "SEGUIMIENTOS",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_TRABAJADOR_SOCIAL",
+    "module": "DERIVACIONES",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_TRABAJADOR_SOCIAL",
+    "module": "COMPROMISOS",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_TRABAJADOR_SOCIAL",
+    "module": "PERSONAS",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_TRABAJADOR_SOCIAL",
+    "module": "FORMULARIOS",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_TRABAJADOR_SOCIAL",
+    "module": "RESPUESTAS",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_TRABAJADOR_SOCIAL",
+    "module": "CATALOGOS",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_TRABAJADOR_SOCIAL",
+    "module": "DOCUMENTOS",
+    "rights": {
+      "create": true,
+      "read": true,
+      "edit": true,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_TRABAJADOR_SOCIAL",
+    "module": "BUSQUEDA",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_TRABAJADOR_SOCIAL",
+    "module": "REPORTES",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": true
+    }
+  },
+  {
+    "role": "ROLE_TRABAJADOR_SOCIAL",
+    "module": "IMPORTACION",
+    "rights": {
+      "create": false,
+      "read": false,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_TRABAJADOR_SOCIAL",
+    "module": "AUDITORIA",
+    "rights": {
+      "create": false,
+      "read": false,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_TRABAJADOR_SOCIAL",
+    "module": "ADMINISTRACION",
+    "rights": {
+      "create": false,
+      "read": false,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_CONSULTA",
+    "module": "DASHBOARD",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_CONSULTA",
+    "module": "ATENCIONES",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_CONSULTA",
+    "module": "CASOS",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_CONSULTA",
+    "module": "NOVEDADES",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_CONSULTA",
+    "module": "RECORRIDOS",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_CONSULTA",
+    "module": "SEGUIMIENTOS",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_CONSULTA",
+    "module": "DERIVACIONES",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_CONSULTA",
+    "module": "COMPROMISOS",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_CONSULTA",
+    "module": "PERSONAS",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_CONSULTA",
+    "module": "FORMULARIOS",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_CONSULTA",
+    "module": "RESPUESTAS",
+    "rights": {
+      "create": false,
+      "read": false,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_CONSULTA",
+    "module": "CATALOGOS",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_CONSULTA",
+    "module": "DOCUMENTOS",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_CONSULTA",
+    "module": "BUSQUEDA",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_CONSULTA",
+    "module": "REPORTES",
+    "rights": {
+      "create": false,
+      "read": false,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_CONSULTA",
+    "module": "IMPORTACION",
+    "rights": {
+      "create": false,
+      "read": false,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_CONSULTA",
+    "module": "AUDITORIA",
+    "rights": {
+      "create": false,
+      "read": false,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_CONSULTA",
+    "module": "ADMINISTRACION",
+    "rights": {
+      "create": false,
+      "read": false,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_GERENCIA",
+    "module": "DASHBOARD",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_GERENCIA",
+    "module": "ATENCIONES",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_GERENCIA",
+    "module": "CASOS",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_GERENCIA",
+    "module": "NOVEDADES",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_GERENCIA",
+    "module": "RECORRIDOS",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_GERENCIA",
+    "module": "SEGUIMIENTOS",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_GERENCIA",
+    "module": "DERIVACIONES",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_GERENCIA",
+    "module": "COMPROMISOS",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_GERENCIA",
+    "module": "PERSONAS",
+    "rights": {
+      "create": false,
+      "read": false,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_GERENCIA",
+    "module": "FORMULARIOS",
+    "rights": {
+      "create": false,
+      "read": false,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_GERENCIA",
+    "module": "RESPUESTAS",
+    "rights": {
+      "create": false,
+      "read": false,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_GERENCIA",
+    "module": "CATALOGOS",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_GERENCIA",
+    "module": "DOCUMENTOS",
+    "rights": {
+      "create": false,
+      "read": false,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_GERENCIA",
+    "module": "BUSQUEDA",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_GERENCIA",
+    "module": "REPORTES",
+    "rights": {
+      "create": false,
+      "read": true,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": true
+    }
+  },
+  {
+    "role": "ROLE_GERENCIA",
+    "module": "IMPORTACION",
+    "rights": {
+      "create": false,
+      "read": false,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_GERENCIA",
+    "module": "AUDITORIA",
+    "rights": {
+      "create": false,
+      "read": false,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  },
+  {
+    "role": "ROLE_GERENCIA",
+    "module": "ADMINISTRACION",
+    "rights": {
+      "create": false,
+      "read": false,
+      "edit": false,
+      "delete": false,
+      "sensitive": false,
+      "export": false
+    }
+  }
+]

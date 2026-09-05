@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <title>Sistema Integral de Gestión de Trabajo Social</title>
+  <?!= include('Styles'); ?>
+</head>
+<body>
+  <noscript>
+    <div class="fatal-message">Esta aplicación necesita JavaScript para funcionar.</div>
+  </noscript>
+
+  <?!= include('App'); ?>
+
+  <main id="main-content" class="app-main" tabindex="-1">
+    <?!= include('Dashboard'); ?>
+    <?!= include('DynamicForm'); ?>
+    <?!= include('FormBuilder'); ?>
+    <?!= include('CaseView'); ?>
+    <?!= include('SearchView'); ?>
+    <?!= include('AdminView'); ?>
+  </main>
+
+  <?!= include('Components'); ?>
+  <?!= include('Scripts'); ?>
+</body>
+</html>

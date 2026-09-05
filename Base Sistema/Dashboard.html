@@ -1,0 +1,37 @@
+<section id="view-dashboard" class="view is-active" data-view="dashboard" aria-labelledby="dashboard-title">
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Resumen operativo</p>
+      <h1 id="dashboard-title">Buenos días, <span id="dashboard-user-name">usuario</span></h1>
+      <p id="dashboard-subtitle" class="page-description">Indicadores consolidados sin detalle sensible.</p>
+    </div>
+    <div class="header-actions">
+      <label class="compact-field"><span class="sr-only">Periodo</span><select id="dashboard-period"><option value="30">Últimos 30 días</option><option value="7">Últimos 7 días</option><option value="90">Últimos 90 días</option><option value="year">Este año</option></select></label>
+      <button class="button button--secondary" type="button" data-action="refresh-dashboard"><span aria-hidden="true">↻</span> Actualizar</button>
+      <button class="button button--primary" type="button" data-nav="capture" data-process="CASO" data-module="CASOS" data-permission-action="create"><span aria-hidden="true">＋</span> Nuevo caso</button>
+    </div>
+  </div>
+
+  <div id="dashboard-kpis" class="kpi-grid" aria-live="polite">
+    <article class="kpi-card skeleton-card"></article><article class="kpi-card skeleton-card"></article><article class="kpi-card skeleton-card"></article><article class="kpi-card skeleton-card"></article>
+  </div>
+
+  <div class="dashboard-grid">
+    <article class="card dashboard-panel dashboard-panel--wide">
+      <div class="card-header"><div><h2>Casos por estado</h2><p>Distribución del periodo seleccionado</p></div><button class="text-button" type="button" data-nav="cases">Ver todos</button></div>
+      <div id="cases-by-status" class="bar-chart" role="img" aria-label="Casos por estado"><p class="empty-state compact">Cargando indicadores…</p></div>
+    </article>
+    <article class="card dashboard-panel">
+      <div class="card-header"><div><h2>Prioridades</h2><p>Casos abiertos</p></div></div>
+      <div id="priority-summary" class="donut-layout"><div class="donut-placeholder" aria-hidden="true"></div><div class="legend-list"></div></div>
+    </article>
+    <article class="card dashboard-panel">
+      <div class="card-header"><div><h2>Próximos seguimientos</h2><p>Acciones que requieren atención</p></div><button class="text-button" type="button" data-nav="search" data-record-type="SEGUIMIENTO">Ver agenda</button></div>
+      <div id="upcoming-followups" class="timeline-list"><p class="empty-state compact">Cargando agenda…</p></div>
+    </article>
+    <article class="card dashboard-panel">
+      <div class="card-header"><div><h2>Actividad reciente</h2><p>Eventos permitidos para su rol</p></div></div>
+      <div id="recent-activity" class="activity-list"><p class="empty-state compact">Cargando actividad…</p></div>
+    </article>
+  </div>
+</section>

@@ -1,0 +1,53 @@
+<section id="view-capture" class="view" data-view="capture" aria-labelledby="capture-title" hidden>
+  <div class="page-header page-header--compact">
+    <div>
+      <button class="back-link" type="button" data-nav="dashboard"><span aria-hidden="true">←</span> Volver al inicio</button>
+      <p id="capture-eyebrow" class="eyebrow">Nuevo registro</p>
+      <h1 id="capture-title">Seleccionar formulario</h1>
+      <p id="capture-description" class="page-description">Complete la información requerida. Puede guardar un borrador y continuar después.</p>
+    </div>
+    <div class="header-actions capture-actions desktop-only">
+      <span id="draft-status" class="save-status" aria-live="polite"><span aria-hidden="true">✓</span> Sin cambios</span>
+      <button class="button button--secondary" type="button" data-action="save-draft">Guardar borrador</button>
+      <button class="button button--primary" type="submit" form="dynamic-form">Registrar</button>
+    </div>
+  </div>
+
+  <div class="capture-layout">
+    <aside class="capture-aside card">
+      <div class="field">
+        <label for="published-form-select">Formulario</label>
+        <select id="published-form-select"><option value="">Cargando formularios…</option></select>
+      </div>
+      <nav id="form-section-nav" class="section-nav" aria-label="Secciones del formulario"></nav>
+      <div class="privacy-note">
+        <span class="privacy-icon" aria-hidden="true">▣</span>
+        <div><strong>Información protegida</strong><p>Los accesos y cambios quedan registrados. Evite incluir datos sensibles en campos no destinados para ello.</p></div>
+      </div>
+    </aside>
+
+    <div class="capture-content">
+      <div id="dynamic-form-alert" class="inline-alert" role="alert" hidden></div>
+      <form id="dynamic-form" novalidate autocomplete="off">
+        <input id="response-id" name="responseId" type="hidden">
+        <input id="record-id" name="recordId" type="hidden">
+        <input id="form-id" name="formId" type="hidden">
+        <input id="process-type" name="processType" type="hidden">
+        <div id="dynamic-form-container" class="dynamic-form-container">
+          <article class="card empty-panel">
+            <span class="empty-icon" aria-hidden="true">✎</span>
+            <h2>Seleccione un formulario</h2>
+            <p>La configuración publicada se cargará aquí.</p>
+          </article>
+        </div>
+        <div id="form-submit-actions" class="form-footer" hidden>
+          <button class="button button--ghost" type="button" data-action="cancel-form">Cancelar</button>
+          <div class="form-footer-right">
+            <button class="button button--secondary" type="button" data-action="save-draft">Guardar borrador</button>
+            <button class="button button--primary" type="submit"><span aria-hidden="true">✓</span> Registrar información</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>

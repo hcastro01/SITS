@@ -1,0 +1,60 @@
+<section id="view-catalogs" class="view" data-view="catalogs" aria-labelledby="catalogs-title" hidden>
+  <div class="page-header"><div><p class="eyebrow">Configuración</p><h1 id="catalogs-title">Catálogos</h1><p class="page-description">Administre opciones reutilizables sin romper el histórico.</p></div><div class="header-actions"><button class="button button--primary" type="button" data-action="new-catalog-item"><span aria-hidden="true">＋</span> Agregar valor</button></div></div>
+  <div class="catalog-layout">
+    <aside class="card catalog-sidebar"><label class="search-field"><span aria-hidden="true">⌕</span><span class="sr-only">Buscar catálogo</span><input id="catalog-type-search" type="search" placeholder="Buscar catálogo…"></label><div id="catalog-type-list" class="catalog-type-list"><p class="empty-state compact">Cargando catálogos…</p></div></aside>
+    <article class="card catalog-content"><div class="card-header"><div><h2 id="catalog-current-title">Seleccione un catálogo</h2><p id="catalog-current-description">—</p></div><label class="toggle-label"><input id="show-inactive-catalogs" type="checkbox"><span>Mostrar inactivos</span></label></div><div class="toolbar"><label class="search-field search-field--large"><span aria-hidden="true">⌕</span><span class="sr-only">Buscar valor</span><input id="catalog-item-search" type="search" placeholder="Buscar valor…"></label><button class="button button--secondary" type="button" data-action="refresh-catalog">Actualizar</button></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Orden</th><th>Código</th><th>Valor</th><th>Valor padre</th><th>Estado</th><th><span class="sr-only">Acciones</span></th></tr></thead><tbody id="catalog-items-body"><tr><td colspan="6"><p class="empty-state compact">Seleccione un catálogo.</p></td></tr></tbody></table></div><div id="catalog-pagination" class="pagination"></div></article>
+  </div>
+</section>
+
+<section id="view-admin" class="view" data-view="admin" aria-labelledby="admin-title" hidden>
+  <div class="page-header"><div><p class="eyebrow">Configuración avanzada</p><h1 id="admin-title">Administración</h1><p class="page-description">Usuarios, permisos, importaciones y configuración operativa.</p></div></div>
+  <div class="tabs admin-tabs" role="tablist" aria-label="Administración">
+    <button class="is-active" type="button" role="tab" aria-selected="true" data-admin-tab="users">Usuarios y roles</button>
+    <button type="button" role="tab" aria-selected="false" data-admin-tab="permissions">Matriz de permisos</button>
+    <button type="button" role="tab" aria-selected="false" data-admin-tab="import">Importador</button>
+    <button type="button" role="tab" aria-selected="false" data-admin-tab="settings">Configuración</button>
+  </div>
+
+  <article class="card tab-panel" data-admin-panel="users">
+    <div class="card-header"><div><h2>Usuarios y roles</h2><p>El acceso se identifica mediante la cuenta de Google Workspace.</p></div><button class="button button--primary" type="button" data-action="new-user"><span aria-hidden="true">＋</span> Agregar usuario</button></div>
+    <div class="toolbar"><label class="search-field search-field--large"><span aria-hidden="true">⌕</span><span class="sr-only">Buscar usuario</span><input id="user-search" type="search" placeholder="Nombre o correo…"></label><select id="user-role-filter"><option value="">Todos los roles</option></select><select id="user-status-filter"><option value="">Todos los estados</option><option value="true">Activos</option><option value="false">Inactivos</option></select></div>
+    <div class="table-wrap"><table class="data-table"><thead><tr><th>Usuario</th><th>Correo</th><th>Rol</th><th>Último acceso</th><th>Estado</th><th><span class="sr-only">Acciones</span></th></tr></thead><tbody id="users-table-body"><tr><td colspan="6"><p class="empty-state compact">Cargando usuarios…</p></td></tr></tbody></table></div>
+  </article>
+
+  <article class="card tab-panel" data-admin-panel="permissions" hidden>
+    <div class="card-header"><div><h2>Matriz de permisos</h2><p>La interfaz oculta acciones no disponibles; el servidor siempre vuelve a validar.</p></div><div class="header-actions"><select id="permission-role-select" aria-label="Rol"><option value="">Seleccione un rol</option></select><button class="button button--primary" type="button" data-action="save-permissions">Guardar permisos</button></div></div>
+    <div class="table-wrap"><table class="permission-table data-table"><thead><tr><th>Módulo</th><th>Crear</th><th>Leer</th><th>Editar</th><th>Eliminar</th><th>Sensible</th></tr></thead><tbody id="permissions-table-body"><tr><td colspan="6"><p class="empty-state compact">Seleccione un rol.</p></td></tr></tbody></table></div>
+  </article>
+
+  <article class="card tab-panel" data-admin-panel="import" hidden>
+    <div class="card-header"><div><h2>Importar información histórica</h2><p>La validación no escribe datos. Revise duplicados y errores antes de ejecutar.</p></div></div>
+    <form id="import-form" class="import-layout" novalidate>
+      <div class="import-step"><span class="step-number">1</span><div class="form-grid">
+        <div class="field"><label for="import-entity">Entidad <span class="required-mark">*</span></label><select id="import-entity" required><option value="">Seleccionar…</option><option value="ATENCIONES">Atenciones</option><option value="CASOS">Casos</option><option value="DETALLE_CASOS_SENSIBLES">Casos sensibles</option><option value="NOVEDADES">Novedades</option><option value="RECORRIDOS">Recorridos</option><option value="SEGUIMIENTOS">Seguimientos</option><option value="DERIVACIONES">Derivaciones</option><option value="COMPROMISOS">Compromisos</option><option value="PERSONAS">Personas</option></select></div>
+        <div class="field"><label for="import-source-type">Origen</label><select id="import-source-type"><option value="GOOGLE_SHEET">Google Sheets</option><option value="CSV">Archivo CSV</option></select></div>
+        <div class="field field--span-2" data-import-source="GOOGLE_SHEET"><label for="import-sheet-id">URL o ID del Google Sheet <span class="required-mark">*</span></label><input id="import-sheet-id" placeholder="https://docs.google.com/spreadsheets/d/…"><small class="field-help">Por seguridad, el archivo debe estar directamente dentro de la carpeta privada TrabajoSocial/Importaciones creada por el setup.</small></div>
+        <div class="field" data-import-source="GOOGLE_SHEET"><label for="import-sheet-name">Nombre de hoja <span class="required-mark">*</span></label><input id="import-sheet-name" placeholder="Casos históricos"></div>
+        <div class="field" data-import-source="CSV" hidden><label for="import-csv">Archivo CSV <span class="required-mark">*</span></label><input id="import-csv" type="file" accept=".csv,text/csv"></div>
+        <div class="field"><label for="import-origin-label">Descripción del origen</label><input id="import-origin-label" maxlength="150" placeholder="Ej. Matriz 2024 validada"></div>
+      </div></div>
+      <div class="import-step"><span class="step-number">2</span><div><h3>Validar estructura</h3><p>Se comprobarán encabezados, formatos, IDs y duplicados, sin modificar la base.</p><button class="button button--primary" type="submit">Validar importación</button></div></div>
+    </form>
+    <div id="import-validation-result" class="import-result" hidden>
+      <div id="import-summary" class="summary-grid"></div>
+      <div class="table-wrap"><table class="data-table"><thead><tr><th>Fila</th><th>Campo</th><th>Nivel</th><th>Detalle</th></tr></thead><tbody id="import-errors-body"></tbody></table></div>
+      <div class="form-footer"><p class="privacy-note-inline">La ejecución es transaccional por lotes; los fallos se reportan y auditan.</p><button id="execute-import-button" class="button button--primary" type="button" data-action="execute-import">Ejecutar importación validada</button></div>
+    </div>
+  </article>
+
+  <article class="card tab-panel" data-admin-panel="settings" hidden>
+    <div class="card-header"><div><h2>Configuración operativa</h2><p>Los identificadores sensibles se administran mediante PropertiesService y no se muestran completos.</p></div></div>
+    <form id="settings-form" class="form-grid" novalidate>
+      <div class="field"><label for="setting-app-name">Nombre de la aplicación</label><input id="setting-app-name" maxlength="150"></div>
+      <div class="field"><label for="setting-page-size">Registros por página</label><input id="setting-page-size" type="number" min="5" max="100"></div>
+      <div class="field"><label for="setting-max-file-size">Tamaño máximo por archivo (MB)</label><input id="setting-max-file-size" type="number" min="1" max="25"></div>
+      <div class="field field--span-2"><label for="setting-file-types">Extensiones permitidas</label><input id="setting-file-types" readonly></div>
+      <div class="field field--span-2"><label class="toggle-label"><input id="setting-hard-delete" type="checkbox"><span>Habilitar eliminación definitiva excepcional</span></label><small class="field-help">Solo administradores con permiso podrán borrar un registro previamente eliminado, sin dependencias ni documentos, mediante confirmación exacta y motivo auditado.</small></div>
+      <div class="field field--span-2 form-actions-row"><button class="button button--secondary" type="button" data-action="run-setup">Verificar estructura de la aplicación</button><button class="button button--primary" type="submit">Guardar configuración</button></div>
+    </form>
+  </article>
+</section>

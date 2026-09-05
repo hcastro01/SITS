@@ -1,0 +1,657 @@
+<script>
+(() => {
+  'use strict';
+
+  const API = Object.freeze({
+    bootstrap: 'getBootstrapData', dashboard: 'getDashboardData', publishedForms: 'getPublishedForms',
+    formDefinition: 'getFormDefinition', saveResponse: 'saveFormResponse', saveDraft: 'saveDraft',
+    forms: 'listForms', formAdmin: 'getFormAdmin', saveForm: 'saveFormDefinition', saveQuestion: 'saveQuestion',
+    duplicateQuestion: 'duplicateQuestion', reorderQuestions: 'reorderQuestions', deactivateQuestion: 'deactivateQuestion', formStatus: 'changeFormStatus',
+    search: 'searchRecords', getRecord: 'getRecord', saveRecord: 'saveRecord', removeRecord: 'softDeleteRecord', restoreRecord: 'restoreRecord', hardDeleteRecord: 'hardDeleteRecord', history: 'getRecordHistory',
+    followUp: 'saveFollowUp', referral: 'saveReferral', commitment: 'saveCommitment', closeCase: 'closeCase',
+    catalogs: 'listCatalogs', saveCatalog: 'saveCatalogItem', toggleCatalog: 'toggleCatalogItem', dependentCatalog: 'getDependentCatalogOptions',
+    upload: 'uploadFiles', files: 'listRecordFiles', fileAccess: 'getFileAccess', export: 'exportSearchResults',
+    validateImport: 'validateImport', executeImport: 'executeImport', importStatus: 'getImportStatus',
+    administration: 'listUsersRolesPermissions', saveUser: 'saveUserRole', savePermissions: 'savePermissions', setup: 'runSetup',
+    saveConfiguration: 'saveApplicationConfig'
+  });
+
+  const MODULE_BY_TABLE = Object.freeze({
+    Personas: 'PERSONAS', Atenciones: 'ATENCIONES', Casos: 'CASOS', Novedades: 'NOVEDADES',
+    Recorridos: 'RECORRIDOS', HallazgosRecorrido: 'RECORRIDOS', Seguimientos: 'SEGUIMIENTOS',
+    Derivaciones: 'DERIVACIONES', Compromisos: 'COMPROMISOS', Cierres: 'CASOS', Documentos: 'DOCUMENTOS'
+  });
+  const TABLE_BY_PROCESS = Object.freeze({ ATENCION: 'Atenciones', CASO: 'Casos', NOVEDAD: 'Novedades', RECORRIDO: 'Recorridos', HALLAZGO: 'HallazgosRecorrido', SEGUIMIENTO: 'Seguimientos', DERIVACION: 'Derivaciones', COMPROMISO: 'Compromisos', CIERRE: 'Cierres' });
+  const ID_FIELD_BY_TABLE = Object.freeze({ Personas:'IdPersona', Atenciones:'IdAtencion', Casos:'IdCaso', Novedades:'IdNovedad', Recorridos:'IdRecorrido', HallazgosRecorrido:'IdHallazgo', Seguimientos:'IdSeguimiento', Derivaciones:'IdDerivacion', Compromisos:'IdCompromiso', Cierres:'IdCierre' });
+  const TYPE_ALIASES = Object.freeze({
+    TEXTO_CORTO: 'SHORT_TEXT', SHORT_TEXT: 'SHORT_TEXT', TEXTO_LARGO: 'LONG_TEXT', LONG_TEXT: 'LONG_TEXT', NUMERO: 'NUMBER', NUMBER: 'NUMBER',
+    FECHA: 'DATE', DATE: 'DATE', FECHA_HORA: 'DATETIME', DATETIME: 'DATETIME', HORA: 'TIME', TIME: 'TIME', SI_NO: 'YES_NO', YES_NO: 'YES_NO',
+    LISTA_DESPLEGABLE: 'DROPDOWN', DROPDOWN: 'DROPDOWN', SELECCION_UNICA: 'SINGLE_CHOICE', SINGLE_CHOICE: 'SINGLE_CHOICE',
+    SELECCION_MULTIPLE: 'MULTIPLE_CHOICE', MULTIPLE_CHOICE: 'MULTIPLE_CHOICE', ESCALA_LIKERT: 'LIKERT', LIKERT: 'LIKERT', PERSONA: 'PERSON', PERSON: 'PERSON',
+    AREA: 'AREA', TURNO: 'SHIFT', SHIFT: 'SHIFT', ARCHIVO: 'FILE', FILE: 'FILE', FOTOGRAFIA: 'PHOTO', PHOTO: 'PHOTO', PDF: 'PDF', DOCUMENTO: 'DOCUMENT', DOCUMENT: 'DOCUMENT',
+    CAMPO_CALCULADO: 'CALCULATED', CALCULATED: 'CALCULATED', CAMPO_OCULTO: 'HIDDEN', HIDDEN: 'HIDDEN', SECCION: 'SECTION', SECTION: 'SECTION'
+  });
+  const SERVER_TYPE = Object.freeze({ SHORT_TEXT: 'TEXTO_CORTO', LONG_TEXT: 'TEXTO_LARGO', NUMBER: 'NUMERO', DATE: 'FECHA', DATETIME: 'FECHA_HORA', TIME: 'HORA', YES_NO: 'SI_NO', DROPDOWN: 'LISTA_DESPLEGABLE', SINGLE_CHOICE: 'SELECCION_UNICA', MULTIPLE_CHOICE: 'SELECCION_MULTIPLE', LIKERT: 'ESCALA_LIKERT', PERSON: 'PERSONA', AREA: 'AREA', SHIFT: 'TURNO', FILE: 'ARCHIVO', PHOTO: 'FOTOGRAFIA', PDF: 'PDF', DOCUMENT: 'DOCUMENTO', CALCULATED: 'CAMPO_CALCULADO', HIDDEN: 'CAMPO_OCULTO', SECTION: 'SECCION' });
+  const TYPE_LABELS = Object.freeze({ SHORT_TEXT: 'Texto corto', LONG_TEXT: 'Texto largo', NUMBER: 'Número', DATE: 'Fecha', DATETIME: 'Fecha y hora', TIME: 'Hora', YES_NO: 'Sí / No', DROPDOWN: 'Lista desplegable', SINGLE_CHOICE: 'Selección única', MULTIPLE_CHOICE: 'Selección múltiple', LIKERT: 'Escala Likert', PERSON: 'Persona / colaborador', AREA: 'Área', SHIFT: 'Turno', FILE: 'Archivo', PHOTO: 'Fotografía', PDF: 'PDF', DOCUMENT: 'Documento', CALCULATED: 'Campo calculado', HIDDEN: 'Campo oculto', SECTION: 'Sección' });
+
+  const state = {
+    boot: null, user: {}, permissions: {}, catalogs: {}, publishedForms: [], view: 'dashboard', routeContext: {},
+    dashboard: null, formDefinition: null, formAnswers: {}, selectedFiles: new Map(), currentFormId: '', forms: [], formAdmin: null,
+    search: { page: 1, pageSize: 25, result: null, filters: {}, columns: [] }, cases: { page: 1, result: null },
+    currentCase: null, currentCaseId: '', currentCaseTable: 'Casos', catalogData: null, currentCatalogType: '', admin: null,
+    importPayload: null, importValidation: null, pendingCaseFiles: [], lastListView: 'cases'
+  };
+  const personSearchTimers = new Map();
+
+  const $ = (selector, root = document) => root.querySelector(selector);
+  const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+  const byId = id => document.getElementById(id);
+  const norm = value => String(value == null ? '' : value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '').toUpperCase();
+  const bool = value => value === true || value === 1 || ['TRUE','VERDADERO','SI','YES','1','ACTIVO','ACTIVE','HABILITADO','ENABLED'].includes(norm(value));
+  const questionType = question => TYPE_ALIASES[norm(question.Tipo ?? question.type)] || norm(question.Tipo ?? question.type);
+  const valueOf = (object, ...keys) => { for (const key of keys) if (object && object[key] !== undefined && object[key] !== null) return object[key]; return ''; };
+  const arrayOf = value => Array.isArray(value) ? value : (value == null ? [] : [value]);
+  const clear = node => { if (node) node.replaceChildren(); return node; };
+  const textNode = value => document.createTextNode(String(value == null ? '' : value));
+  const el = (tag, attrs = {}, children = []) => {
+    const node = document.createElement(tag);
+    Object.entries(attrs).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === false) return;
+      if (key === 'class') node.className = value;
+      else if (key === 'text') node.textContent = String(value);
+      else if (key === 'dataset') Object.entries(value).forEach(([dataKey, dataValue]) => { node.dataset[dataKey] = String(dataValue); });
+      else if (key === 'checked' || key === 'disabled' || key === 'required' || key === 'readonly' || key === 'multiple' || key === 'selected') node[key === 'readonly' ? 'readOnly' : key] = Boolean(value);
+      else if (key.startsWith('on') && typeof value === 'function') node.addEventListener(key.slice(2).toLowerCase(), value);
+      else node.setAttribute(key, String(value));
+    });
+    arrayOf(children).flat().forEach(child => node.append(child instanceof Node ? child : textNode(child)));
+    return node;
+  };
+  const option = (value, label, selected = false) => el('option', { value, text: label, selected });
+  const formatDate = value => {
+    if (!value) return '—';
+    const raw = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T12:00:00` : value;
+    const date = new Date(raw); return Number.isNaN(date.getTime()) ? String(value) : new Intl.DateTimeFormat('es-EC', { dateStyle: 'medium' }).format(date);
+  };
+  const formatDateTime = value => { const date = new Date(value); return !value || Number.isNaN(date.getTime()) ? (value || '—') : new Intl.DateTimeFormat('es-EC', { dateStyle: 'medium', timeStyle: 'short' }).format(date); };
+  const formatBytes = bytes => { const amount = Number(bytes) || 0; if (amount < 1024) return `${amount} B`; if (amount < 1048576) return `${(amount/1024).toFixed(1)} KB`; return `${(amount/1048576).toFixed(1)} MB`; };
+  const labelize = value => String(value || '').replace(/([a-záéíóú])([A-ZÁÉÍÓÚ])/g,'$1 $2').replace(/_/g,' ').replace(/^./, letter => letter.toUpperCase());
+  const safeId = value => `f-${String(value || crypto.randomUUID()).replace(/[^A-Za-z0-9_-]/g,'-')}`;
+  const clientId = () => (globalThis.crypto && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+
+  function rpc(method, ...args) {
+    return new Promise((resolve, reject) => {
+      if (!globalThis.google || !google.script || !google.script.run) {
+        reject(new Error('La aplicación debe ejecutarse desde Google Apps Script.'));
+        return;
+      }
+      const runner = google.script.run
+        .withSuccessHandler(response => {
+          if (response && response.ok === false) {
+            const error = new Error(valueOf(response.error, 'message') || response.message || 'No fue posible completar la operación.');
+            error.code = valueOf(response.error, 'code') || 'APP_ERROR';
+            error.details = valueOf(response.error, 'details') || null;
+            error.correlationId = response.correlationId || valueOf(response.error, 'correlationId');
+            reject(error); return;
+          }
+          resolve(response && Object.prototype.hasOwnProperty.call(response, 'data') ? response.data : response);
+        })
+        .withFailureHandler(serverError => {
+          const error = new Error(serverError && serverError.message ? serverError.message : 'No fue posible comunicarse con el servidor.');
+          error.code = 'TRANSPORT_ERROR'; reject(error);
+        });
+      try { runner[method](...args); } catch (error) { reject(error); }
+    });
+  }
+
+  function toast(title, message = '', type = 'success', timeout = 5000) {
+    const region = byId('toast-region');
+    const item = el('div', { class: `toast toast--${type}`, role: type === 'error' ? 'alert' : 'status' }, [
+      el('span', { text: type === 'error' ? '!' : type === 'warning' ? '△' : '✓', 'aria-hidden': 'true' }),
+      el('div', {}, [el('strong', { text: title }), message ? el('p', { text: message }) : '']),
+      el('button', { type: 'button', text: '×', 'aria-label': 'Cerrar', onclick: () => item.remove() })
+    ]);
+    region.append(item); if (timeout) setTimeout(() => item.remove(), timeout);
+  }
+  function showError(error, title = 'No fue posible completar la acción') {
+    const reference = error && error.correlationId ? ` Referencia: ${error.correlationId}.` : '';
+    toast(title, `${error && error.message ? error.message : 'Error al procesar.'}${reference}`, 'error', 8000);
+  }
+  function setLoading(container, active = true) {
+    if (!container) return;
+    if (active) container.replaceChildren(byId('loading-template').content.cloneNode(true));
+  }
+  function setButtonBusy(button, active, busyText = 'Procesando…') {
+    if (!button) return;
+    if (active) { button.dataset.originalText = button.textContent; button.textContent = busyText; button.disabled = true; }
+    else { button.textContent = button.dataset.originalText || button.textContent; button.disabled = false; delete button.dataset.originalText; }
+  }
+  function can(module, action = 'read') {
+    const permission = state.permissions[norm(module)] || {};
+    return Boolean(permission[action] ?? permission[`Puede${action.charAt(0).toUpperCase()}${action.slice(1)}`]);
+  }
+  function catalog(type) { return arrayOf(state.catalogs[norm(type)]); }
+  function catalogLabel(type, value) {
+    const key = String(value ?? '');
+    const item = catalog(type).find(row => String(valueOf(row,'Codigo','IdCatalogo','Valor')) === key || String(valueOf(row,'Valor')) === key);
+    return item ? valueOf(item,'Valor','Etiqueta','Codigo') : (value || '—');
+  }
+  function fillSelect(select, rows, { placeholder = 'Seleccionar…', valueKey = 'Codigo', labelKey = 'Valor', keep = '' } = {}) {
+    if (!select) return;
+    const selected = keep || select.value;
+    select.replaceChildren(option('', placeholder));
+    arrayOf(rows).forEach(row => select.append(option(valueOf(row,valueKey,'value','IdCatalogo'), valueOf(row,labelKey,'label','Etiqueta','Codigo'), String(valueOf(row,valueKey,'value','IdCatalogo')) === String(selected))));
+  }
+
+  async function init() {
+    bindGlobalEvents();
+    try {
+      const boot = await rpc(API.bootstrap);
+      state.boot = boot || {}; state.user = boot.user || {}; state.permissions = boot.permissions || {}; state.catalogs = boot.catalogs || {}; state.publishedForms = boot.publishedForms || [];
+      hydrateShell(); applyPermissions(); hydrateCommonCatalogs();
+      byId('app').setAttribute('aria-busy','false'); byId('boot-screen').hidden = true;
+      const initial = location.hash.replace(/^#/,'').split('/')[0] || 'dashboard';
+      navigate($(`[data-view="${CSS.escape(initial)}"]`) ? initial : 'dashboard', {}, false);
+    } catch (error) {
+      const boot = byId('boot-screen'); clear(boot).append(el('div',{class:'boot-card'},[el('span',{class:'brand-mark brand-mark--large',text:'TS'}),el('strong',{text:'No se pudo iniciar la aplicación'}),el('p',{class:'page-description',text:error.message || 'Verifique la configuración y su acceso.'}),el('button',{class:'button button--primary',type:'button',text:'Reintentar',onclick:()=>location.reload()})]));
+    }
+  }
+
+  function hydrateShell() {
+    const app = state.boot.app || {};
+    byId('app-name').textContent = app.name || 'Gestión de Trabajo Social'; document.title = app.name || document.title;
+    byId('app-version').textContent = `Versión ${app.version || '1.0'}`;
+    byId('user-name').textContent = state.user.name || state.user.email || 'Usuario'; byId('user-role').textContent = state.user.roleName || 'Sin rol'; byId('user-email').textContent = state.user.email || '—';
+    byId('dashboard-user-name').textContent = (state.user.name || state.user.email || 'usuario').split(' ')[0];
+    byId('user-avatar').textContent = (state.user.name || state.user.email || 'U').split(/\s+/).slice(0,2).map(part=>part.charAt(0)).join('').toUpperCase();
+    byId('file-policy').textContent = `${arrayOf(app.allowedExtensions).map(ext=>String(ext).toUpperCase()).join(', ')}. Máximo ${formatBytes(app.maxFileBytes)} por archivo.`;
+    state.search.pageSize = Number(app.pageSize) || 25; byId('search-page-size').value = String([10,25,50].includes(state.search.pageSize) ? state.search.pageSize : 25);
+  }
+  function applyPermissions() {
+    $$('[data-module]').forEach(node => {
+      const action = node.dataset.permissionAction || 'read';
+      node.hidden = !can(node.dataset.module, action);
+    });
+    $$('[data-permission]').forEach(node => { const [module, action='read'] = node.dataset.permission.split(':'); node.hidden = !can(module, action); });
+  }
+  function hydrateCommonCatalogs() {
+    $$('[data-catalog]').forEach(select => fillSelect(select, catalog(select.dataset.catalog), { placeholder: select.options[0]?.textContent || 'Seleccionar…' }));
+    fillSelect(byId('case-status-filter'), catalog('ESTADO_CASO'), { placeholder:'Todos los estados' });
+    fillSelect(byId('case-priority-filter'), catalog('PRIORIDAD'), { placeholder:'Todas las prioridades' });
+    fillSelect(byId('search-status'), [...catalog('ESTADO_CASO'),...catalog('ESTADO')], { placeholder:'Todos' });
+    fillSelect(byId('search-type'), [...catalog('TIPO_CASO'),...catalog('TIPO_ATENCION'),...catalog('TIPO_NOVEDAD')], { placeholder:'Todos' });
+    fillSelect(byId('document-category-filter'), catalog('TIPO_DOCUMENTO'), { placeholder:'Todas las categorías' });
+    fillSelect(byId('file-category'), catalog('TIPO_DOCUMENTO'));
+  }
+
+  function bindGlobalEvents() {
+    document.addEventListener('click', event => {
+      const nav = event.target.closest('[data-nav]');
+      if (nav && !nav.hidden && !nav.disabled) { event.preventDefault(); navigate(nav.dataset.nav, { process: nav.dataset.process, recordType: nav.dataset.recordType }); return; }
+      const close = event.target.closest('[data-dialog-close]'); if (close) { close.closest('dialog')?.close(); return; }
+      if (!event.target.closest('#user-menu-button') && !event.target.closest('#user-menu')) byId('user-menu').hidden = true;
+    });
+    byId('sidebar-toggle').addEventListener('click', toggleSidebar);
+    byId('sidebar-scrim').addEventListener('click', closeSidebar);
+    byId('user-menu-button').addEventListener('click', () => { const menu=byId('user-menu'); menu.hidden=!menu.hidden; byId('user-menu-button').setAttribute('aria-expanded',String(!menu.hidden)); });
+    byId('global-search-trigger').addEventListener('click', () => navigate('search'));
+    document.addEventListener('keydown', event => {
+      if (event.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { event.preventDefault(); navigate('search'); setTimeout(()=>byId('search-query').focus(),50); }
+      if (event.key === 'Escape') closeSidebar();
+    });
+    $$('dialog').forEach(dialog => dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); }));
+    $('[data-action="refresh-session"]').addEventListener('click', () => location.reload());
+    bindDashboard(); bindDynamicForm(); bindFormBuilder(); bindCases(); bindSearch(); bindCatalogs(); bindAdmin();
+  }
+  function toggleSidebar() { const sidebar=byId('sidebar'); const open=!sidebar.classList.contains('is-open'); sidebar.classList.toggle('is-open',open); byId('sidebar-scrim').hidden=!open; byId('sidebar-toggle').setAttribute('aria-expanded',String(open)); }
+  function closeSidebar() { byId('sidebar').classList.remove('is-open'); byId('sidebar-scrim').hidden=true; byId('sidebar-toggle').setAttribute('aria-expanded','false'); }
+
+  function navigate(view, context = {}, pushHash = true) {
+    const access={dashboard:['DASHBOARD','read'],cases:['CASOS','read'],search:['BUSQUEDA','read'],'form-builder':['FORMULARIOS','edit'],catalogs:['CATALOGOS','read'],documents:['DOCUMENTOS','read'],reports:['REPORTES','read'],admin:['ADMINISTRACION','read']};
+    if(access[view]&&!can(access[view][0],access[view][1])){toast('No tiene permisos para este módulo','','warning');if(view!=='dashboard')return navigate('dashboard',{},pushHash);return;}
+    if(view==='capture'){const module={ATENCION:'ATENCIONES',CASO:'CASOS',NOVEDAD:'NOVEDADES',RECORRIDO:'RECORRIDOS'}[norm(context.process||'CASO')]||'RESPUESTAS';if(!can(module,'create')){toast('No tiene permisos para crear este registro','','warning');return navigate('dashboard',{},pushHash);}}
+    const target = byId(`view-${view}`);
+    if (!target) return;
+    state.view = view; state.routeContext = context;
+    $$('.view').forEach(section => { const active=section===target; section.hidden=!active; section.classList.toggle('is-active',active); });
+    $$('.nav-item').forEach(item => item.classList.toggle('is-active', item.dataset.nav===view || (view==='case-detail' && item.dataset.nav==='cases')));
+    if (pushHash && location.hash !== `#${view}`) history.replaceState(null,'',`#${view}`);
+    closeSidebar(); byId('main-content').focus({preventScroll:true}); scrollTo({top:0,behavior:'smooth'});
+    if (view === 'dashboard') loadDashboard();
+    else if (view === 'capture') openCapture(context.process || 'CASO');
+    else if (view === 'form-builder') loadForms();
+    else if (view === 'cases') loadCases();
+    else if (view === 'search') { if (context.recordType) byId('search-record-type').value=context.recordType; if (context.recordType || state.search.result) performSearch(1); }
+    else if (view === 'catalogs') loadCatalogs();
+    else if (view === 'admin') loadAdministration();
+    else if (view === 'documents') loadDocuments();
+  }
+
+  function bindDashboard() {
+    $('[data-action="refresh-dashboard"]').addEventListener('click', loadDashboard);
+    byId('dashboard-period').addEventListener('change', loadDashboard);
+  }
+  async function loadDashboard() {
+    if (!can('DASHBOARD','read')) return;
+    const container=byId('dashboard-kpis'); container.replaceChildren(...Array.from({length:4},()=>el('article',{class:'kpi-card skeleton-card'})));
+    try { state.dashboard=await rpc(API.dashboard); renderDashboard(state.dashboard || {}); } catch(error) { showError(error,'No se pudo cargar el resumen'); clear(container).append(el('p',{class:'empty-state',text:'No hay indicadores disponibles.'})); }
+  }
+  function renderDashboard(data) {
+    const kpis = [
+      ['Casos abiertos',valueOf(data,'casesOpen','casosAbiertos'), '◇','CASOS','read'], ['Casos cerrados',valueOf(data,'casesClosed','casosCerrados'),'✓','CASOS','read'],
+      ['Seguimientos próximos',valueOf(data,'upcomingFollowUps','seguimientosProximos'),'↻','SEGUIMIENTOS','read'], ['Compromisos vencidos',valueOf(data,'overdueCommitments','compromisosVencidos'),'!','COMPROMISOS','read'],
+      ['Novedades pendientes',valueOf(data,'pendingNews','novedadesPendientes'),'!','NOVEDADES','read'], ['Recorridos realizados',valueOf(data,'toursCompleted','recorridosRealizados'),'↗','RECORRIDOS','read']
+    ].filter(item=>can(item[4],item[5]));
+    const container=clear(byId('dashboard-kpis'));
+    kpis.forEach(([label,value,icon]) => container.append(el('article',{class:'kpi-card'},[el('div',{class:'kpi-label'},[el('span',{text:label}),el('span',{class:'kpi-icon',text:icon,'aria-hidden':'true'})]),el('strong',{class:'kpi-value',text:Number(value)||0}),el('span',{class:`kpi-trend${label.includes('vencidos')&&Number(value)>0?' is-alert':''}`,text:label.includes('vencidos')&&Number(value)>0?'Requiere atención':'Actualizado ahora'})])));
+    if (!kpis.length) container.append(el('p',{class:'empty-state compact',text:'No tiene indicadores habilitados.'}));
+    const status=clear(byId('cases-by-status'));
+    const breakdown=valueOf(data,'casesByStatus','casosPorEstado');
+    if (breakdown && typeof breakdown==='object' && Object.keys(breakdown).length) { const max=Math.max(...Object.values(breakdown).map(Number),1); Object.entries(breakdown).forEach(([name,count])=>status.append(el('div',{class:'bar-row'},[el('span',{text:labelize(name)}),el('div',{class:'bar-track'},el('div',{class:'bar-fill',style:`width:${Math.max(2,Number(count)/max*100)}%`})),el('strong',{text:count})]))); }
+    else status.append(el('p',{class:'empty-state compact',text:'El servicio entrega totales consolidados; use Consulta general para ver el detalle permitido.'}));
+    clear(byId('upcoming-followups')).append(el('p',{class:'empty-state compact',text:Number(valueOf(data,'upcomingFollowUps'))?`${valueOf(data,'upcomingFollowUps')} seguimiento(s) próximo(s). Consulte la agenda para el detalle.`:'No hay seguimientos próximos.'}));
+    clear(byId('recent-activity')).append(el('p',{class:'empty-state compact',text:`Resumen actualizado ${formatDateTime(valueOf(data,'generatedAt') || new Date())}.`}));
+  }
+
+  function bindDynamicForm() {
+    byId('published-form-select').addEventListener('change', event => event.target.value && loadFormDefinition(event.target.value));
+    byId('dynamic-form').addEventListener('submit', submitDynamicForm);
+    byId('dynamic-form').addEventListener('input', onDynamicInput);
+    byId('dynamic-form').addEventListener('change', onDynamicInput);
+    $$('[data-action="save-draft"]').forEach(button => button.addEventListener('click', () => saveDynamicForm(true, button)));
+    $('[data-action="cancel-form"]').addEventListener('click', () => confirmAction({title:'Descartar cambios',message:'Los cambios no guardados se perderán.',confirmText:'Descartar'}).then(ok=>{ if(ok) navigate('dashboard'); }));
+  }
+  function openCapture(process) {
+    state.routeContext.process=norm(process || 'CASO');
+    const label={ATENCION:'Nueva atención',CASO:'Nuevo caso',NOVEDAD:'Nueva novedad',RECORRIDO:'Nuevo recorrido',SEGUIMIENTO:'Nuevo seguimiento',DERIVACION:'Nueva derivación',COMPROMISO:'Nuevo compromiso'}[state.routeContext.process] || 'Nuevo registro';
+    byId('capture-eyebrow').textContent=label; byId('capture-title').textContent='Seleccionar formulario'; byId('process-type').value=state.routeContext.process;
+    const forms=state.publishedForms.filter(form=>!valueOf(form,'Proceso') || norm(valueOf(form,'Proceso'))===state.routeContext.process);
+    const select=byId('published-form-select'); select.replaceChildren(option('',forms.length?'Seleccione un formulario…':'No hay formularios publicados'));
+    forms.forEach(form=>select.append(option(valueOf(form,'IdFormulario','id'),valueOf(form,'Nombre','name'))));
+    resetDynamicForm();
+    if(forms.length===1){ select.value=valueOf(forms[0],'IdFormulario','id'); loadFormDefinition(select.value); }
+  }
+  function resetDynamicForm() {
+    state.formDefinition=null; state.formAnswers={}; state.selectedFiles.clear(); state.currentFormId='';
+    byId('dynamic-form').reset(); byId('process-type').value=state.routeContext.process || '';
+    byId('dynamic-form-container').replaceChildren(el('article',{class:'card empty-panel'},[el('span',{class:'empty-icon',text:'✎','aria-hidden':'true'}),el('h2',{text:'Seleccione un formulario'}),el('p',{text:'La configuración publicada se cargará aquí.'})]));
+    byId('form-submit-actions').hidden=true; clear(byId('form-section-nav')); setDraftStatus('Sin cambios');
+  }
+  async function loadFormDefinition(formId) {
+    const container=byId('dynamic-form-container'); setLoading(container);
+    try {
+      const definition=await rpc(API.formDefinition,formId); state.formDefinition=definition; state.currentFormId=formId; state.formAnswers={}; state.selectedFiles.clear();
+      byId('form-id').value=formId; byId('response-id').value=''; byId('record-id').value='';
+      const form=definition.form || {}; byId('capture-title').textContent=valueOf(form,'Nombre','name') || 'Formulario'; byId('capture-description').textContent=valueOf(form,'Descripcion','description') || 'Complete la información requerida.';
+      renderFormDefinition(definition,container,false); byId('form-submit-actions').hidden=false; setDraftStatus('Sin cambios');
+    } catch(error) { showError(error,'No se pudo cargar el formulario'); clear(container).append(el('p',{class:'empty-state',text:'El formulario no está disponible.'})); }
+  }
+  function normalizedOptions(question) {
+    const raw=arrayOf(valueOf(question,'Opciones','options'));
+    if(raw.length) return raw.map((item,index)=>typeof item==='object'?{value:valueOf(item,'Valor','value','Codigo','IdCatalogo'),label:valueOf(item,'Etiqueta','label','Valor','value'),id:valueOf(item,'IdOpcion','id'),parentId:valueOf(item,'IdOpcionPadre','parentId'),order:valueOf(item,'Orden','order')||index+1}:{value:String(item),label:String(item),order:index+1});
+    const type=questionType(question); const catalogType=valueOf(question,'Catalogo','TipoCatalogo') || ({AREA:'AREA',SHIFT:'TURNO',PERSON:'PERSONA'}[type]);
+    return catalogType?catalog(catalogType).map((item,index)=>({value:valueOf(item,'Codigo','IdCatalogo','Valor'),label:valueOf(item,'Valor','Etiqueta','Codigo'),id:valueOf(item,'IdCatalogo'),parentId:valueOf(item,'IdCatalogoPadre'),parentCode:valueOf(item,'CodigoPadre'),order:valueOf(item,'Orden')||index+1})):[];
+  }
+  function questionId(question) { return String(valueOf(question,'IdPregunta','id','questionId')); }
+  function renderFormDefinition(definition,container,preview=false) {
+    clear(container); const questions=arrayOf(definition.questions || definition.preguntas).filter(question=>(valueOf(question,'Activo','active')===''||bool(valueOf(question,'Activo','active')))&&(valueOf(question,'Visible','visible')===''||bool(valueOf(question,'Visible','visible'))));
+    const sections=[]; let current={id:'general',title:valueOf(definition.form,'Nombre') || 'Información general',description:valueOf(definition.form,'Descripcion'),questions:[]}; sections.push(current);
+    questions.forEach(question=>{ if(questionType(question)==='SECTION'){ current={id:questionId(question)||`section-${sections.length}`,title:valueOf(question,'Etiqueta','label')||'Sección',description:valueOf(question,'Descripcion','description'),questions:[]}; sections.push(current); } else current.questions.push(question); });
+    if(sections.length>1 && !sections[0].questions.length) sections.shift();
+    const nav=preview?null:clear(byId('form-section-nav'));
+    sections.forEach((section,index)=>{
+      const sectionId=`section-${safeId(section.id)}`;
+      const card=el('section',{class:'card form-section-card',id:sectionId,dataset:{sectionIndex:index}},[el('header',{},[el('p',{class:'eyebrow',text:`Sección ${index+1} de ${sections.length}`}),el('h2',{text:section.title}),section.description?el('p',{text:section.description}):'']),el('div',{class:'dynamic-fields'})]);
+      const fields=$('.dynamic-fields',card); section.questions.forEach(question=>fields.append(renderQuestion(question,preview)));
+      if(!section.questions.length) fields.append(el('p',{class:'empty-state compact',text:'Esta sección no contiene preguntas visibles.'})); container.append(card);
+      if(nav){ const button=el('button',{type:'button',class:index===0?'is-active':'',text:section.title,onclick:()=>card.scrollIntoView({behavior:'smooth',block:'start'})}); nav.append(button); }
+    });
+    if(!sections.length) container.append(el('article',{class:'card empty-panel'},[el('h2',{text:'Formulario sin preguntas'}),el('p',{text:'El administrador debe agregar preguntas antes de usar este formulario.'})]));
+    updateConditionalVisibility(preview?container:byId('dynamic-form')); updateCalculatedFields(preview?container:byId('dynamic-form'));
+  }
+  function renderQuestion(question,preview=false) {
+    const id=questionId(question), type=questionType(question), required=bool(valueOf(question,'Obligatoria','required')), readOnly=bool(valueOf(question,'SoloLectura','readonly')) || type==='CALCULATED';
+    const wrapper=el('div',{class:`dynamic-field${['LONG_TEXT','FILE','PHOTO','PDF','DOCUMENT','MULTIPLE_CHOICE','SINGLE_CHOICE','LIKERT'].includes(type)?' is-full':''}`,dataset:{questionId:id,questionType:type}});
+    const label=valueOf(question,'Etiqueta','label') || 'Sin etiqueta', description=valueOf(question,'Descripcion','description'), help=valueOf(question,'TextoAyuda','helpText'), defaultValue=valueOf(question,'ValorPredeterminado','defaultValue');
+    if(type==='HIDDEN'){ wrapper.hidden=true; wrapper.append(el('input',{type:'hidden',name:id,value:defaultValue})); return wrapper; }
+    const labelNode=el('label',{for:safeId(id)},[label,required?el('span',{class:'required-mark',text:' *'}):'']); wrapper.append(labelNode); if(description) wrapper.append(el('p',{class:'field-description',text:description}));
+    const common={id:safeId(id),name:id,required:required&&!preview,readonly:readOnly,disabled:preview&&false,'aria-describedby':help?`${safeId(id)}-help`:null}; let control;
+    if(type==='LONG_TEXT') control=el('textarea',{...common,rows:'4',maxlength:valueOf(question,'LongitudMaxima')||50000,placeholder:help||'',text:defaultValue});
+    else if(type==='PERSON'){
+      control=el('div',{class:'person-picker'},[el('input',{id:safeId(id),type:'search',value:'',placeholder:help||'Escriba nombre, cédula o código…',autocomplete:'off',required:required&&!preview,dataset:{personSearch:'true',personQuestion:id}}),el('input',{type:'hidden',name:id,value:defaultValue}),el('div',{class:'person-suggestions',role:'listbox',hidden:true})]);
+    }
+    else if(['SHORT_TEXT','NUMBER','DATE','DATETIME','TIME','AREA','SHIFT','CALCULATED'].includes(type)){
+      if(['AREA','SHIFT'].includes(type) && normalizedOptions(question).length){ control=el('select',common,[option('','Seleccionar…'),...normalizedOptions(question).map(item=>option(item.value,item.label,String(item.value)===String(defaultValue)))]); }
+      else { const inputType={NUMBER:'number',DATE:'date',DATETIME:'datetime-local',TIME:'time'}[type]||'text'; control=el('input',{...common,type:inputType,value:defaultValue,maxlength:valueOf(question,'LongitudMaxima')||null,placeholder:help||'',autocomplete:type==='PERSON'?'off':null}); }
+    }
+    else if(type==='YES_NO') control=choiceControl(question,[{value:'true',label:'Sí'},{value:'false',label:'No'}],false,preview);
+    else if(type==='DROPDOWN') control=el('select',common,[option('','Seleccionar…'),...normalizedOptions(question).map(item=>option(item.value,item.label,String(item.value)===String(defaultValue)))]);
+    else if(type==='SINGLE_CHOICE') control=choiceControl(question,normalizedOptions(question),false,preview);
+    else if(type==='MULTIPLE_CHOICE') control=choiceControl(question,normalizedOptions(question),true,preview);
+    else if(type==='LIKERT'){ const items=normalizedOptions(question).length?normalizedOptions(question):[1,2,3,4,5].map(n=>({value:n,label:n})); control=choiceControl(question,items,false,preview,true); }
+    else if(['FILE','PHOTO','PDF','DOCUMENT'].includes(type)){
+      const accept={PHOTO:'image/jpeg,image/png',PDF:'application/pdf',DOCUMENT:'.doc,.docx,.xls,.xlsx',FILE:arrayOf(state.boot?.app?.allowedExtensions).map(ext=>`.${ext}`).join(',')}[type];
+      control=el('div',{class:'file-field'},[el('input',{...common,type:'file',multiple:true,accept,dataset:{fileQuestion:id}}),el('small',{class:'field-help',text:`Máximo ${formatBytes(state.boot?.app?.maxFileBytes)} por archivo.`})]);
+    } else control=el('input',{...common,type:'text',value:defaultValue});
+    wrapper.append(control); if(help) wrapper.append(el('small',{class:'field-help',id:`${safeId(id)}-help`,text:help}));
+    if(bool(valueOf(question,'Sensibilidad','sensitive'))) wrapper.append(el('small',{class:'field-help',text:'▣ Campo sensible: acceso restringido y auditado.'}));
+    return wrapper;
+  }
+  function choiceControl(question,items,multiple,preview,likert=false) {
+    const id=questionId(question), group=el('div',{class:likert?'likert-group':'choice-group',role:multiple?'group':'radiogroup'}), defaults=String(valueOf(question,'ValorPredeterminado')).split('|');
+    items.forEach((item,index)=>{ const value=typeof item==='object'?item.value:item, label=typeof item==='object'?item.label:item; const input=el('input',{type:multiple?'checkbox':'radio',name:id,value,checked:defaults.includes(String(value)),disabled:preview,id:`${safeId(id)}-${index}`}); group.append(el('label',{class:likert?'likert-option':'choice-option',for:input.id},[input,el('span',{text:label})])); }); return group;
+  }
+  function onDynamicInput(event) {
+    const field=event.target.closest('[data-question-id]'); if(!field) return;
+    if(event.target.dataset.personSearch){const hidden=$(`[name="${CSS.escape(field.dataset.questionId)}"]`,field);hidden.value='';delete event.target.dataset.selectedName;schedulePersonSearch(event.target,field.dataset.questionId);}
+    if(event.target.type==='file') handleDynamicFiles(event.target,field.dataset.questionId); else state.formAnswers[field.dataset.questionId]=readQuestionValue(field.dataset.questionId);
+    updateConditionalVisibility(); updateCalculatedFields(); setDraftStatus('Cambios sin guardar'); scheduleAutoDraft();
+    const dependent=state.formDefinition?.questions?.filter(q=>String(valueOf(q,'CampoDependiente'))===field.dataset.questionId && valueOf(q,'Catalogo','TipoCatalogo')) || [];
+    dependent.forEach(q=>loadDependentOptions(q,state.formAnswers[field.dataset.questionId]));
+  }
+  function schedulePersonSearch(input,id){clearTimeout(personSearchTimers.get(id));const suggestions=$('.person-suggestions',input.parentElement);if(input.value.trim().length<2){suggestions.hidden=true;clear(suggestions);return;}personSearchTimers.set(id,setTimeout(async()=>{suggestions.hidden=false;clear(suggestions).append(el('p',{class:'empty-state compact',text:'Buscando…'}));try{const result=await rpc(API.search,{table:'Personas',q:input.value.trim(),page:1,pageSize:8});clear(suggestions);arrayOf(result.items).forEach(item=>{const row=item.record||{};suggestions.append(el('button',{type:'button',role:'option',onclick:()=>{const hidden=$(`[name="${CSS.escape(id)}"]`,input.parentElement);hidden.value=item.id;input.value=valueOf(row,'Nombre')||item.id;input.dataset.selectedName=valueOf(row,'Nombre')||'';suggestions.hidden=true;clear(suggestions);state.formAnswers[id]=item.id;updateConditionalVisibility();setDraftStatus('Cambios sin guardar');}},[el('strong',{text:valueOf(row,'Nombre')||'Persona'}),el('small',{text:[valueOf(row,'CodigoEmpleado'),valueOf(row,'Cedula'),valueOf(row,'Area')].filter(Boolean).join(' · ')})]));});if(!suggestions.children.length)suggestions.append(el('p',{class:'empty-state compact',text:'Sin coincidencias.'}));}catch(error){clear(suggestions).append(el('p',{class:'empty-state compact',text:'No fue posible buscar personas.'}));}},350));}
+  function readQuestionValue(id,root=byId('dynamic-form')) {
+    const controls=$$(`[name="${CSS.escape(String(id))}"]`,root); if(!controls.length) return '';
+    const first=controls[0]; if(first.type==='checkbox') return controls.filter(control=>control.checked).map(control=>control.value); if(first.type==='radio') return controls.find(control=>control.checked)?.value || ''; if(first.type==='file') return arrayOf(state.selectedFiles.get(String(id))).map(file=>file.name); return first.value;
+  }
+  function questionsForRoot(root){return arrayOf(root===byId('preview-container')?state.formAdmin?.questions:state.formDefinition?.questions);}
+  function currentAnswers(root=byId('dynamic-form')) { const answers={}; questionsForRoot(root).forEach(question=>{ if(questionType(question)!=='SECTION') answers[questionId(question)]=readQuestionValue(questionId(question),root); }); return answers; }
+  function conditionFor(question) {
+    let parsed={}; try { parsed=JSON.parse(valueOf(question,'CondicionVisibilidad')||'{}'); } catch(ignore) {}
+    return {source:String(valueOf(question,'CampoDependiente')||parsed.questionId||parsed.field||''),operator:norm(parsed.operator||parsed.operador||'EQUALS'),expected:parsed.value!==undefined?parsed.value:valueOf(question,'ValorDependiente')};
+  }
+  function compareCondition(actual,operator,expected) {
+    const values=arrayOf(actual).map(String), targets=arrayOf(expected).flatMap(item=>String(item).split('|'));
+    if(['EQUALS','EQ','IGUAL'].includes(operator)) return values.some(value=>targets.includes(value));
+    if(['NOT_EQUALS','NE','DISTINTO'].includes(operator)) return !values.some(value=>targets.includes(value));
+    if(['INCLUDES','CONTAINS','CONTIENE'].includes(operator)) return values.some(value=>targets.some(target=>value.toLowerCase().includes(target.toLowerCase())));
+    if(operator==='IN') return values.some(value=>targets.includes(value)); if(operator==='NOT_EMPTY') return values.some(value=>value.trim()!==''); if(operator==='EMPTY') return !values.some(value=>value.trim()!==''); return false;
+  }
+  function updateConditionalVisibility(root=byId('dynamic-form')) {
+    const answers=currentAnswers(root); questionsForRoot(root).forEach(question=>{ const condition=conditionFor(question); if(!condition.source) return; const wrapper=$(`[data-question-id="${CSS.escape(questionId(question))}"]`,root); if(!wrapper)return; const visible=compareCondition(answers[condition.source],condition.operator,condition.expected); wrapper.hidden=!visible; $$('input,select,textarea',wrapper).forEach(control=>{ if(control.dataset.originalRequired===undefined) control.dataset.originalRequired=String(control.required); control.required=visible&&control.dataset.originalRequired==='true'; }); });
+  }
+  function updateCalculatedFields(root=byId('dynamic-form')) {
+    const answers=currentAnswers(root); questionsForRoot(root).filter(q=>questionType(q)==='CALCULATED').forEach(question=>{ const formula=String(valueOf(question,'Formula','formula')).trim(), input=$(`[name="${CSS.escape(questionId(question))}"]`,root); if(!input)return; let result=valueOf(question,'ValorPredeterminado'); let match=formula.match(/^SUM\(([^)]+)\)$/i); if(match) result=match[1].split(',').reduce((sum,id)=>sum+(Number(answers[id.trim()])||0),0); match=formula.match(/^CONCAT\(([^)]+)\)$/i); if(match) result=match[1].split(',').map(id=>answers[id.trim()]||'').join(' ').trim(); if(/^TODAY\(\)$/i.test(formula)) result=new Date().toISOString().slice(0,10); input.value=result; if(root!==byId('preview-container'))state.formAnswers[questionId(question)]=result; });
+  }
+  async function loadDependentOptions(question,parentValue) {
+    const select=$(`[name="${CSS.escape(questionId(question))}"]`); if(!select || select.tagName!=='SELECT')return;
+    try { const rows=await rpc(API.dependentCatalog,{type:valueOf(question,'Catalogo','TipoCatalogo','Categoria'),parentCode:Array.isArray(parentValue)?parentValue[0]:parentValue}); fillSelect(select,rows); } catch(error) { showError(error,'No se pudieron cargar las opciones dependientes'); }
+  }
+  function handleDynamicFiles(input,id) {
+    try { const files=validateFiles(Array.from(input.files)); state.selectedFiles.set(String(id),files); } catch(error) { input.value=''; state.selectedFiles.delete(String(id)); showError(error,'Archivo no válido'); }
+  }
+  function validateFiles(files) {
+    const config=state.boot?.app || {}, allowed=arrayOf(config.allowedExtensions).map(norm), max=Number(config.maxFileBytes)||10485760, maxCount=Number(config.maxFilesPerRecord)||10;
+    if(files.length>maxCount) throw new Error(`Puede adjuntar hasta ${maxCount} archivos.`);
+    files.forEach(file=>{ const ext=norm(file.name.split('.').pop()); if(allowed.length&&!allowed.includes(ext)) throw new Error(`La extensión de ${file.name} no está permitida.`); if(file.size>max) throw new Error(`${file.name} supera ${formatBytes(max)}.`); }); return files;
+  }
+  let draftTimer=null;
+  function scheduleAutoDraft(){ clearTimeout(draftTimer); draftTimer=setTimeout(()=>{ if(state.view==='capture'&&state.formDefinition) saveDynamicForm(true,null,true); },15000); }
+  function setDraftStatus(message){ byId('draft-status').replaceChildren(el('span',{text:message==='Cambios sin guardar'?'●':'✓','aria-hidden':'true'}),textNode(` ${message}`)); }
+  function validateDynamicForm() {
+    updateConditionalVisibility(); const form=byId('dynamic-form'); let valid=true; $$('[aria-invalid="true"]',form).forEach(node=>node.removeAttribute('aria-invalid')); $$('.field-error',form).forEach(node=>node.remove());
+    $$('[data-question-id]',form).filter(wrapper=>!wrapper.hidden).forEach(wrapper=>{ const id=wrapper.dataset.questionId, question=arrayOf(state.formDefinition?.questions).find(q=>questionId(q)===id), value=readQuestionValue(id); if(bool(valueOf(question,'Obligatoria')) && !['SECTION','CALCULATED'].includes(questionType(question)) && (value===''||value==null||(Array.isArray(value)&&!value.length))){ const control=$('input,select,textarea',wrapper); if(control)control.setAttribute('aria-invalid','true'); wrapper.append(el('small',{class:'field-error',text:'Campo obligatorio.'})); valid=false; } });
+    if(!valid){ const first=$('[aria-invalid="true"]',form); first?.focus(); first?.scrollIntoView({behavior:'smooth',block:'center'}); } return valid;
+  }
+  const FIELD_BY_LABEL=Object.freeze({FECHA:'Fecha',HORA:'Hora',CODIGOCASO:'CodigoCaso',CODIGO_CASO:'CodigoCaso',FECHA_Y_HORA:'FechaApertura',FECHA_APERTURA:'FechaApertura',FECHA_DE_APERTURA:'FechaApertura',COLABORADOR:'Colaborador',COLOQUE_EL_NUMERO_DE_CEDULA_DEL_COLABORADOR:'Colaborador',RESPONSABLE:'Responsable',TIPO_ATENCION:'TipoAtencion',TIPO_DE_ATENCION:'TipoAtencion',MOTIVO:'Motivo',CANAL:'Canal',GESTION:'Gestion',RESULTADO:'Resultado',REQUIERE_SEGUIMIENTO:'RequiereSeguimiento',GENERA_CASO:'GeneraCaso',OBSERVACIONES:'Observaciones',TIPO_DE_CASO:'TipoCaso',TIPO_CASO:'TipoCaso',SUBTIPO_DE_CASO:'SubtipoCaso',SUBTIPO_CASO:'SubtipoCaso',PRIORIDAD:'Prioridad',NIVEL_DE_SENSIBILIDAD:'NivelSensibilidad',NIVEL_SENSIBILIDAD:'NivelSensibilidad',ESTADOCASO:'EstadoCaso',ESTADO_DEL_CASO:'EstadoCaso',ESTADO_CASO:'EstadoCaso',TIPO_DE_GESTION:'TipoGestion',TIPO_GESTION:'TipoGestion',TIPO_DE_EVENTO:'TipoEvento',AREA:'Area',TURNO:'Turno',EN_QUE_TURNO_OCURRIO_EL_EVENTO:'Turno',CONDICION_LABORAL:'CondicionLaboral',RESTRICCION:'Restriccion',FECHA_DE_INICIO_DE_RESTRICCION:'FechaInicioRestriccion',FUENTE:'Fuente',TIPO:'Tipo',SUBTIPO:'Subtipo',LUGAR:'Lugar',DESCRIPCION:'Descripcion',IMPACTO:'Impacto',ACCION_INMEDIATA:'AccionInmediata',ACCION_INMEDIATA_REALIZADA:'AccionInmediata',ESTADO:'Estado',HORA_INICIO:'HoraInicio',HORA_DE_INICIO:'HoraInicio',HORA_FIN:'HoraFin',HORA_DE_FIN:'HoraFin',PLANTA:'Planta',OBJETIVO:'Objetivo',PERSONAS_CONTACTADAS:'PersonasContactadas',NOVEDADES_DETECTADAS:'NovedadesDetectadas',ACCIONES:'Acciones'});
+  function targetField(question,process) { const key=norm(valueOf(question,'Etiqueta')), contextual={CASO:{FECHA:'FechaApertura',TIPO:'TipoCaso',SUBTIPO:'SubtipoCaso',ESTADO:'EstadoCaso'},ATENCION:{TIPO:'TipoAtencion'}}; return valueOf(question,'CampoDestino','CampoProceso','field','NombreCampo') || valueOf(contextual[process],key) || FIELD_BY_LABEL[key] || ''; }
+  function buildProcessRecord(answers) { const record={},process=norm(valueOf(state.formDefinition?.form,'Proceso')||state.routeContext.process); arrayOf(state.formDefinition?.questions).forEach(question=>{ const id=questionId(question),field=targetField(question,process),answer=answers[id];if(questionType(question)==='PERSON'&&answer){record.IdPersona=answer;const picker=$(`[data-person-question="${CSS.escape(id)}"]`);if(field&&field!=='IdPersona')record[field]=picker?.dataset.selectedName||picker?.value||answer;}else if(field&&answer!==undefined)record[field]=answer; }); return record; }
+  async function submitDynamicForm(event){ event.preventDefault(); if(!validateDynamicForm())return; await saveDynamicForm(false,event.submitter); }
+  async function saveDynamicForm(draft,button,automatic=false) {
+    if(!state.formDefinition)return; if(!draft&&!validateDynamicForm())return; clearTimeout(draftTimer);
+    const answers=currentAnswers(); const payload={formId:state.currentFormId,responseId:byId('response-id').value||undefined,recordId:byId('record-id').value||undefined,answers,clientSubmissionId:byId('dynamic-form').dataset.clientSubmissionId || clientId()}; byId('dynamic-form').dataset.clientSubmissionId=payload.clientSubmissionId;
+    setButtonBusy(button,true,draft?'Guardando…':'Registrando…'); setDraftStatus('Guardando…');
+    try {
+      let recordId=payload.recordId, process=norm(valueOf(state.formDefinition.form,'Proceso')||state.routeContext.process), table=TABLE_BY_PROCESS[process], createdCaseCode='';
+      if(!draft && table){ const record=buildProcessRecord(answers),idField=ID_FIELD_BY_TABLE[table]; if(Object.keys(record).length){ if(recordId&&idField)record[idField]=recordId; const saved=await rpc(API.saveRecord,{table,record}),savedRecord=valueOf(saved,'record')||saved; recordId=valueOf(savedRecord,idField,'id'); if(table==='Casos')createdCaseCode=valueOf(savedRecord,'CodigoCaso'); byId('record-id').value=recordId; payload.recordId=recordId; } }
+      const result=await rpc(draft?API.saveDraft:API.saveResponse,payload); byId('response-id').value=valueOf(result,'id','IdRespuesta');
+      if(!draft && state.selectedFiles.size){ const files=[]; for(const [question,items] of state.selectedFiles) for(const file of items){ const encoded=await fileToBase64(file); files.push({name:file.name,mimeType:file.type,base64:encoded,category:question}); } await rpc(API.upload,{recordType:recordId?table:'RESPUESTA_FORMULARIO',recordId:recordId||byId('response-id').value,files}); }
+      setDraftStatus(draft?'Borrador guardado':'Registro guardado');
+      if(!automatic) toast(draft?'Borrador guardado':'Registro creado correctamente',draft?'Puede continuar editando.':(createdCaseCode?`Código del caso: ${createdCaseCode}`:'La información y su trazabilidad quedaron registradas.'),'success');
+      if(!draft){ state.selectedFiles.clear(); delete byId('dynamic-form').dataset.clientSubmissionId; setTimeout(()=>navigate(recordId&&table==='Casos'?'cases':'dashboard'),600); }
+    } catch(error){ setDraftStatus('Cambios sin guardar'); if(!automatic)showError(error,draft?'No se pudo guardar el borrador':'No se pudo registrar la información'); }
+    finally{ setButtonBusy(button,false); }
+  }
+  function fileToBase64(file){ return new Promise((resolve,reject)=>{ const reader=new FileReader(); reader.onload=()=>resolve(String(reader.result).split(',')[1]||''); reader.onerror=()=>reject(new Error(`No se pudo leer ${file.name}.`)); reader.readAsDataURL(file); }); }
+
+  function bindFormBuilder() {
+    $$('[data-action="new-form"]').forEach(button=>button.addEventListener('click',newForm));
+    byId('form-settings').addEventListener('submit',saveFormSettings);
+    $('[data-action="new-question"]').addEventListener('click',()=>openQuestionEditor());
+    $$('[data-action="preview-current-form"]').forEach(button=>button.addEventListener('click',previewCurrentForm));
+    byId('form-list-search').addEventListener('input',renderFormList);
+    $$('[data-form-status-filter]').forEach(button=>button.addEventListener('click',()=>{ $$('[data-form-status-filter]').forEach(item=>item.classList.toggle('is-active',item===button)); renderFormList(); }));
+    byId('question-list').addEventListener('click',handleQuestionAction);
+    byId('question-editor-form').addEventListener('submit',saveQuestionEditor);
+    byId('question-type').addEventListener('change',toggleQuestionOptionEditor);
+    byId('preview-container').addEventListener('input',()=>{updateConditionalVisibility(byId('preview-container'));updateCalculatedFields(byId('preview-container'));});
+    byId('preview-container').addEventListener('change',()=>{updateConditionalVisibility(byId('preview-container'));updateCalculatedFields(byId('preview-container'));});
+  }
+  async function loadForms(force=false) {
+    if(state.forms.length&&!force){ renderFormList(); return; }
+    setLoading(byId('form-list'));
+    try { const result=await rpc(API.forms,{includeInactive:true}); state.forms=arrayOf(result.rows || result.items || result); byId('form-count').textContent=`${state.forms.length} configurados`; renderFormList(); } catch(error){ showError(error,'No se pudieron cargar los formularios'); clear(byId('form-list')).append(el('p',{class:'empty-state compact',text:'No hay formularios disponibles.'})); }
+  }
+  function renderFormList() {
+    const container=clear(byId('form-list')), query=norm(byId('form-list-search').value), status=$('[data-form-status-filter].is-active')?.dataset.formStatusFilter || 'ALL';
+    const filtered=state.forms.filter(form=>(status==='ALL'||norm(valueOf(form,'Estado'))===status)&&(!query||norm(`${valueOf(form,'Nombre')} ${valueOf(form,'Proceso')}`).includes(query)));
+    filtered.forEach(form=>{ const id=String(valueOf(form,'IdFormulario','id')); const button=el('button',{type:'button',class:`form-list-item${id===String(valueOf(state.formAdmin?.form,'IdFormulario'))?' is-active':''}`,onclick:()=>selectForm(id)},[el('strong',{text:valueOf(form,'Nombre')||'Sin título'}),el('span',{text:`${labelize(valueOf(form,'Proceso'))} · ${labelize(valueOf(form,'Estado'))}`})]); container.append(button); });
+    if(!filtered.length)container.append(el('p',{class:'empty-state compact',text:'No se encontraron formularios.'}));
+  }
+  function newForm() {
+    state.formAdmin={form:{IdFormulario:'',Nombre:'',Descripcion:'',Proceso:'',Estado:'BORRADOR',Responsable:state.user.email},questions:[],rules:[]};
+    populateFormEditor(); byId('builder-name').focus();
+  }
+  async function selectForm(id) {
+    setLoading(byId('question-list')); byId('builder-empty').hidden=true; byId('builder-editor').hidden=false;
+    try { state.formAdmin=await rpc(API.formAdmin,id); populateFormEditor(); renderFormList(); } catch(error){ showError(error,'No se pudo abrir el formulario'); }
+  }
+  function populateFormEditor() {
+    const definition=state.formAdmin || {form:{},questions:[]}, form=definition.form || {};
+    byId('builder-empty').hidden=true; byId('builder-editor').hidden=false; byId('builder-form-id').value=valueOf(form,'IdFormulario');
+    byId('builder-name').value=valueOf(form,'Nombre'); byId('builder-description').value=valueOf(form,'Descripcion'); byId('builder-process').value=norm(valueOf(form,'Proceso'));
+    byId('builder-status').value=norm(valueOf(form,'Estado'))||'BORRADOR'; byId('builder-category').value=valueOf(form,'Categoria'); byId('builder-owner').value=valueOf(form,'Responsable')||state.user.email||'';
+    byId('builder-form-name').textContent=valueOf(form,'Nombre')||'Formulario sin título'; const status=norm(valueOf(form,'Estado'))||'BORRADOR'; const badge=byId('builder-form-status-badge'); badge.textContent=labelize(status); badge.className=`badge badge--${status==='PUBLICADO'?'published':status==='INACTIVO'?'inactive':'draft'}`;
+    $$('[data-action="preview-current-form"]').forEach(button=>button.disabled=!valueOf(form,'IdFormulario')); renderQuestionList();
+  }
+  async function saveFormSettings(event) {
+    event.preventDefault(); const form=event.currentTarget; if(!form.reportValidity())return; const button=event.submitter, desiredStatus=byId('builder-status').value, currentStatus=norm(valueOf(state.formAdmin?.form,'Estado'))||'BORRADOR';
+    if(desiredStatus==='PUBLICADO'&&!arrayOf(state.formAdmin?.questions).filter(question=>valueOf(question,'Activo')===''||bool(valueOf(question,'Activo'))).length){toast('Agregue al menos una pregunta','Un formulario vacío no puede publicarse.','warning');return;}
+    const payload={form:{IdFormulario:byId('builder-form-id').value||undefined,Nombre:byId('builder-name').value.trim(),Descripcion:byId('builder-description').value.trim(),Proceso:byId('builder-process').value,Estado:currentStatus,Responsable:byId('builder-owner').value||state.user.email,expectedVersion:valueOf(state.formAdmin?.form,'Version')}};
+    setButtonBusy(button,true,'Guardando…');
+    try { let saved=await rpc(API.saveForm,payload); const wasNew=!byId('builder-form-id').value; if(desiredStatus!==currentStatus)saved=await rpc(API.formStatus,{id:valueOf(saved,'IdFormulario'),status:desiredStatus}); if(wasNew)state.formAdmin={form:saved,questions:[],rules:[]}; else state.formAdmin.form=saved; toast('Cambios guardados','La configuración general fue actualizada.'); await loadForms(true); if(valueOf(saved,'IdFormulario'))await selectForm(valueOf(saved,'IdFormulario')); }
+    catch(error){showError(error,'No se pudo guardar el formulario');} finally{setButtonBusy(button,false);}
+  }
+  function renderQuestionList() {
+    const list=clear(byId('question-list')), questions=arrayOf(state.formAdmin?.questions).sort((a,b)=>Number(valueOf(a,'Orden'))-Number(valueOf(b,'Orden'))); byId('question-count').textContent=`${questions.length} elementos`; byId('questions-empty').hidden=questions.length>0;
+    questions.forEach((question,index)=>{
+      const id=questionId(question), active=valueOf(question,'Activo')===''||bool(valueOf(question,'Activo'));
+      const meta=[TYPE_LABELS[questionType(question)]||labelize(valueOf(question,'Tipo')),bool(valueOf(question,'Obligatoria'))?'Obligatoria':'Opcional',bool(valueOf(question,'Sensibilidad'))?'Sensible':''].filter(Boolean);
+      const actions=el('div',{class:'question-actions'},[
+        el('button',{class:'icon-button',type:'button',title:'Mover arriba','aria-label':'Mover arriba',dataset:{questionAction:'up',id},disabled:index===0,text:'↑'}),
+        el('button',{class:'icon-button',type:'button',title:'Mover abajo','aria-label':'Mover abajo',dataset:{questionAction:'down',id},disabled:index===questions.length-1,text:'↓'}),
+        el('button',{class:'icon-button',type:'button',title:'Editar','aria-label':'Editar',dataset:{questionAction:'edit',id},text:'✎'}),
+        el('button',{class:'icon-button',type:'button',title:'Duplicar','aria-label':'Duplicar',dataset:{questionAction:'duplicate',id},text:'⧉'}),
+        active?el('button',{class:'icon-button',type:'button',title:'Desactivar','aria-label':'Desactivar',dataset:{questionAction:'deactivate',id},text:'⊘'}):''
+      ]);
+      list.append(el('li',{class:`question-item${active?'':' is-inactive'}`,dataset:{id}},[el('span',{class:'question-order',text:index+1}),el('div',{class:'question-copy'},[el('strong',{text:valueOf(question,'Etiqueta')||'Sin etiqueta'}),el('div',{class:'question-meta'},meta.map(item=>el('span',{text:item})))]),actions]));
+    });
+  }
+  function openQuestionEditor(question=null) {
+    if(!valueOf(state.formAdmin?.form,'IdFormulario')){toast('Guarde primero el formulario','Los datos generales deben guardarse antes de agregar preguntas.','warning');return;}
+    const q=question||{}; byId('question-dialog-title').textContent=question?'Editar pregunta':'Nueva pregunta'; byId('question-id').value=valueOf(q,'IdPregunta'); byId('question-label').value=valueOf(q,'Etiqueta'); byId('question-description').value=valueOf(q,'Descripcion');
+    byId('question-type').value=questionType(q)||'SHORT_TEXT'; byId('question-order').value=valueOf(q,'Orden')||arrayOf(state.formAdmin.questions).length+1; byId('question-category').value=valueOf(q,'Categoria'); byId('question-subcategory').value=valueOf(q,'Subcategoria'); byId('question-help').value=valueOf(q,'TextoAyuda'); byId('question-default').value=valueOf(q,'ValorPredeterminado'); byId('question-max-length').value=valueOf(q,'LongitudMaxima');
+    const validation=String(valueOf(q,'Validacion')); const known=['','EMAIL','PHONE','ID','POSITIVE','REGEX']; byId('question-validation').value=known.includes(norm(validation))?norm(validation):(validation?'REGEX':''); byId('question-validation-pattern').value=known.includes(norm(validation))?'':validation;
+    byId('question-options').value=normalizedOptions(q).map(item=>`${item.label}${item.parentId?`|${item.parentId}`:''}`).join('\n'); byId('question-formula').value=valueOf(q,'Formula'); byId('question-required').checked=bool(valueOf(q,'Obligatoria')); byId('question-visible').checked=valueOf(q,'Visible')===''||bool(valueOf(q,'Visible')); byId('question-readonly').checked=bool(valueOf(q,'SoloLectura')); byId('question-sensitive').checked=Boolean(valueOf(q,'Sensibilidad'));
+    const dep=byId('question-dependent-field'); dep.replaceChildren(option('','Siempre visible')); arrayOf(state.formAdmin.questions).filter(item=>questionId(item)!==questionId(q)&&questionType(item)!=='SECTION').forEach(item=>dep.append(option(questionId(item),valueOf(item,'Etiqueta'),String(valueOf(q,'CampoDependiente'))===questionId(item))));
+    let condition={};try{condition=JSON.parse(valueOf(q,'CondicionVisibilidad')||'{}');}catch(ignore){} byId('question-condition-operator').value=norm(condition.operator||'EQUALS'); byId('question-dependent-value').value=condition.value!==undefined?condition.value:valueOf(q,'ValorDependiente'); toggleQuestionOptionEditor(); byId('question-dialog').showModal();
+  }
+  function toggleQuestionOptionEditor(){ const type=byId('question-type').value; byId('question-options-group').hidden=!['DROPDOWN','SINGLE_CHOICE','MULTIPLE_CHOICE','LIKERT'].includes(type); byId('question-formula-field').hidden=type!=='CALCULATED'; }
+  async function saveQuestionEditor(event) {
+    event.preventDefault(); if(!event.currentTarget.reportValidity())return; const button=event.submitter, type=byId('question-type').value, dep=byId('question-dependent-field').value, operator=byId('question-condition-operator').value, expected=byId('question-dependent-value').value;
+    const options=byId('question-options').value.split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map((line,index)=>{const [label,parent]=line.split('|').map(part=>part.trim());return{Valor:label,Etiqueta:label,Orden:index+1,IdOpcionPadre:parent||''};});
+    const validation=byId('question-validation').value==='REGEX'?byId('question-validation-pattern').value:byId('question-validation').value;
+    const serverOperator={EQUALS:'EQ',NOT_EQUALS:'NE',INCLUDES:'CONTAINS'}[operator]||operator;
+    const payload={IdPregunta:byId('question-id').value||undefined,IdFormulario:valueOf(state.formAdmin.form,'IdFormulario'),Etiqueta:byId('question-label').value.trim(),Descripcion:byId('question-description').value.trim(),Tipo:SERVER_TYPE[type]||type,Obligatoria:byId('question-required').checked,Orden:Number(byId('question-order').value)||undefined,Categoria:byId('question-category').value.trim(),Subcategoria:byId('question-subcategory').value.trim(),ValorPredeterminado:byId('question-default').value,TextoAyuda:byId('question-help').value.trim(),Visible:byId('question-visible').checked,SoloLectura:byId('question-readonly').checked,LongitudMaxima:byId('question-max-length').value?Number(byId('question-max-length').value):'',Validacion:validation,Sensibilidad:byId('question-sensitive').checked?'SENSIBLE':'',CampoDependiente:dep,ValorDependiente:expected,CondicionVisibilidad:dep?JSON.stringify({operator:serverOperator,value:expected}):'',Formula:type==='CALCULATED'?byId('question-formula').value.trim():'',options};
+    setButtonBusy(button,true,'Guardando…'); try{state.formAdmin=await rpc(API.saveQuestion,payload);byId('question-dialog').close();renderQuestionList();toast('Pregunta guardada');}catch(error){showError(error,'No se pudo guardar la pregunta');}finally{setButtonBusy(button,false);}
+  }
+  async function handleQuestionAction(event) {
+    const button=event.target.closest('[data-question-action]'); if(!button)return; const id=button.dataset.id, action=button.dataset.questionAction, question=arrayOf(state.formAdmin?.questions).find(item=>questionId(item)===id);
+    if(action==='edit'){openQuestionEditor(question);return;}
+    if(action==='deactivate'){const ok=await confirmAction({title:'Desactivar pregunta',message:'La pregunta dejará de aparecer en formularios publicados. Las respuestas históricas se conservan.',confirmText:'Desactivar',requireReason:true});if(!ok)return;}
+    setButtonBusy(button,true);
+    try{if(action==='duplicate')state.formAdmin=await rpc(API.duplicateQuestion,id);else if(action==='deactivate')state.formAdmin=await rpc(API.deactivateQuestion,{id,reason:byId('confirm-reason').value});else if(action==='up'||action==='down')state.formAdmin=await rpc(API.reorderQuestions,{formId:valueOf(state.formAdmin.form,'IdFormulario'),questionId:id,direction:action.toUpperCase()});renderQuestionList();toast(action==='duplicate'?'Pregunta duplicada':action==='deactivate'?'Pregunta desactivada':'Orden actualizado');}catch(error){showError(error);}finally{setButtonBusy(button,false);}
+  }
+  function previewCurrentForm() {
+    if(!state.formAdmin)return; byId('preview-title').textContent=valueOf(state.formAdmin.form,'Nombre')||'Vista previa'; renderFormDefinition(state.formAdmin,byId('preview-container'),true); byId('preview-dialog').showModal();
+  }
+
+  function bindCases() {
+    $('[data-action="refresh-cases"]').addEventListener('click',()=>loadCases(true)); $('[data-action="apply-case-filters"]').addEventListener('click',()=>loadCases(true));
+    byId('case-quick-search').addEventListener('keydown',event=>{if(event.key==='Enter')loadCases(true);}); byId('cases-table-body').addEventListener('click',handleResultAction);
+    $('[data-action="back-from-case"]').addEventListener('click',()=>navigate(state.lastListView||'cases'));
+    $$('[data-case-tab]').forEach(button=>button.addEventListener('click',()=>selectCaseTab(button.dataset.caseTab)));
+    byId('case-header-actions').addEventListener('click',event=>{const button=event.target.closest('[data-case-action]');if(button)openCaseAction(button.dataset.caseAction);});
+    $$('[data-case-panel]').forEach(panel=>panel.addEventListener('click',event=>{const action=event.target.closest('[data-case-action]')?.dataset.caseAction;if(action)openCaseAction(action);const file=event.target.closest('[data-file-action]');if(file)accessFile(file.dataset.fileId,file.dataset.fileAction);}));
+    byId('case-action-form').addEventListener('submit',submitCaseAction); byId('file-upload-form').addEventListener('submit',uploadCaseFiles); byId('case-file-input').addEventListener('change',event=>prepareCaseFiles(event.target.files));
+  }
+  async function loadCases(reset=false) {
+    if(reset)state.cases.page=1; const body=byId('cases-table-body'); body.replaceChildren(el('tr',{},el('td',{colspan:'8'},el('div',{class:'loading-block'},[el('div',{class:'spinner'}),el('span',{text:'Cargando casos…'})]))));
+    const filters={table:'Casos',q:byId('case-quick-search').value.trim(),status:byId('case-status-filter').value,priority:byId('case-priority-filter').value,page:state.cases.page,pageSize:Number(state.boot?.app?.pageSize)||20};
+    try{state.cases.result=await rpc(API.search,filters);renderCases();}catch(error){showError(error,'No se pudieron cargar los casos');body.replaceChildren(el('tr',{},el('td',{colspan:'8'},el('p',{class:'empty-state compact',text:'No hay casos disponibles.'}))));}
+  }
+  function renderCases() {
+    const body=clear(byId('cases-table-body')), result=state.cases.result||{}, items=arrayOf(result.items);
+    items.forEach(item=>{const row=item.record||{},actions=item.actions||{};body.append(el('tr',{},[
+      el('td',{},[el('span',{class:'table-primary',text:valueOf(row,'CodigoCaso')||item.id}),item.restricted?el('span',{class:'table-secondary',text:'Detalle restringido'}):'']),el('td',{text:formatDate(valueOf(row,'FechaApertura')||item.date)}),el('td',{text:valueOf(row,'Colaborador')||'—'}),el('td',{text:catalogLabel('TIPO_CASO',valueOf(row,'TipoCaso'))}),el('td',{},statusBadge(valueOf(row,'Prioridad'),'priority')),el('td',{},statusBadge(valueOf(row,'EstadoCaso'))),el('td',{text:valueOf(row,'Responsable')||'—'}),el('td',{},el('div',{class:'row-actions'},actions.view?el('button',{class:'button button--secondary button--small',type:'button',text:'Ver',dataset:{resultAction:'view',table:item.table,id:item.id}}):el('span',{class:'badge badge--restricted',text:'Restringido'}))) ]));});
+    if(!items.length)body.append(el('tr',{},el('td',{colspan:'8'},el('p',{class:'empty-state compact',text:'No se encontraron casos con estos filtros.'}))));
+    renderPagination(byId('cases-pagination'),result,page=>{state.cases.page=page;loadCases();});
+  }
+  function statusBadge(value,kind='status') { const normalized=norm(value),cls=kind==='priority'?(normalized.includes('ALTA')||normalized.includes('CRIT')?'high':normalized.includes('MEDIA')?'medium':'low'):(['CERRADO','CUMPLIDO','RESUELTO','COMPLETADO','ACTIVO'].includes(normalized)?'success':normalized.includes('INACT')?'inactive':normalized.includes('BORR')||normalized.includes('PEND')?'draft':''); return el('span',{class:`badge${cls?` badge--${cls}`:''}`,text:labelize(value)||'—'}); }
+  async function openCase(id,table='Casos') {
+    state.lastListView=state.view==='search'?'search':'cases'; state.currentCaseId=String(id); state.currentCaseTable=table; navigate('case-detail');
+    byId('case-detail-title').textContent='Cargando caso…'; clear(byId('case-summary-grid')); setLoading(byId('case-followups')); selectCaseTab('summary');
+    try{const detail=await rpc(API.getRecord,{table,id});state.currentCase=detail;renderCaseDetail(detail);const [files,history]=await Promise.all([rpc(API.files,{recordType:table,recordId:id}).catch(()=>[]),rpc(API.history,{table,id}).catch(()=>[])]);renderCaseFiles(files);renderCaseHistory(history);return true;}catch(error){showError(error,'No se pudo abrir el registro');navigate(state.lastListView||'cases');return false;}
+  }
+  function renderCaseDetail(detail) {
+    const row=detail.record||{}, related=detail.related||{}, id=valueOf(row,'IdCaso')||state.currentCaseId; byId('case-detail-title').textContent=valueOf(row,'CodigoCaso')||id; byId('case-detail-subtitle').textContent=`Abierto ${formatDate(valueOf(row,'FechaApertura'))} · Responsable: ${valueOf(row,'Responsable')||'Sin asignar'}`;
+    const status=byId('case-status-badge');status.replaceWith(statusBadge(valueOf(row,'EstadoCaso'))); const replacement=$('.title-with-badge .badge:not(#case-sensitive-badge)'); if(replacement)replacement.id='case-status-badge';
+    const sensitive=Boolean(detail.sensitiveDetail)||norm(valueOf(row,'NivelSensibilidad')).includes('SENS'); byId('case-sensitive-badge').hidden=!sensitive;byId('sensitive-access-warning').hidden=!sensitive;
+    const fields=['IdCaso','CodigoCaso','FechaApertura','Colaborador','Responsable','TipoCaso','SubtipoCaso','Prioridad','NivelSensibilidad','EstadoCaso','TipoGestion','TipoEvento','Area','Turno','CondicionLaboral','Restriccion','FechaInicioRestriccion','Derivacion','UltimoSeguimiento','FechaCierre','Resultado']; renderDefinitionList(byId('case-summary-grid'),row,fields);
+    const restricted=byId('case-restricted-fields');restricted.hidden=!detail.sensitiveDetail;if(detail.sensitiveDetail)renderDefinitionList(byId('case-sensitive-grid'),detail.sensitiveDetail,Object.keys(detail.sensitiveDetail).filter(key=>!isMetaField(key)));
+    byId('followup-count').textContent=arrayOf(related.followUps).length; renderFollowUps(related.followUps);renderRecordCards(byId('case-referrals'),related.referrals,['Fecha','AreaDestino','ResponsableDestino','Motivo','Estado','Resultado']);renderRecordCards(byId('case-commitments'),related.commitments,['FechaLimite','Responsable','Descripcion','Estado','FechaCumplimiento']);
+    renderDefinitionList(byId('case-management-summary'),row,['EstadoCaso','Prioridad','Responsable','UltimoSeguimiento','FechaCierre']);renderLineage(row,related);
+    $('[data-case-action="edit"]').hidden=!can('CASOS','edit');$('[data-case-action="followup"]').hidden=!can('SEGUIMIENTOS','create');$('[data-case-action="close"]').hidden=!can('CASOS','edit')||norm(valueOf(row,'EstadoCaso'))==='CERRADO';
+  }
+  function isMetaField(key){return ['_rowNumber','Activo','Eliminado','FechaCreacion','CreadoPor','FechaActualizacion','ActualizadoPor','Version','FechaEliminacion','UsuarioEliminacion','MotivoEliminacion'].includes(key);}
+  function renderDefinitionList(container,record,fields){
+    clear(container);
+    fields.filter(field=>record&&record[field]!==undefined&&record[field]!==''&&!isMetaField(field)).forEach(field=>{
+      container.append(el('div',{},[el('dt',{text:labelize(field)}),el('dd',{text:/^Fecha/.test(field)?formatDate(record[field]):formatDisplayValue(record[field])})]));
+    });
+    if(!container.children.length)container.append(el('div',{},[el('dt',{text:'Información'}),el('dd',{text:'Sin datos registrados'})]));
+  }
+  function formatDisplayValue(value){if(Array.isArray(value))return value.join(', ');if(typeof value==='boolean')return value?'Sí':'No';if(value&&typeof value==='object')return Object.values(value).join(', ');return String(value??'—');}
+  function renderFollowUps(items){const container=clear(byId('case-followups'));arrayOf(items).forEach(item=>container.append(el('article',{class:'record-timeline-item'},[el('strong',{text:valueOf(item,'TipoSeguimiento')||'Seguimiento'}),el('p',{text:valueOf(item,'Descripcion')||'Sin descripción'}),el('div',{class:'record-meta'},[el('span',{text:formatDate(valueOf(item,'Fecha'))}),el('span',{text:valueOf(item,'Responsable')||'—'}),statusBadge(valueOf(item,'Estado'))])])));if(!container.children.length)container.append(el('p',{class:'empty-state compact',text:'No hay seguimientos registrados.'}));}
+  function renderRecordCards(container,items,fields){
+    clear(container);
+    arrayOf(items).forEach(item=>{
+      const card=el('article',{class:'record-card'});
+      fields.filter(field=>valueOf(item,field)!=='').forEach(field=>{
+        card.append(el('div',{class:'record-meta'},[el('strong',{text:`${labelize(field)}:`}),el('span',{text:/^Fecha/.test(field)?formatDate(item[field]):formatDisplayValue(item[field])})]));
+      });
+      container.append(card);
+    });
+    if(!container.children.length)container.append(el('p',{class:'empty-state compact',text:'No hay registros asociados.'}));
+  }
+  function renderLineage(row,related){const container=clear(byId('case-lineage'));const nodes=[['Caso',valueOf(row,'CodigoCaso')||valueOf(row,'IdCaso')],['Atención origen',valueOf(row,'IdAtencion')],['Novedad origen',valueOf(row,'IdNovedad')],['Seguimientos',arrayOf(related.followUps).length],['Cierre',arrayOf(related.closures).length?'Registrado':'']].filter(item=>item[1]);nodes.forEach(([label,value],index)=>container.append(el('div',{class:'lineage-item'},[el('span',{class:'question-order',text:index+1}),el('div',{},[el('strong',{text:label}),el('small',{class:'table-secondary',text:value})])])));if(!nodes.length)container.append(el('p',{class:'empty-state compact',text:'Sin vínculos registrados.'}));}
+  function selectCaseTab(tab){$$('[data-case-tab]').forEach(button=>{const active=button.dataset.caseTab===tab;button.classList.toggle('is-active',active);button.setAttribute('aria-selected',String(active));});$$('[data-case-panel]').forEach(panel=>panel.hidden=panel.dataset.casePanel!==tab);}
+  function renderCaseFiles(files){const container=clear(byId('case-files'));arrayOf(files).forEach(file=>{const id=valueOf(file,'IdArchivo','id'),mime=valueOf(file,'MimeType');container.append(el('article',{class:'file-card'},[el('span',{class:'file-icon',text:mime==='application/pdf'?'PDF':mime.startsWith('image/')?'IMG':'DOC'}),el('div',{},[el('strong',{text:valueOf(file,'NombreArchivo')||'Archivo'}),el('span',{class:'table-secondary',text:`${formatBytes(valueOf(file,'TamanoBytes'))} · ${formatDate(valueOf(file,'FechaCarga'))}`}),el('div',{class:'row-actions'},[el('button',{class:'text-button',type:'button',text:'Abrir',dataset:{fileAction:'view',fileId:id}}),el('button',{class:'text-button',type:'button',text:'Descargar',dataset:{fileAction:'download',fileId:id}})])]) ]));});if(!container.children.length)container.append(el('p',{class:'empty-state compact',text:'No hay documentos adjuntos.'}));}
+  function renderCaseHistory(items){const container=clear(byId('case-history'));arrayOf(items.rows||items).forEach(item=>container.append(el('article',{class:'audit-item'},[el('strong',{text:`${valueOf(item,'Accion')||'CAMBIO'} · ${valueOf(item,'Campo')||'Registro'}`}),el('p',{text:valueOf(item,'Motivo')||'Actualización registrada'}),el('div',{class:'record-meta'},[el('span',{text:valueOf(item,'Usuario')||'—'}),el('time',{text:formatDateTime(valueOf(item,'FechaHora'))})])])));if(!container.children.length)container.append(el('p',{class:'empty-state compact',text:'No hay eventos de auditoría visibles.'}));}
+  async function accessFile(id,action){try{const access=await rpc(API.fileAccess,id);const url=action==='download'?valueOf(access,'downloadUrl'):valueOf(access,'viewUrl');if(!/^https:\/\//i.test(url))throw new Error('El servidor no entregó un enlace seguro.');window.open(url,'_blank','noopener,noreferrer');}catch(error){showError(error,'No se pudo acceder al archivo');}}
+  function openCaseAction(action) {
+    if(!state.currentCaseId)return;if(action==='attach'){state.pendingCaseFiles=[];byId('case-file-input').value='';clear(byId('pending-file-list'));byId('file-dialog').showModal();return;}
+    byId('case-action-submit').hidden=false;
+    const title={followup:'Agregar seguimiento',referral:'Registrar derivación',commitment:'Crear compromiso',close:'Cerrar caso',edit:'Editar caso'}[action];byId('case-action-title').textContent=title;byId('case-action-form').dataset.action=action;const body=clear(byId('case-action-body'));
+    const fields=caseActionFields(action);const grid=el('div',{class:'form-grid'});fields.forEach(field=>grid.append(buildStaticField(field)));body.append(grid);byId('case-action-submit').textContent=action==='close'?'Cerrar caso':'Guardar';byId('case-action-dialog').showModal();
+  }
+  function caseActionFields(action){const today=new Date().toISOString().slice(0,10),row=state.currentCase?.record||{};const common={required:true};if(action==='followup')return[{name:'Fecha',label:'Fecha',type:'date',value:today,...common},{name:'Hora',label:'Hora',type:'time'},{name:'Responsable',label:'Responsable',value:state.user.email,...common},{name:'TipoSeguimiento',label:'Tipo de seguimiento',type:'select',catalog:'TIPO_SEGUIMIENTO',...common},{name:'Canal',label:'Canal',type:'select',catalog:'CANAL'},{name:'Tecnica',label:'Técnica',type:'select',catalog:'TECNICA_INSTRUMENTO'},{name:'Descripcion',label:'Descripción',type:'textarea',span:2,...common},{name:'Resultado',label:'Resultado',type:'textarea',span:2},{name:'ProximaAccion',label:'Próxima acción',span:2},{name:'FechaProximaAccion',label:'Fecha próxima acción',type:'date'},{name:'Estado',label:'Estado',type:'select',catalog:'ESTADO_SEGUIMIENTO',...common}];if(action==='referral')return[{name:'Fecha',label:'Fecha',type:'date',value:today,...common},{name:'AreaDestino',label:'Área destino',type:'select',catalog:'AREA',...common},{name:'ResponsableDestino',label:'Responsable destino'},{name:'Estado',label:'Estado',type:'select',catalog:'ESTADO_DERIVACION',...common},{name:'Motivo',label:'Motivo',type:'textarea',span:2,...common},{name:'Observaciones',label:'Observaciones',type:'textarea',span:2}];if(action==='commitment')return[{name:'Responsable',label:'Responsable',value:state.user.email,...common},{name:'Estado',label:'Estado',type:'select',catalog:'ESTADO_COMPROMISO',...common},{name:'Descripcion',label:'Descripción',type:'textarea',span:2,...common},{name:'FechaLimite',label:'Fecha límite',type:'date',...common},{name:'IdSeguimiento',label:'Seguimiento relacionado',type:'select',options:arrayOf(state.currentCase?.related?.followUps).map(item=>({value:valueOf(item,'IdSeguimiento'),label:`${formatDate(valueOf(item,'Fecha'))} · ${valueOf(item,'TipoSeguimiento')||'Seguimiento'}`}))},{name:'Observacion',label:'Observación',type:'textarea',span:2}];if(action==='close')return[{name:'FechaCierreCaso',label:'Fecha de cierre',type:'date',value:today,...common},{name:'Responsable',label:'Responsable',value:state.user.email,...common},{name:'MotivoCierre',label:'Motivo de cierre',type:'select',catalog:'MOTIVO_CIERRE',...common},{name:'ResultadoFinal',label:'Resultado final',type:'textarea',span:2,...common},{name:'RequiereMonitoreo',label:'Requiere monitoreo',type:'select',options:[{value:'true',label:'Sí'},{value:'false',label:'No'}]},{name:'Observacion',label:'Observación',type:'textarea',span:2}];return Object.keys(row).filter(key=>!isMetaField(key)&&!['IdCaso','CodigoCaso','FechaCreacion','CreadoPor'].includes(key)).map(key=>({name:key,label:labelize(key),type:/^Fecha/.test(key)?'date':(String(row[key]).length>120?'textarea':'text'),value:/^Fecha/.test(key)&&row[key]?String(row[key]).slice(0,10):formatDisplayValue(row[key]),span:String(row[key]).length>120?2:1}));}
+  function buildStaticField(field){const wrapper=el('div',{class:`field${field.span===2?' field--span-2':''}`}),id=`action-${safeId(field.name)}`;wrapper.append(el('label',{for:id},[field.label,field.required?el('span',{class:'required-mark',text:' *'}):'']));let control;if(field.type==='textarea')control=el('textarea',{id,name:field.name,rows:'3',required:field.required,text:field.value||''});else if(field.type==='select'){control=el('select',{id,name:field.name,required:field.required},[option('','Seleccionar…')]);const rows=field.options||catalog(field.catalog);rows.forEach(item=>control.append(option(valueOf(item,'Codigo','value','IdCatalogo'),valueOf(item,'Valor','label','Etiqueta','Codigo'))));}else control=el('input',{id,name:field.name,type:field.type||'text',value:field.value||'',required:field.required});wrapper.append(control);return wrapper;}
+  async function submitCaseAction(event){event.preventDefault();if(!event.currentTarget.reportValidity())return;const action=event.currentTarget.dataset.action,button=event.submitter,payload={IdCaso:state.currentCaseId};new FormData(event.currentTarget).forEach((value,key)=>payload[key]=value);let method={followup:API.followUp,referral:API.referral,commitment:API.commitment,close:API.closeCase,edit:API.saveRecord}[action];let args=payload;if(action==='edit'){const idField='IdCaso';payload[idField]=state.currentCaseId;payload.expectedVersion=valueOf(state.currentCase.record,'Version');args={table:'Casos',record:payload};}setButtonBusy(button,true,'Guardando…');try{await rpc(method,args);byId('case-action-dialog').close();toast(action==='close'?'Caso cerrado correctamente':'Cambios guardados');await openCase(state.currentCaseId,state.currentCaseTable);}catch(error){showError(error);}finally{setButtonBusy(button,false);}}
+  function prepareCaseFiles(fileList){try{state.pendingCaseFiles=validateFiles(Array.from(fileList));const container=clear(byId('pending-file-list'));state.pendingCaseFiles.forEach(file=>container.append(el('div',{class:'pending-file'},[el('span',{text:file.name}),el('small',{text:formatBytes(file.size)})])));}catch(error){byId('case-file-input').value='';state.pendingCaseFiles=[];showError(error,'Archivo no válido');}}
+  async function uploadCaseFiles(event){event.preventDefault();if(!state.pendingCaseFiles.length){toast('Seleccione al menos un archivo','','warning');return;}if(!event.currentTarget.reportValidity())return;const button=event.submitter;setButtonBusy(button,true,'Cargando…');try{const category=byId('file-category').value,files=[];for(const file of state.pendingCaseFiles)files.push({name:file.name,mimeType:file.type,base64:await fileToBase64(file),category});await rpc(API.upload,{recordType:state.currentCaseTable,recordId:state.currentCaseId,files});byId('file-dialog').close();toast('Archivo cargado');renderCaseFiles(await rpc(API.files,{recordType:state.currentCaseTable,recordId:state.currentCaseId}));}catch(error){showError(error,'No se pudieron cargar los archivos');}finally{setButtonBusy(button,false);}}
+
+  function bindSearch() {
+    byId('advanced-search-form').addEventListener('submit',event=>{event.preventDefault();performSearch(1);});
+    byId('advanced-filters-toggle').addEventListener('click',()=>{const panel=byId('advanced-filters'),open=panel.hidden;panel.hidden=!open;byId('advanced-filters-toggle').setAttribute('aria-expanded',String(open));});
+    $('[data-action="clear-search-filters"]').addEventListener('click',clearSearchFilters); byId('search-page-size').addEventListener('change',()=>performSearch(1)); byId('search-results-body').addEventListener('click',handleResultAction);
+    $$('[data-action="export-search"]').forEach(button=>button.addEventListener('click',()=>exportResults(button.dataset.format,button)));
+    $('[data-action="configure-columns"]').addEventListener('click',openColumnsDialog);byId('columns-form').addEventListener('submit',event=>{event.preventDefault();state.search.columns=$$('input:checked',byId('columns-options')).map(input=>input.value);byId('columns-dialog').close();renderSearchResults();});
+    $('[data-action="search-documents"]').addEventListener('click',loadDocuments);
+    $('[data-action="load-report"]').addEventListener('click',loadReport);$$('[data-action="export-report"]').forEach(button=>button.addEventListener('click',()=>exportResults(button.dataset.format==='SHEETS'?'GOOGLE_SHEETS':button.dataset.format,button,reportFilters())));
+  }
+  function searchFilters() {
+    const type=byId('search-record-type').value;return{q:byId('search-query').value.trim(),table:type||undefined,dateFrom:byId('search-date-from').value,dateTo:byId('search-date-to').value,responsible:byId('search-owner').value.trim(),area:byId('search-area').value,status:byId('search-status').value,type:byId('search-type').value,priority:byId('search-priority').value,sensitivity:byId('search-sensitivity').value,collaborator:byId('search-person').value.trim(),code:byId('search-code').value.trim(),includeDeleted:byId('search-include-deleted').checked,page:state.search.page,pageSize:Number(byId('search-page-size').value)||25};
+  }
+  async function performSearch(page=1) {
+    state.search.page=page;state.search.filters=searchFilters();state.search.filters.page=page;const body=byId('search-results-body');body.replaceChildren(el('tr',{},el('td',{colspan:'20'},el('div',{class:'loading-block'},[el('div',{class:'spinner'}),el('span',{text:'Buscando registros…'})]))));
+    try{state.search.result=await rpc(API.search,state.search.filters);deriveSearchColumns();renderSearchResults();}catch(error){showError(error,'No se pudo completar la búsqueda');body.replaceChildren(el('tr',{},el('td',{colspan:'7'},el('p',{class:'empty-state compact',text:'No fue posible mostrar resultados.'}))));}
+  }
+  function deriveSearchColumns(){const items=arrayOf(state.search.result?.items),keys=[];items.forEach(item=>Object.keys(item.record||{}).forEach(key=>{if(!isMetaField(key)&&!keys.includes(key))keys.push(key);}));const preferred=['CodigoCaso','IdCaso','IdAtencion','IdNovedad','IdRecorrido','Fecha','FechaApertura','Colaborador','Responsable','TipoCaso','Tipo','Area','Prioridad','EstadoCaso','Estado'];state.search.availableColumns=preferred.filter(key=>keys.includes(key)).concat(keys.filter(key=>!preferred.includes(key)));if(!state.search.columns.length)state.search.columns=state.search.availableColumns.slice(0,6);else state.search.columns=state.search.columns.filter(key=>keys.includes(key));}
+  function renderSearchResults() {
+    const result=state.search.result||{},items=arrayOf(result.items),columns=state.search.columns;const head=clear(byId('search-results-head')),headRow=el('tr');headRow.append(el('th',{text:'Tipo'}));columns.forEach(key=>headRow.append(el('th',{text:labelize(key)})));headRow.append(el('th',{},el('span',{class:'sr-only',text:'Acciones'})));head.append(headRow);
+    const body=clear(byId('search-results-body'));items.forEach(item=>{const row=el('tr');row.append(el('td',{},[el('span',{class:'table-primary',text:labelize(item.table)}),item.restricted?el('span',{class:'table-secondary',text:'Restringido'}):'']));columns.forEach(key=>{const value=valueOf(item.record,key);row.append(el('td',{},/^Fecha/.test(key)?textNode(formatDate(value)):key.startsWith('Estado')?statusBadge(value):key==='Prioridad'?statusBadge(value,'priority'):textNode(formatDisplayValue(value))));});row.append(el('td',{},resultActions(item)));body.append(row);});
+    if(!items.length)body.append(el('tr',{},el('td',{colspan:String(columns.length+2)},el('p',{class:'empty-state compact',text:'No se encontraron registros con los filtros seleccionados.'}))));byId('search-result-summary').textContent=`${Number(result.total)||0} registro(s) encontrado(s)${result.truncated?' · resultado limitado':''}.`;renderPagination(byId('search-pagination'),result,page=>performSearch(page));
+  }
+  function resultActions(item){const actions=item.actions||{},wrap=el('div',{class:'row-actions'}),deleted=bool(valueOf(item.record,'Eliminado'));if(actions.view)wrap.append(el('button',{class:'button button--secondary button--small',type:'button',text:'Ver',dataset:{resultAction:'view',table:item.table,id:item.id}}));if(actions.edit&&!deleted)wrap.append(el('button',{class:'icon-button',type:'button',title:'Editar','aria-label':'Editar',text:'✎',dataset:{resultAction:'edit',table:item.table,id:item.id}}));if(actions.followUp&&!deleted)wrap.append(el('button',{class:'icon-button',type:'button',title:'Seguimiento','aria-label':'Agregar seguimiento',text:'↻',dataset:{resultAction:'followup',table:item.table,id:item.id}}));if(actions.attach&&!deleted)wrap.append(el('button',{class:'icon-button',type:'button',title:'Adjuntar','aria-label':'Adjuntar archivo',text:'⇧',dataset:{resultAction:'attach',table:item.table,id:item.id}}));if(actions.history)wrap.append(el('button',{class:'icon-button',type:'button',title:'Historial','aria-label':'Historial',text:'◷',dataset:{resultAction:'history',table:item.table,id:item.id}}));if(actions.close&&!deleted)wrap.append(el('button',{class:'icon-button',type:'button',title:'Cerrar caso','aria-label':'Cerrar caso',text:'✓',dataset:{resultAction:'close',table:item.table,id:item.id}}));if(actions.delete)wrap.append(el('button',{class:'icon-button',type:'button',title:deleted?'Restaurar':'Eliminar lógicamente','aria-label':deleted?'Restaurar registro':'Eliminar lógicamente',text:deleted?'↥':'⊘',dataset:{resultAction:deleted?'restore':'delete',table:item.table,id:item.id}}));if(deleted&&actions.delete&&bool(state.boot?.app?.allowHardDelete)&&can('ADMINISTRACION','edit'))wrap.append(el('button',{class:'icon-button',type:'button',title:'Eliminar definitivamente','aria-label':'Eliminar definitivamente',text:'×',dataset:{resultAction:'hard-delete',table:item.table,id:item.id}}));return wrap;}
+  async function handleResultAction(event){const button=event.target.closest('[data-result-action]');if(!button)return;const action=button.dataset.resultAction,table=button.dataset.table,id=button.dataset.id;if(action==='view'){if(table==='Casos')openCase(id,table);else openGenericRecord(table,id);return;}if(['edit','followup','attach','close'].includes(action)&&table==='Casos'){if(await openCase(id,table))openCaseAction(action);return;}if(action==='history'){openGenericHistory(table,id);return;}if(action==='hard-delete'){const token=`BORRAR:${id}`,ok=await confirmAction({title:'Eliminar definitivamente',message:'Esta acción es irreversible y solo continuará si el registro no tiene dependencias ni documentos. El evento quedará auditado.',confirmText:'Borrar definitivamente',requireReason:true,requiredConfirmation:token});if(!ok)return;setButtonBusy(button,true,'…');try{await rpc(API.hardDeleteRecord,{table,id,reason:byId('confirm-reason').value,confirmation:token});toast('Registro eliminado definitivamente');performSearch(Math.max(1,state.search.page));}catch(error){showError(error,'No se pudo eliminar definitivamente');}finally{setButtonBusy(button,false);}return;}if(action==='delete'||action==='restore'){const restoring=action==='restore',ok=await confirmAction({title:restoring?'Restaurar registro':'Eliminar registro',message:restoring?'El registro volverá a estar activo y el evento quedará auditado.':'Se aplicará eliminación lógica. El histórico y la auditoría se conservarán.',confirmText:restoring?'Restaurar':'Eliminar',requireReason:true});if(!ok)return;setButtonBusy(button,true,'…');try{await rpc(restoring?API.restoreRecord:API.removeRecord,{table,id,reason:byId('confirm-reason').value});toast(restoring?'Registro restaurado':'Registro eliminado lógicamente');state.view==='cases'?loadCases(true):performSearch(state.search.page);}catch(error){showError(error);}finally{setButtonBusy(button,false);}return;}toast('Acción disponible desde el detalle','Abra el registro para completar esta gestión.','warning');}
+  async function openGenericRecord(table,id){try{const detail=await rpc(API.getRecord,{table,id});state.currentCase=detail;state.currentCaseId=id;state.currentCaseTable=table;const body=clear(byId('case-action-body'));renderDefinitionList(body,detail.record,Object.keys(detail.record||{}).filter(key=>!isMetaField(key)));byId('case-action-title').textContent=`${labelize(table)} · ${id}`;byId('case-action-form').dataset.action='readonly';byId('case-action-submit').hidden=true;byId('case-action-dialog').showModal();}catch(error){showError(error,'No se pudo abrir el registro');}}
+  async function openGenericHistory(table,id){try{const history=await rpc(API.history,{table,id});const body=clear(byId('case-action-body')),list=el('div',{class:'audit-list'});arrayOf(history.rows||history).forEach(item=>list.append(el('article',{class:'audit-item'},[el('strong',{text:`${valueOf(item,'Accion')} · ${valueOf(item,'Campo')||'Registro'}`}),el('p',{text:valueOf(item,'Motivo')||'Cambio registrado'}),el('div',{class:'record-meta'},[valueOf(item,'Usuario'),formatDateTime(valueOf(item,'FechaHora'))])])));if(!list.children.length)list.append(el('p',{class:'empty-state compact',text:'Sin eventos visibles.'}));body.append(list);byId('case-action-title').textContent='Historial';byId('case-action-form').dataset.action='readonly';byId('case-action-submit').hidden=true;byId('case-action-dialog').showModal();}catch(error){showError(error,'No se pudo cargar el historial');}}
+  function clearSearchFilters(){byId('advanced-search-form').reset();byId('search-page-size').value='25';state.search={...state.search,page:1,result:null,filters:{},columns:[]};byId('search-result-summary').textContent='Filtros restablecidos.';clear(byId('search-results-body')).append(el('tr',{},el('td',{colspan:'7'},el('p',{class:'empty-state compact',text:'No hay resultados para mostrar.'}))));clear(byId('search-pagination'));}
+  function openColumnsDialog(){const container=clear(byId('columns-options'));arrayOf(state.search.availableColumns).forEach(key=>container.append(el('label',{class:'check-card'},[el('input',{type:'checkbox',value:key,checked:state.search.columns.includes(key)}),el('span',{},el('strong',{text:labelize(key)}))])));if(!container.children.length)container.append(el('p',{class:'empty-state compact',text:'Realice una búsqueda para configurar columnas.'}));byId('columns-dialog').showModal();}
+  function renderPagination(container,result,onPage){clear(container);const total=Number(result.total)||0,page=Number(result.page)||1,pageSize=Number(result.pageSize)||25,pages=Number(result.totalPages)||Math.ceil(total/pageSize)||1;if(!total)return;container.append(el('span',{text:`Mostrando ${(page-1)*pageSize+1}–${Math.min(page*pageSize,total)} de ${total}`}));const buttons=el('div',{class:'pagination-buttons'});buttons.append(el('button',{type:'button',text:'‹','aria-label':'Página anterior',disabled:page<=1,onclick:()=>onPage(page-1)}));const start=Math.max(1,page-2),end=Math.min(pages,page+2);for(let current=start;current<=end;current++)buttons.append(el('button',{type:'button',class:current===page?'is-active':'',text:current,'aria-label':`Página ${current}`,onclick:()=>onPage(current)}));buttons.append(el('button',{type:'button',text:'›','aria-label':'Página siguiente',disabled:page>=pages,onclick:()=>onPage(page+1)}));container.append(buttons);}
+  async function exportResults(format,button,filters=state.search.filters){if(!can('REPORTES','export')){toast('No tiene permiso para exportar','','warning');return;}setButtonBusy(button,true,'Preparando…');try{const result=await rpc(API.export,{format:format==='SHEETS'?'GOOGLE_SHEETS':format,filters:filters||searchFilters()});if(result.format==='CSV'){const blob=new Blob([result.content],{type:result.mimeType||'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),link=el('a',{href:url,download:result.fileName||'export.csv'});document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}else if(/^https:\/\//i.test(result.url||''))window.open(result.url,'_blank','noopener,noreferrer');toast('Exportación preparada',`${result.rowCount||0} fila(s).${result.truncated?' Resultado limitado por seguridad.':''}`);}catch(error){showError(error,'No se pudo exportar');}finally{setButtonBusy(button,false);}}
+  function loadDocuments(){const container=clear(byId('document-results'));container.append(el('div',{class:'inline-alert'},[el('strong',{text:'Acceso contextual protegido'}),el('p',{text:'Para evitar enumerar documentos sensibles, abra el caso o registro relacionado y consulte su pestaña Documentos. El servidor valida el permiso y audita cada apertura o descarga.'})]),el('button',{class:'button button--primary',type:'button',text:'Ir a consulta general',onclick:()=>navigate('search')}));}
+  function reportFilters(){return{table:'Casos',dateFrom:byId('report-from').value,dateTo:byId('report-to').value,reportType:byId('report-type').value};}
+  async function loadReport(){const container=byId('report-content');setLoading(container);try{const data=await rpc(API.dashboard);clear(container).append(el('div',{class:'summary-grid'},[['Casos abiertos',valueOf(data,'casesOpen')],['Casos cerrados',valueOf(data,'casesClosed')],['Seguimientos próximos',valueOf(data,'upcomingFollowUps')],['Compromisos vencidos',valueOf(data,'overdueCommitments')]].map(([label,value])=>el('article',{class:'summary-item'},[el('strong',{text:Number(value)||0}),el('span',{text:label})]))),el('p',{class:'inline-alert',text:'Este reporte presenta datos agregados. Use Exportar para generar una tabla autorizada y estructurada.'}));}catch(error){showError(error,'No se pudo generar el reporte');clear(container).append(el('p',{class:'empty-state',text:'No hay información disponible.'}));}}
+
+  function bindCatalogs() {
+    $('[data-action="new-catalog-item"]').addEventListener('click',()=>openCatalogEditor()); $('[data-action="refresh-catalog"]').addEventListener('click',()=>loadCatalogs(true));
+    byId('catalog-type-search').addEventListener('input',renderCatalogTypes);byId('catalog-item-search').addEventListener('input',renderCatalogItems);byId('show-inactive-catalogs').addEventListener('change',()=>loadCatalogs(true));
+    byId('catalog-items-body').addEventListener('click',handleCatalogAction);byId('catalog-item-form').addEventListener('submit',saveCatalogEditor);
+  }
+  async function loadCatalogs(force=false){if(state.catalogData&&!force){renderCatalogTypes();renderCatalogItems();return;}setLoading(byId('catalog-type-list'));try{state.catalogData=await rpc(API.catalogs,{includeInactive:byId('show-inactive-catalogs').checked});state.catalogs=state.catalogData.grouped||state.catalogs;renderCatalogTypes();if(!state.currentCatalogType)state.currentCatalogType=Object.keys(state.catalogData.grouped||{})[0]||'';renderCatalogItems();hydrateCommonCatalogs();}catch(error){showError(error,'No se pudieron cargar los catálogos');clear(byId('catalog-type-list')).append(el('p',{class:'empty-state compact',text:'No hay catálogos disponibles.'}));}}
+  function renderCatalogTypes(){const container=clear(byId('catalog-type-list')),query=norm(byId('catalog-type-search').value),types=Object.keys(state.catalogData?.grouped||{}).filter(type=>!query||norm(type).includes(query)).sort();types.forEach(type=>container.append(el('button',{class:`catalog-type-button${type===state.currentCatalogType?' is-active':''}`,type:'button',text:labelize(type),onclick:()=>{state.currentCatalogType=type;renderCatalogTypes();renderCatalogItems();}})));if(!types.length)container.append(el('p',{class:'empty-state compact',text:'Sin catálogos.'}));}
+  function renderCatalogItems(){const type=state.currentCatalogType,container=clear(byId('catalog-items-body')),query=norm(byId('catalog-item-search').value);byId('catalog-current-title').textContent=type?labelize(type):'Seleccione un catálogo';byId('catalog-current-description').textContent=type?'Los valores usados se desactivan en lugar de eliminarse físicamente.':'—';const rows=arrayOf(state.catalogData?.grouped?.[type]).filter(item=>!query||norm(`${valueOf(item,'Codigo')} ${valueOf(item,'Valor')}`).includes(query));rows.forEach(item=>{const active=valueOf(item,'Activo')===''||bool(valueOf(item,'Activo'));container.append(el('tr',{},[el('td',{text:valueOf(item,'Orden')||'—'}),el('td',{},el('code',{text:valueOf(item,'Codigo')})),el('td',{text:valueOf(item,'Valor')}),el('td',{text:valueOf(item,'CodigoPadre')||valueOf(item,'IdCatalogoPadre')||'—'}),el('td',{},statusBadge(active?'Activo':'Inactivo')),el('td',{},el('div',{class:'row-actions'},[el('button',{class:'icon-button',type:'button',text:'✎',title:'Editar','aria-label':'Editar',dataset:{catalogAction:'edit',id:valueOf(item,'IdCatalogo')}}),el('button',{class:'button button--secondary button--small',type:'button',text:active?'Desactivar':'Activar',dataset:{catalogAction:'toggle',id:valueOf(item,'IdCatalogo'),active:String(!active)}})]))]));});if(!rows.length)container.append(el('tr',{},el('td',{colspan:'6'},el('p',{class:'empty-state compact',text:type?'No se encontraron valores.':'Seleccione un catálogo.'}))));}
+  function openCatalogEditor(item=null){if(!state.currentCatalogType){toast('Seleccione un catálogo','','warning');return;}const row=item||{};byId('catalog-dialog-title').textContent=item?'Editar valor':'Agregar valor';byId('catalog-item-id').value=valueOf(row,'IdCatalogo');byId('catalog-item-code').value=valueOf(row,'Codigo');byId('catalog-item-label').value=valueOf(row,'Valor');byId('catalog-item-order').value=valueOf(row,'Orden')||arrayOf(state.catalogData?.grouped?.[state.currentCatalogType]).length+1;byId('catalog-item-description').value=valueOf(row,'Descripcion');byId('catalog-item-active').checked=valueOf(row,'Activo')===''||bool(valueOf(row,'Activo'));const parent=byId('catalog-item-parent');parent.replaceChildren(option('','Sin dependencia'));Object.entries(state.catalogData?.grouped||{}).forEach(([type,items])=>items.forEach(parentItem=>parent.append(option(valueOf(parentItem,'IdCatalogo'),`${labelize(type)} · ${valueOf(parentItem,'Valor')}`,String(valueOf(row,'IdCatalogoPadre'))===String(valueOf(parentItem,'IdCatalogo'))))));byId('catalog-dialog').showModal();}
+  async function handleCatalogAction(event){const button=event.target.closest('[data-catalog-action]');if(!button)return;const item=arrayOf(state.catalogData?.items).find(row=>String(valueOf(row,'IdCatalogo'))===button.dataset.id);if(button.dataset.catalogAction==='edit'){openCatalogEditor(item);return;}const activate=button.dataset.active==='true';if(!activate){const ok=await confirmAction({title:'Desactivar valor',message:'No aparecerá en registros nuevos. La información histórica seguirá intacta.',confirmText:'Desactivar'});if(!ok)return;}setButtonBusy(button,true);try{await rpc(API.toggleCatalog,{id:button.dataset.id,active:activate});toast('Estado actualizado');await loadCatalogs(true);}catch(error){showError(error);}finally{setButtonBusy(button,false);}}
+  async function saveCatalogEditor(event){event.preventDefault();if(!event.currentTarget.reportValidity())return;const button=event.submitter,parentId=byId('catalog-item-parent').value,parent=parentId?arrayOf(state.catalogData?.items).find(item=>String(valueOf(item,'IdCatalogo'))===parentId):null,payload={IdCatalogo:byId('catalog-item-id').value||undefined,Tipo:state.currentCatalogType,Codigo:byId('catalog-item-code').value.trim(),Valor:byId('catalog-item-label').value.trim(),Descripcion:byId('catalog-item-description').value.trim(),Orden:Number(byId('catalog-item-order').value)||0,IdCatalogoPadre:parentId,TipoPadre:parent?valueOf(parent,'Tipo'):'',CodigoPadre:parent?valueOf(parent,'Codigo'):'',Activo:byId('catalog-item-active').checked};setButtonBusy(button,true,'Guardando…');try{await rpc(API.saveCatalog,payload);byId('catalog-dialog').close();toast('Catálogo guardado');await loadCatalogs(true);}catch(error){showError(error,'No se pudo guardar el valor');}finally{setButtonBusy(button,false);}}
+
+  function bindAdmin(){$$('[data-admin-tab]').forEach(button=>button.addEventListener('click',()=>selectAdminTab(button.dataset.adminTab)));$('[data-action="new-user"]').addEventListener('click',()=>openUserEditor());byId('users-table-body').addEventListener('click',event=>{const button=event.target.closest('[data-user-edit]');if(button)openUserEditor(arrayOf(state.admin?.users).find(user=>String(valueOf(user,'IdUsuario'))===button.dataset.userEdit));});byId('user-editor-form').addEventListener('submit',saveUserEditor);byId('permission-role-select').addEventListener('change',renderPermissionMatrix);$('[data-action="save-permissions"]').addEventListener('click',savePermissionMatrix);byId('user-search').addEventListener('input',renderUsers);byId('user-role-filter').addEventListener('change',renderUsers);byId('user-status-filter').addEventListener('change',renderUsers);
+    byId('import-source-type').addEventListener('change',toggleImportSource);byId('import-form').addEventListener('submit',validateHistoricalImport);$('[data-action="execute-import"]').addEventListener('click',executeHistoricalImport);byId('settings-form').addEventListener('submit',saveSettings);$('[data-action="run-setup"]').addEventListener('click',runSetupCheck);
+  }
+  function selectAdminTab(tab){$$('[data-admin-tab]').forEach(button=>{const active=button.dataset.adminTab===tab;button.classList.toggle('is-active',active);button.setAttribute('aria-selected',String(active));});$$('[data-admin-panel]').forEach(panel=>panel.hidden=panel.dataset.adminPanel!==tab);}
+  async function loadAdministration(force=false){if(state.admin&&!force){renderAdministration();return;}try{state.admin=await rpc(API.administration);renderAdministration();}catch(error){showError(error,'No se pudo cargar la administración');}}
+  function renderAdministration(){const roles=arrayOf(state.admin?.roles);fillSelect(byId('user-role-filter'),roles,{placeholder:'Todos los roles',valueKey:'IdRol',labelKey:'Nombre'});fillSelect(byId('permission-role-select'),roles,{placeholder:'Seleccione un rol',valueKey:'IdRol',labelKey:'Nombre'});fillSelect(byId('admin-user-role'),roles,{placeholder:'Seleccionar…',valueKey:'IdRol',labelKey:'Nombre'});renderUsers();populateSettings();}
+  function renderUsers(){const body=clear(byId('users-table-body')),query=norm(byId('user-search').value),roleFilter=byId('user-role-filter').value,statusFilter=byId('user-status-filter').value,roles=arrayOf(state.admin?.roles);const users=arrayOf(state.admin?.users).filter(user=>(!query||norm(`${valueOf(user,'Nombre')} ${valueOf(user,'Correo')}`).includes(query))&&(!roleFilter||String(valueOf(user,'RolId'))===roleFilter)&&(statusFilter===''||String(valueOf(user,'Estado')===''||bool(valueOf(user,'Estado')))===statusFilter));users.forEach(user=>{const role=roles.find(item=>String(valueOf(item,'IdRol'))===String(valueOf(user,'RolId')));const active=valueOf(user,'Estado')===''||bool(valueOf(user,'Estado'));body.append(el('tr',{},[el('td',{text:valueOf(user,'Nombre')||'—'}),el('td',{text:valueOf(user,'Correo')}),el('td',{text:valueOf(role,'Nombre')||valueOf(user,'RolId')}),el('td',{text:formatDateTime(valueOf(user,'UltimoAcceso'))}),el('td',{},statusBadge(active?'Activo':'Inactivo')),el('td',{},el('button',{class:'icon-button',type:'button',text:'✎','aria-label':'Editar usuario',title:'Editar',dataset:{userEdit:valueOf(user,'IdUsuario')}}))]));});if(!users.length)body.append(el('tr',{},el('td',{colspan:'6'},el('p',{class:'empty-state compact',text:'No se encontraron usuarios.'}))));}
+  function openUserEditor(user=null){const row=user||{};byId('user-dialog-title').textContent=user?'Editar usuario':'Agregar usuario';byId('admin-user-id').value=valueOf(row,'IdUsuario');byId('admin-user-email').value=valueOf(row,'Correo');byId('admin-user-email').readOnly=Boolean(user);byId('admin-user-name').value=valueOf(row,'Nombre');byId('admin-user-role').value=valueOf(row,'RolId');byId('admin-user-active').checked=valueOf(row,'Estado')===''||bool(valueOf(row,'Estado'));byId('user-dialog').showModal();}
+  async function saveUserEditor(event){event.preventDefault();if(!event.currentTarget.reportValidity())return;const button=event.submitter,payload={email:byId('admin-user-email').value.trim(),name:byId('admin-user-name').value.trim(),roleId:byId('admin-user-role').value,status:byId('admin-user-active').checked?'ACTIVO':'INACTIVO'};setButtonBusy(button,true,'Guardando…');try{await rpc(API.saveUser,payload);byId('user-dialog').close();toast('Usuario actualizado');state.admin=await rpc(API.administration);renderAdministration();}catch(error){showError(error,'No se pudo guardar el usuario');}finally{setButtonBusy(button,false);}}
+  function renderPermissionMatrix(){const body=clear(byId('permissions-table-body')),roleId=byId('permission-role-select').value;if(!roleId){body.append(el('tr',{},el('td',{colspan:'6'},el('p',{class:'empty-state compact',text:'Seleccione un rol.'}))));return;}const modules=arrayOf(state.admin?.modules),permissions=arrayOf(state.admin?.permissions);modules.forEach(module=>{const permission=permissions.find(item=>String(valueOf(item,'RolId'))===roleId&&norm(valueOf(item,'Modulo'))===norm(module))||{};const row=el('tr',{dataset:{module}});row.append(el('td',{text:labelize(module)}));['create','read','edit','delete','sensitive'].forEach(action=>row.append(el('td',{},el('input',{type:'checkbox',checked:bool(valueOf(permission,{create:'PuedeCrear',read:'PuedeLeer',edit:'PuedeEditar',delete:'PuedeEliminar',sensitive:'PuedeSensible'}[action])),dataset:{permissionAction:action},'aria-label':`${labelize(action)} ${labelize(module)}`}))));body.append(row);});}
+  async function savePermissionMatrix(event){const button=event.currentTarget,roleId=byId('permission-role-select').value;if(!roleId){toast('Seleccione un rol','','warning');return;}const rows=$$('tr[data-module]',byId('permissions-table-body'));setButtonBusy(button,true,'Guardando…');try{for(const row of rows){const payload={roleId,module:row.dataset.module};$$('[data-permission-action]',row).forEach(input=>payload[input.dataset.permissionAction]=input.checked);payload.export=payload.read;await rpc(API.savePermissions,payload);}toast('Permisos actualizados','Los cambios se aplicarán en la próxima carga de sesión.');state.admin=await rpc(API.administration);}catch(error){showError(error,'No se pudieron guardar los permisos');}finally{setButtonBusy(button,false);}}
+  function toggleImportSource(){const type=byId('import-source-type').value;$$('[data-import-source]').forEach(field=>field.hidden=field.dataset.importSource!==type);}
+  function extractSpreadsheetId(value){const match=String(value||'').match(/\/d\/([A-Za-z0-9_-]+)/);return match?match[1]:String(value||'').trim();}
+  async function buildImportPayload(){const entity=byId('import-entity').value,type=byId('import-source-type').value;if(type==='GOOGLE_SHEET'){const spreadsheetId=extractSpreadsheetId(byId('import-sheet-id').value),sheetName=byId('import-sheet-name').value.trim();if(!spreadsheetId||!sheetName)throw new Error('Indique el Google Sheet y el nombre de la hoja.');return{table:entity,spreadsheetId,sheetName,origin:byId('import-origin-label').value.trim()};}const file=byId('import-csv').files[0];if(!file)throw new Error('Seleccione un archivo CSV.');const content=await file.text(),parsed=parseCsv(content);if(!parsed.length)throw new Error('El archivo CSV está vacío.');return{table:entity,headers:parsed[0].map(value=>String(value).replace(/^\uFEFF/,'')),rows:parsed.slice(1),fileName:file.name,sheetName:'CSV',origin:byId('import-origin-label').value.trim()};}
+  function parseCsv(text){const rows=[];let row=[],field='',quoted=false;for(let i=0;i<text.length;i++){const char=text[i],next=text[i+1];if(char==='"'&&quoted&&next==='"'){field+='"';i++;}else if(char==='"')quoted=!quoted;else if(char===','&&!quoted){row.push(field);field='';}else if((char==='\n'||char==='\r')&&!quoted){if(char==='\r'&&next==='\n')i++;row.push(field);if(row.some(cell=>cell!==''))rows.push(row);row=[];field='';}else field+=char;}row.push(field);if(row.some(cell=>cell!==''))rows.push(row);return rows;}
+  async function validateHistoricalImport(event){event.preventDefault();if(!event.currentTarget.reportValidity())return;const button=event.submitter;setButtonBusy(button,true,'Validando…');try{state.importPayload=await buildImportPayload();state.importValidation=await rpc(API.validateImport,state.importPayload);renderImportValidation(state.importValidation);toast(state.importValidation.valid?'Validación completada':'Validación con observaciones',state.importValidation.valid?'La información está lista para importar.':'Revise los errores antes de continuar.',state.importValidation.valid?'success':'warning');}catch(error){showError(error,'No se pudo validar la importación');}finally{setButtonBusy(button,false);}}
+  function renderImportValidation(result){byId('import-validation-result').hidden=false;const summary=clear(byId('import-summary'));[['Filas de origen',valueOf(result,'totalRows')],['Filas válidas',valueOf(result,'validRows')],['Errores',valueOf(result,'errorCount')],['Estado',result.valid?'Lista':'Requiere corrección']].forEach(([label,value])=>summary.append(el('article',{class:'summary-item'},[el('strong',{text:value}),el('span',{text:label})])));const body=clear(byId('import-errors-body'));arrayOf(result.errors).forEach(error=>body.append(el('tr',{},[el('td',{text:valueOf(error,'row')}),el('td',{text:arrayOf(valueOf(error,'fields')).join(', ')||valueOf(error.details,'field')||'—'}),el('td',{},statusBadge(valueOf(error,'code')||'Error')),el('td',{text:valueOf(error,'message')})])));if(!body.children.length)body.append(el('tr',{},el('td',{colspan:'4',text:'No se detectaron errores.'})));byId('execute-import-button').disabled=!result.valid;}
+  async function executeHistoricalImport(event){if(!state.importValidation?.valid||!state.importPayload)return;const ok=await confirmAction({title:'Ejecutar importación',message:`Se importarán ${state.importValidation.validRows} fila(s). Esta acción quedará auditada.`,confirmText:'Importar'});if(!ok)return;const button=event.currentTarget;setButtonBusy(button,true,'Importando…');try{const result=await rpc(API.executeImport,state.importPayload);toast('Importación completada',`${valueOf(result,'importedRows')} fila(s) importada(s).`);state.importValidation=null;byId('execute-import-button').disabled=true;}catch(error){showError(error,'No se pudo ejecutar la importación');}finally{setButtonBusy(button,false);}}
+  function populateSettings(){const app=state.boot?.app||{};byId('setting-app-name').value=valueOf(app,'name');byId('setting-page-size').value=valueOf(app,'pageSize');byId('setting-max-file-size').value=(Number(valueOf(app,'maxFileBytes'))/1048576)||10;byId('setting-file-types').value=arrayOf(valueOf(app,'allowedExtensions')).join(', ');byId('setting-hard-delete').checked=bool(valueOf(app,'allowHardDelete'));byId('setting-hard-delete').disabled=!can('ADMINISTRACION','edit');$('#settings-form button[type="submit"]').hidden=!can('ADMINISTRACION','edit');}
+  async function saveSettings(event){event.preventDefault();if(!event.currentTarget.reportValidity())return;const button=event.submitter,payload={appName:byId('setting-app-name').value.trim(),pageSize:Number(byId('setting-page-size').value),maxFileBytes:Number(byId('setting-max-file-size').value)*1048576,allowHardDelete:byId('setting-hard-delete').checked};setButtonBusy(button,true,'Guardando…');try{const saved=await rpc(API.saveConfiguration,payload);state.boot.app={...state.boot.app,...saved,name:saved.appName||state.boot.app.name};toast('Configuración guardada','La política de eliminación se aplicó; recargue para actualizar todas las sesiones.');}catch(error){showError(error,'No se pudo guardar la configuración');}finally{setButtonBusy(button,false);}}
+  async function runSetupCheck(event){const ok=await confirmAction({title:'Verificar estructura',message:'Se crearán únicamente hojas, encabezados o carpetas faltantes. La operación es idempotente.',confirmText:'Verificar'});if(!ok)return;const button=event.currentTarget;setButtonBusy(button,true,'Verificando…');try{await rpc(API.setup,{});toast('Configuración completada','La estructura fue verificada sin eliminar datos.');}catch(error){showError(error,'No se pudo verificar la estructura');}finally{setButtonBusy(button,false);}}
+
+  function confirmAction({title,message,confirmText='Confirmar',requireReason=false,requiredConfirmation=''}){return new Promise(resolve=>{const dialog=byId('confirm-dialog'),accept=byId('confirm-accept'),reason=byId('confirm-reason'),reasonField=byId('confirm-reason-field'),token=byId('confirm-token'),tokenField=byId('confirm-token-field');byId('confirm-title').textContent=title;byId('confirm-message').textContent=message;accept.textContent=confirmText;reason.value='';reasonField.hidden=!requireReason;reason.required=requireReason;token.value='';tokenField.hidden=!requiredConfirmation;byId('confirm-token-label').firstChild.textContent=requiredConfirmation?`Escriba ${requiredConfirmation} `:'Confirmación exacta ';const validate=event=>{if(requireReason&&!reason.value.trim()){event.preventDefault();reason.setAttribute('aria-invalid','true');reason.focus();toast('Indique el motivo','','warning');return;}if(requiredConfirmation&&token.value!==requiredConfirmation){event.preventDefault();token.setAttribute('aria-invalid','true');token.focus();toast('La confirmación exacta no coincide','','warning');}};accept.addEventListener('click',validate);dialog.addEventListener('close',()=>{accept.removeEventListener('click',validate);reason.removeAttribute('aria-invalid');token.removeAttribute('aria-invalid');resolve(dialog.returnValue==='confirm'&&(!requireReason||Boolean(reason.value.trim()))&&(!requiredConfirmation||token.value===requiredConfirmation));},{once:true});dialog.showModal();});}
+
+  window.addEventListener('hashchange',()=>{const view=location.hash.replace(/^#/,'').split('/')[0];if(view&&view!==state.view&&byId(`view-${view}`))navigate(view,{},false);});
+  document.addEventListener('DOMContentLoaded',init,{once:true});
+})();
+</script>

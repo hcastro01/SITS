@@ -1,0 +1,48 @@
+<section id="view-search" class="view" data-view="search" aria-labelledby="search-title" hidden>
+  <div class="page-header">
+    <div><p class="eyebrow">Consulta</p><h1 id="search-title">Consulta general</h1><p class="page-description">Busque registros autorizados y combine filtros avanzados.</p></div>
+    <div class="header-actions"><button class="button button--secondary" type="button" data-action="export-search" data-format="CSV">Exportar CSV</button><button class="button button--secondary" type="button" data-action="export-search" data-format="SHEETS">Exportar a Sheets</button></div>
+  </div>
+
+  <article class="card search-card">
+    <form id="advanced-search-form" novalidate>
+      <div class="primary-search-row"><label class="search-field search-field--hero"><span aria-hidden="true">⌕</span><span class="sr-only">Término de búsqueda</span><input id="search-query" type="search" placeholder="Código, cédula, colaborador, responsable o palabras permitidas…" autocomplete="off"></label><button class="button button--primary" type="submit">Buscar</button><button id="advanced-filters-toggle" class="button button--secondary" type="button" aria-expanded="false" aria-controls="advanced-filters">Filtros <span aria-hidden="true">⌄</span></button></div>
+      <div id="advanced-filters" class="advanced-filters" hidden>
+        <div class="form-grid form-grid--4">
+          <div class="field"><label for="search-record-type">Tipo de registro</label><select id="search-record-type"><option value="">Todos</option><option value="CASO">Casos</option><option value="ATENCION">Atenciones</option><option value="NOVEDAD">Novedades</option><option value="RECORRIDO">Recorridos</option><option value="SEGUIMIENTO">Seguimientos</option><option value="DERIVACION">Derivaciones</option><option value="COMPROMISO">Compromisos</option></select></div>
+          <div class="field"><label for="search-date-from">Fecha desde</label><input id="search-date-from" type="date"></div>
+          <div class="field"><label for="search-date-to">Fecha hasta</label><input id="search-date-to" type="date"></div>
+          <div class="field"><label for="search-owner">Responsable</label><input id="search-owner" maxlength="150"></div>
+          <div class="field"><label for="search-area">Área</label><select id="search-area" data-catalog="AREA"><option value="">Todas</option></select></div>
+          <div class="field"><label for="search-status">Estado</label><select id="search-status"><option value="">Todos</option></select></div>
+          <div class="field"><label for="search-type">Tipo / categoría</label><select id="search-type"><option value="">Todos</option></select></div>
+          <div class="field"><label for="search-priority">Prioridad</label><select id="search-priority" data-catalog="PRIORIDAD"><option value="">Todas</option></select></div>
+          <div class="field"><label for="search-sensitivity">Sensibilidad</label><select id="search-sensitivity" data-catalog="NIVEL_SENSIBILIDAD"><option value="">Todos los niveles permitidos</option></select></div>
+          <div class="field"><label for="search-person">Colaborador</label><input id="search-person" maxlength="150"></div>
+          <div class="field"><label for="search-code">Código</label><input id="search-code" maxlength="80"></div>
+          <div class="field"><label class="toggle-label"><input id="search-include-deleted" type="checkbox"><span>Incluir eliminados lógicamente</span></label><small class="field-help">Solo se muestran cuando su rol conserva permiso de eliminación/restauración.</small></div>
+        </div>
+        <div class="filter-actions"><button class="text-button" type="button" data-action="clear-search-filters">Limpiar filtros</button></div>
+      </div>
+    </form>
+  </article>
+
+  <article class="card results-card">
+    <div class="results-header"><div><h2>Resultados</h2><p id="search-result-summary">Realice una búsqueda para comenzar.</p></div><div class="results-tools"><label><span class="sr-only">Registros por página</span><select id="search-page-size"><option value="10">10 por página</option><option value="25" selected>25 por página</option><option value="50">50 por página</option></select></label><button class="icon-button" type="button" data-action="configure-columns" aria-label="Configurar columnas" title="Configurar columnas">☷</button></div></div>
+    <div class="table-wrap"><table id="search-results-table" class="data-table"><thead id="search-results-head"><tr><th>Tipo</th><th>Código / ID</th><th>Fecha</th><th>Colaborador</th><th>Estado</th><th>Responsable</th><th><span class="sr-only">Acciones</span></th></tr></thead><tbody id="search-results-body"><tr><td colspan="7"><p class="empty-state compact">No hay resultados para mostrar.</p></td></tr></tbody></table></div>
+    <div id="search-pagination" class="pagination"></div>
+  </article>
+</section>
+
+<section id="view-documents" class="view" data-view="documents" aria-labelledby="documents-title" hidden>
+  <div class="page-header"><div><p class="eyebrow">Repositorio</p><h1 id="documents-title">Documentos</h1><p class="page-description">Archivos privados vinculados a registros autorizados.</p></div></div>
+  <article class="card">
+    <div class="toolbar"><label class="search-field search-field--large"><span aria-hidden="true">⌕</span><span class="sr-only">Buscar documento</span><input id="document-search" type="search" placeholder="Nombre, categoría, código de caso…"></label><select id="document-category-filter"><option value="">Todas las categorías</option></select><select id="document-type-filter"><option value="">Todos los formatos</option><option value="image">Imágenes</option><option value="application/pdf">PDF</option><option value="document">Documentos</option></select><button class="button button--primary" type="button" data-action="search-documents">Buscar</button></div>
+    <div id="document-results" class="document-list"><p class="empty-state">Realice una búsqueda para consultar documentos.</p></div><div id="document-pagination" class="pagination"></div>
+  </article>
+</section>
+
+<section id="view-reports" class="view" data-view="reports" aria-labelledby="reports-title" hidden>
+  <div class="page-header"><div><p class="eyebrow">Análisis</p><h1 id="reports-title">Reportes</h1><p class="page-description">Resumen agregado, preparado para análisis sin exposición de detalle sensible.</p></div><div class="header-actions"><button class="button button--secondary" type="button" data-action="export-report" data-format="CSV">Descargar CSV</button><button class="button button--primary" type="button" data-action="export-report" data-format="SHEETS">Crear hoja de análisis</button></div></div>
+  <article class="card"><div class="toolbar"><select id="report-type" aria-label="Tipo de reporte"><option value="CASES_SUMMARY">Resumen de casos</option><option value="ACTIVITY">Actividad por proceso</option><option value="FOLLOWUPS">Seguimientos</option><option value="COMMITMENTS">Compromisos</option></select><input id="report-from" type="date" aria-label="Fecha desde"><input id="report-to" type="date" aria-label="Fecha hasta"><button class="button button--primary" type="button" data-action="load-report">Generar</button></div><div id="report-content" class="report-content"><p class="empty-state">Seleccione los parámetros y genere un reporte.</p></div></article>
+</section>

@@ -1,0 +1,59 @@
+<section id="view-cases" class="view" data-view="cases" aria-labelledby="cases-title" hidden>
+  <div class="page-header">
+    <div><p class="eyebrow">Gestión</p><h1 id="cases-title">Casos</h1><p class="page-description">Seguimiento integral de casos autorizados para su perfil.</p></div>
+    <div class="header-actions"><button class="button button--secondary" type="button" data-action="refresh-cases">Actualizar</button><button class="button button--primary" type="button" data-nav="capture" data-process="CASO" data-module="CASOS" data-permission-action="create"><span aria-hidden="true">＋</span> Nuevo caso</button></div>
+  </div>
+  <article class="card cases-overview">
+    <div class="toolbar">
+      <label class="search-field search-field--large"><span aria-hidden="true">⌕</span><span class="sr-only">Buscar casos</span><input id="case-quick-search" type="search" placeholder="Código, colaborador o responsable…"></label>
+      <select id="case-status-filter" aria-label="Estado del caso"><option value="">Todos los estados</option></select>
+      <select id="case-priority-filter" aria-label="Prioridad"><option value="">Todas las prioridades</option></select>
+      <button class="button button--secondary" type="button" data-action="apply-case-filters">Filtrar</button>
+    </div>
+    <div class="table-wrap"><table class="data-table"><thead><tr><th>Código</th><th>Fecha apertura</th><th>Colaborador</th><th>Tipo</th><th>Prioridad</th><th>Estado</th><th>Responsable</th><th><span class="sr-only">Acciones</span></th></tr></thead><tbody id="cases-table-body"><tr><td colspan="8"><p class="empty-state compact">Cargando casos…</p></td></tr></tbody></table></div>
+    <div id="cases-pagination" class="pagination"></div>
+  </article>
+</section>
+
+<section id="view-case-detail" class="view" data-view="case-detail" aria-labelledby="case-detail-title" hidden>
+  <div class="page-header page-header--compact">
+    <div><button class="back-link" type="button" data-action="back-from-case"><span aria-hidden="true">←</span> Volver</button><p class="eyebrow">Detalle del caso</p><div class="title-with-badge"><h1 id="case-detail-title">Caso</h1><span id="case-status-badge" class="badge"></span><span id="case-sensitive-badge" class="badge badge--restricted" hidden>Acceso restringido</span></div><p id="case-detail-subtitle" class="page-description">—</p></div>
+    <div id="case-header-actions" class="header-actions">
+      <button class="button button--secondary" type="button" data-case-action="edit">Editar</button>
+      <button class="button button--secondary" type="button" data-case-action="followup">＋ Seguimiento</button>
+      <button class="button button--primary" type="button" data-case-action="close">Cerrar caso</button>
+      <button class="icon-button" type="button" data-action="case-more" aria-label="Más acciones" aria-haspopup="menu">•••</button>
+    </div>
+  </div>
+
+  <div id="sensitive-access-warning" class="inline-alert inline-alert--warning" hidden><strong>Información sensible.</strong> La consulta de este detalle se registra en auditoría. No comparta capturas ni descargue documentos sin autorización.</div>
+
+  <div class="detail-layout">
+    <div class="detail-main">
+      <div class="tabs" role="tablist" aria-label="Información del caso">
+        <button class="is-active" id="case-tab-summary" type="button" role="tab" aria-selected="true" aria-controls="case-panel-summary" data-case-tab="summary">Resumen</button>
+        <button id="case-tab-followups" type="button" role="tab" aria-selected="false" aria-controls="case-panel-followups" data-case-tab="followups">Seguimientos <span id="followup-count" class="count-pill">0</span></button>
+        <button id="case-tab-referrals" type="button" role="tab" aria-selected="false" aria-controls="case-panel-referrals" data-case-tab="referrals">Derivaciones</button>
+        <button id="case-tab-commitments" type="button" role="tab" aria-selected="false" aria-controls="case-panel-commitments" data-case-tab="commitments">Compromisos</button>
+        <button id="case-tab-files" type="button" role="tab" aria-selected="false" aria-controls="case-panel-files" data-case-tab="files">Documentos</button>
+        <button id="case-tab-history" type="button" role="tab" aria-selected="false" aria-controls="case-panel-history" data-case-tab="history">Historial</button>
+      </div>
+
+      <article id="case-panel-summary" class="card tab-panel" role="tabpanel" aria-labelledby="case-tab-summary" data-case-panel="summary">
+        <div class="card-header"><div><h2>Información general</h2><p>Datos permitidos para su rol.</p></div></div><dl id="case-summary-grid" class="detail-grid"></dl>
+        <div id="case-restricted-fields" class="restricted-panel" hidden><div class="restricted-panel-header"><span aria-hidden="true">▣</span><div><strong>Detalle sensible</strong><small>Acceso auditado</small></div></div><dl id="case-sensitive-grid" class="detail-grid"></dl></div>
+      </article>
+
+      <article id="case-panel-followups" class="card tab-panel" role="tabpanel" aria-labelledby="case-tab-followups" data-case-panel="followups" hidden><div class="card-header"><div><h2>Seguimientos</h2><p>Historia cronológica de las gestiones.</p></div><button class="button button--primary button--small" type="button" data-case-action="followup">＋ Agregar</button></div><div id="case-followups" class="record-timeline"></div></article>
+      <article id="case-panel-referrals" class="card tab-panel" role="tabpanel" aria-labelledby="case-tab-referrals" data-case-panel="referrals" hidden><div class="card-header"><div><h2>Derivaciones</h2><p>Áreas destino y estados de respuesta.</p></div><button class="button button--primary button--small" type="button" data-case-action="referral">＋ Derivar</button></div><div id="case-referrals" class="record-list"></div></article>
+      <article id="case-panel-commitments" class="card tab-panel" role="tabpanel" aria-labelledby="case-tab-commitments" data-case-panel="commitments" hidden><div class="card-header"><div><h2>Compromisos</h2><p>Acuerdos, responsables y fechas límite.</p></div><button class="button button--primary button--small" type="button" data-case-action="commitment">＋ Compromiso</button></div><div id="case-commitments" class="record-list"></div></article>
+      <article id="case-panel-files" class="card tab-panel" role="tabpanel" aria-labelledby="case-tab-files" data-case-panel="files" hidden><div class="card-header"><div><h2>Documentos y evidencias</h2><p>Los archivos se mantienen privados en Drive.</p></div><button class="button button--primary button--small" type="button" data-case-action="attach">＋ Adjuntar</button></div><div id="case-files" class="file-grid"></div></article>
+      <article id="case-panel-history" class="card tab-panel" role="tabpanel" aria-labelledby="case-tab-history" data-case-panel="history" hidden><div class="card-header"><div><h2>Historial de cambios</h2><p>Trazabilidad del registro.</p></div></div><div id="case-history" class="audit-list"></div></article>
+    </div>
+
+    <aside class="detail-aside">
+      <article class="card"><div class="card-header"><h2>Estado de gestión</h2></div><dl id="case-management-summary" class="stacked-details"></dl></article>
+      <article class="card"><div class="card-header"><h2>Trazabilidad</h2></div><div id="case-lineage" class="lineage-list"><p class="empty-state compact">Sin vínculos registrados.</p></div></article>
+    </aside>
+  </div>
+</section>

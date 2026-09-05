@@ -1,0 +1,83 @@
+<div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+
+<dialog id="confirm-dialog" class="dialog dialog--small" aria-labelledby="confirm-title">
+  <form method="dialog" class="dialog-card">
+    <div class="dialog-header"><div><p class="eyebrow">Confirmación</p><h2 id="confirm-title">¿Desea continuar?</h2></div><button class="icon-button" value="cancel" aria-label="Cerrar">×</button></div>
+    <p id="confirm-message" class="dialog-copy"></p>
+    <div id="confirm-reason-field" class="field" hidden><label for="confirm-reason">Motivo <span class="required-mark">*</span></label><textarea id="confirm-reason" rows="3" maxlength="500"></textarea></div>
+    <div id="confirm-token-field" class="field" hidden><label id="confirm-token-label" for="confirm-token">Confirmación exacta <span class="required-mark">*</span></label><input id="confirm-token" type="text" autocomplete="off" spellcheck="false"></div>
+    <div class="dialog-actions"><button class="button button--secondary" value="cancel">Cancelar</button><button id="confirm-accept" class="button button--danger" value="confirm">Confirmar</button></div>
+  </form>
+</dialog>
+
+<dialog id="question-dialog" class="dialog dialog--large" aria-labelledby="question-dialog-title">
+  <form id="question-editor-form" class="dialog-card" novalidate>
+    <div class="dialog-header"><div><p class="eyebrow">Constructor</p><h2 id="question-dialog-title">Nueva pregunta</h2></div><button class="icon-button" type="button" data-dialog-close aria-label="Cerrar">×</button></div>
+    <div class="dialog-body">
+      <input id="question-id" type="hidden">
+      <div class="form-grid">
+        <div class="field field--span-2"><label for="question-label">Etiqueta <span class="required-mark">*</span></label><input id="question-label" required maxlength="250" placeholder="Escriba la pregunta o el título de sección"></div>
+        <div class="field field--span-2"><label for="question-description">Descripción</label><textarea id="question-description" rows="2" maxlength="500"></textarea></div>
+        <div class="field"><label for="question-type">Tipo <span class="required-mark">*</span></label><select id="question-type" required><option value="SHORT_TEXT">Texto corto</option><option value="LONG_TEXT">Texto largo</option><option value="NUMBER">Número</option><option value="DATE">Fecha</option><option value="DATETIME">Fecha y hora</option><option value="TIME">Hora</option><option value="YES_NO">Sí / No</option><option value="DROPDOWN">Lista desplegable</option><option value="SINGLE_CHOICE">Selección única</option><option value="MULTIPLE_CHOICE">Selección múltiple</option><option value="LIKERT">Escala Likert</option><option value="PERSON">Persona / colaborador</option><option value="AREA">Área</option><option value="SHIFT">Turno</option><option value="FILE">Archivo</option><option value="PHOTO">Fotografía</option><option value="PDF">PDF</option><option value="DOCUMENT">Documento</option><option value="CALCULATED">Campo calculado</option><option value="HIDDEN">Campo oculto</option><option value="SECTION">Encabezado / sección</option></select></div>
+        <div class="field"><label for="question-order">Orden</label><input id="question-order" type="number" min="1" step="1"></div>
+        <div class="field"><label for="question-category">Categoría</label><input id="question-category" maxlength="100"></div>
+        <div class="field"><label for="question-subcategory">Subcategoría</label><input id="question-subcategory" maxlength="100"></div>
+        <div class="field field--span-2"><label for="question-help">Texto de ayuda</label><input id="question-help" maxlength="300" placeholder="Aclare el formato o el uso esperado"></div>
+        <div class="field"><label for="question-default">Valor predeterminado</label><input id="question-default" maxlength="250"></div>
+        <div class="field"><label for="question-max-length">Longitud máxima</label><input id="question-max-length" type="number" min="1" max="50000"></div>
+        <div class="field"><label for="question-validation">Validación</label><select id="question-validation"><option value="">Sin validación adicional</option><option value="EMAIL">Correo electrónico</option><option value="PHONE">Teléfono</option><option value="ID">Identificación</option><option value="POSITIVE">Número positivo</option><option value="REGEX">Expresión regular</option></select></div>
+        <div class="field"><label for="question-validation-pattern">Patrón / límite</label><input id="question-validation-pattern" maxlength="250"></div>
+        <div id="question-formula-field" class="field field--span-2" hidden><label for="question-formula">Fórmula calculada</label><input id="question-formula" maxlength="500" placeholder="SUM(IdPregunta1,IdPregunta2), CONCAT(...) o TODAY()"><small class="field-help">Por seguridad solo se admiten SUM, CONCAT y TODAY; no se evalúa JavaScript.</small></div>
+        <fieldset id="question-options-group" class="field field--span-2 options-editor"><legend>Opciones</legend><p class="field-help">Una opción por línea. Para dependencias use <code>valor|padre</code>.</p><textarea id="question-options" rows="5" placeholder="Opción 1&#10;Opción 2"></textarea></fieldset>
+      </div>
+
+      <fieldset class="settings-group"><legend>Comportamiento</legend><div class="check-grid">
+        <label class="check-card"><input id="question-required" type="checkbox"><span><strong>Obligatoria</strong><small>Exige una respuesta.</small></span></label>
+        <label class="check-card"><input id="question-visible" type="checkbox" checked><span><strong>Visible</strong><small>Se muestra al usuario.</small></span></label>
+        <label class="check-card"><input id="question-readonly" type="checkbox"><span><strong>Solo lectura</strong><small>No permite editar.</small></span></label>
+        <label class="check-card"><input id="question-sensitive" type="checkbox"><span><strong>Sensible</strong><small>Requiere permiso especial.</small></span></label>
+      </div></fieldset>
+
+      <fieldset class="settings-group"><legend>Condición de visibilidad</legend><div class="form-grid form-grid--3">
+        <div class="field"><label for="question-dependent-field">Campo dependiente</label><select id="question-dependent-field"><option value="">Siempre visible</option></select></div>
+        <div class="field"><label for="question-condition-operator">Operador</label><select id="question-condition-operator"><option value="EQUALS">Es igual a</option><option value="NOT_EQUALS">No es igual a</option><option value="INCLUDES">Contiene</option><option value="NOT_EMPTY">Tiene valor</option><option value="EMPTY">Está vacío</option></select></div>
+        <div class="field"><label for="question-dependent-value">Valor dependiente</label><input id="question-dependent-value" maxlength="250"></div>
+      </div></fieldset>
+    </div>
+    <div class="dialog-actions"><button class="button button--secondary" type="button" data-dialog-close>Cancelar</button><button class="button button--primary" type="submit">Guardar pregunta</button></div>
+  </form>
+</dialog>
+
+<dialog id="preview-dialog" class="dialog dialog--preview" aria-labelledby="preview-title">
+  <div class="dialog-card"><div class="dialog-header"><div><p class="eyebrow">Vista previa</p><h2 id="preview-title">Formulario</h2></div><button class="icon-button" type="button" data-dialog-close aria-label="Cerrar">×</button></div><div id="preview-container" class="dialog-body preview-surface"></div><div class="dialog-actions"><button class="button button--secondary" type="button" data-dialog-close>Cerrar</button></div></div>
+</dialog>
+
+<dialog id="case-action-dialog" class="dialog" aria-labelledby="case-action-title">
+  <form id="case-action-form" class="dialog-card" novalidate>
+    <div class="dialog-header"><div><p id="case-action-eyebrow" class="eyebrow">Gestión del caso</p><h2 id="case-action-title">Agregar seguimiento</h2></div><button class="icon-button" type="button" data-dialog-close aria-label="Cerrar">×</button></div>
+    <div id="case-action-body" class="dialog-body"></div>
+    <div class="dialog-actions"><button class="button button--secondary" type="button" data-dialog-close>Cancelar</button><button id="case-action-submit" class="button button--primary" type="submit">Guardar</button></div>
+  </form>
+</dialog>
+
+<dialog id="file-dialog" class="dialog" aria-labelledby="file-dialog-title">
+  <form id="file-upload-form" class="dialog-card" novalidate>
+    <div class="dialog-header"><div><p class="eyebrow">Gestión documental</p><h2 id="file-dialog-title">Adjuntar archivos</h2></div><button class="icon-button" type="button" data-dialog-close aria-label="Cerrar">×</button></div>
+    <div class="dialog-body"><div id="file-dropzone" class="file-dropzone"><span class="empty-icon" aria-hidden="true">⇧</span><strong>Seleccione evidencias</strong><p id="file-policy">JPG, PNG, PDF, DOC, DOCX, XLS o XLSX.</p><label class="button button--secondary" for="case-file-input">Elegir archivos</label><input id="case-file-input" type="file" multiple hidden></div><div class="field"><label for="file-category">Categoría documental <span class="required-mark">*</span></label><select id="file-category" required><option value="">Seleccionar…</option></select></div><div id="pending-file-list" class="pending-file-list"></div></div>
+    <div class="dialog-actions"><button class="button button--secondary" type="button" data-dialog-close>Cancelar</button><button class="button button--primary" type="submit">Cargar archivos</button></div>
+  </form>
+</dialog>
+
+<dialog id="catalog-dialog" class="dialog dialog--small" aria-labelledby="catalog-dialog-title">
+  <form id="catalog-item-form" class="dialog-card" novalidate><div class="dialog-header"><div><p class="eyebrow">Catálogo</p><h2 id="catalog-dialog-title">Agregar valor</h2></div><button class="icon-button" type="button" data-dialog-close aria-label="Cerrar">×</button></div><div class="dialog-body form-grid"><input id="catalog-item-id" type="hidden"><div class="field"><label for="catalog-item-code">Código <span class="required-mark">*</span></label><input id="catalog-item-code" required maxlength="80"></div><div class="field"><label for="catalog-item-label">Valor <span class="required-mark">*</span></label><input id="catalog-item-label" required maxlength="200"></div><div class="field"><label for="catalog-item-parent">Valor padre</label><select id="catalog-item-parent"><option value="">Sin dependencia</option></select></div><div class="field"><label for="catalog-item-order">Orden</label><input id="catalog-item-order" type="number" min="1"></div><div class="field field--span-2"><label for="catalog-item-description">Descripción</label><textarea id="catalog-item-description" rows="2" maxlength="500"></textarea></div><label class="toggle-label field--span-2"><input id="catalog-item-active" type="checkbox" checked><span>Valor activo</span></label></div><div class="dialog-actions"><button class="button button--secondary" type="button" data-dialog-close>Cancelar</button><button class="button button--primary" type="submit">Guardar valor</button></div></form>
+</dialog>
+
+<dialog id="user-dialog" class="dialog dialog--small" aria-labelledby="user-dialog-title">
+  <form id="user-editor-form" class="dialog-card" novalidate><div class="dialog-header"><div><p class="eyebrow">Acceso</p><h2 id="user-dialog-title">Agregar usuario</h2></div><button class="icon-button" type="button" data-dialog-close aria-label="Cerrar">×</button></div><div class="dialog-body form-grid"><input id="admin-user-id" type="hidden"><div class="field field--span-2"><label for="admin-user-email">Correo de Google Workspace <span class="required-mark">*</span></label><input id="admin-user-email" type="email" required maxlength="200"></div><div class="field field--span-2"><label for="admin-user-name">Nombre</label><input id="admin-user-name" maxlength="200"></div><div class="field"><label for="admin-user-role">Rol <span class="required-mark">*</span></label><select id="admin-user-role" required></select></div><div class="field"><label class="toggle-label"><input id="admin-user-active" type="checkbox" checked><span>Usuario activo</span></label></div></div><div class="dialog-actions"><button class="button button--secondary" type="button" data-dialog-close>Cancelar</button><button class="button button--primary" type="submit">Guardar usuario</button></div></form>
+</dialog>
+
+<dialog id="columns-dialog" class="dialog dialog--small" aria-labelledby="columns-title">
+  <form id="columns-form" class="dialog-card"><div class="dialog-header"><div><p class="eyebrow">Resultados</p><h2 id="columns-title">Columnas visibles</h2></div><button class="icon-button" type="button" data-dialog-close aria-label="Cerrar">×</button></div><div id="columns-options" class="dialog-body check-grid"></div><div class="dialog-actions"><button class="button button--secondary" type="button" data-dialog-close>Cancelar</button><button class="button button--primary" type="submit">Aplicar</button></div></form>
+</dialog>
+
+<template id="loading-template"><div class="loading-block" role="status"><div class="spinner" aria-hidden="true"></div><span>Cargando información…</span></div></template>
