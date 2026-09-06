@@ -35,6 +35,7 @@ class AuthenticatedUser:
     correo: str
     nombre: str
     rol_id: str
+    rol_nombre: str
     permisos: dict[str, dict[str, bool]]  # modulo -> {create, read, edit, delete, sensitive, export}
 
 
@@ -66,7 +67,7 @@ def resolve_current_user(session: Session, correo: str) -> AuthenticatedUser:
     }
     return AuthenticatedUser(
         id_usuario=user.id_usuario, correo=user.correo, nombre=user.nombre,
-        rol_id=user.rol_id, permisos=permisos,
+        rol_id=user.rol_id, rol_nombre=role.nombre, permisos=permisos,
     )
 
 

@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     google_client_secret: str | None = None
     allowed_google_domain: str | None = None
 
+    # Sesión (Fase 1 §3): cookie HttpOnly. `cookie_secure` debe ser True en cualquier
+    # despliegue real por HTTPS; False aquí solo sirve para http://localhost en desarrollo.
+    cookie_secure: bool = False
+    session_ttl_hours: int = 12
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -41,6 +41,17 @@ class EntityService:
         if desconocidos:
             raise AppError("INVALID_FIELD", f"Campos no admitidos: {', '.join(sorted(desconocidos))}.", 422)
 
+    def serialize(self, record) -> dict[str, Any]:
+        """Proyección pública para la API HTTP: id, campos de negocio y metadatos que el
+        cliente necesita para reintentar (version) o mostrar estado (activo/eliminado)."""
+        return {
+            self.id_field: getattr(record, self.id_field),
+            **self._snapshot(record),
+            "version": record.version,
+            "activo": record.activo,
+            "eliminado": record.eliminado,
+        }
+
     def create(self, session: Session, user: AuthenticatedUser, *, motivo_auditoria: str,
                correlation_id: str, **campos):
         self._rechazar_desconocidos(campos)

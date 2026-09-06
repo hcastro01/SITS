@@ -7,15 +7,26 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
+from app.api.atenciones import router as atenciones_router
+from app.api.auth import router as auth_router
+from app.api.bootstrap import router as bootstrap_router
+from app.api.busqueda import router as busqueda_router
+from app.api.casos import router as casos_router
+from app.api.formularios import router as formularios_router
+from app.api.routers_simples import (
+    hallazgos_recorrido_router, novedades_router, personas_router, recorridos_router,
+)
 from app.api.routes import router
 from app.core.config import get_settings
 from app.core.errors import AppError
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name, version="0.1.0")
+# allow_credentials=True: la sesión viaja en una cookie (app/services/sessions.py).
+# cors_origins es una lista explícita, nunca "*" — obligatorio junto con credentials.
 app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins,
                    allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"],
-                   allow_headers=["Content-Type"], allow_credentials=False)
+                   allow_headers=["Content-Type"], allow_credentials=True)
 
 
 @app.middleware("http")
@@ -57,4 +68,14 @@ async def internal_error(request: Request, error: Exception):
 
 
 app.include_router(router)
+app.include_router(auth_router)
+app.include_router(bootstrap_router)
+app.include_router(casos_router)
+app.include_router(atenciones_router)
+app.include_router(novedades_router)
+app.include_router(recorridos_router)
+app.include_router(hallazgos_recorrido_router)
+app.include_router(personas_router)
+app.include_router(formularios_router)
+app.include_router(busqueda_router)
 
