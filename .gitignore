@@ -11,8 +11,7 @@
 *.db
 *.db-*
 *.sqlite*
-data/
-uploads/
+/uploads/
 .clasp.json
 **/*.egg-info/
 .claude/
