@@ -46,3 +46,21 @@ export function listarFormularios(): Promise<Formulario[]> {
 export function obtenerFormulario(id: string): Promise<Formulario & { preguntas: Pregunta[] }> {
   return get<Formulario & { preguntas: Pregunta[] }>(`/formularios/${id}`);
 }
+
+export interface RespuestaEnviada {
+  id_respuesta: string;
+  estado: string;
+  fecha_respuesta: string | null;
+}
+
+/**
+ * Cada respuesta se envía como texto libre (valor_texto): el backend todavía no aplica
+ * el motor de reglas de visibilidad/validación por tipo (documentado como fuera de
+ * alcance en app/services/respuestas_formulario.py), así que la captura no distingue
+ * tipos de pregunta todavía.
+ */
+export function responderFormulario(
+  idFormulario: string, respuestas: Array<{ id_pregunta: string; valor_texto: string }>, borrador: boolean,
+): Promise<RespuestaEnviada> {
+  return post<RespuestaEnviada>(`/formularios/${idFormulario}/respuestas`, { respuestas, borrador });
+}

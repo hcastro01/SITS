@@ -47,7 +47,7 @@ def listar(
 @router.post("", status_code=201)
 def crear(payload: dict, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
     payload = dict(payload)
-    motivo = payload.pop("motivo", None) or payload.pop("reason", None) or "Apertura de caso"
+    motivo = payload.pop("motivo_auditoria", None) or "Apertura de caso"
     correlation_id = payload.pop("correlation_id", "")
     registro = create_caso(db, user, motivo_auditoria=motivo, correlation_id=correlation_id, **payload)
     return _serialize_caso(db, registro)
@@ -69,7 +69,7 @@ def actualizar(
 ):
     payload = dict(payload)
     expected_version = payload.pop("expected_version", None)
-    motivo = payload.pop("motivo", None) or payload.pop("reason", None) or "Edición de caso"
+    motivo = payload.pop("motivo_auditoria", None) or "Edición de caso"
     correlation_id = payload.pop("correlation_id", "")
     registro = update_caso(db, user, id_caso, expected_version=expected_version,
                             motivo_auditoria=motivo, correlation_id=correlation_id, **payload)
@@ -105,7 +105,7 @@ def crear_seguimiento(
 ):
     payload = dict(payload)
     correlation_id = payload.pop("correlation_id", "")
-    motivo = payload.pop("motivo", None) or "Seguimiento"
+    motivo = payload.pop("motivo_auditoria", None) or "Seguimiento"
     registro = add_seguimiento(db, user, id_caso, correlation_id=correlation_id, motivo_auditoria=motivo, **payload)
     return _serialize_hijo(registro, CAMPOS_SEGUIMIENTO, "id_seguimiento")
 
@@ -117,7 +117,7 @@ def crear_derivacion(
 ):
     payload = dict(payload)
     correlation_id = payload.pop("correlation_id", "")
-    motivo = payload.pop("motivo", None) or "Derivación"
+    motivo = payload.pop("motivo_auditoria", None) or "Derivación"
     registro = add_derivacion(db, user, id_caso, correlation_id=correlation_id, motivo_auditoria=motivo, **payload)
     return _serialize_hijo(registro, CAMPOS_DERIVACION, "id_derivacion")
 
@@ -129,7 +129,7 @@ def crear_compromiso(
 ):
     payload = dict(payload)
     correlation_id = payload.pop("correlation_id", "")
-    motivo = payload.pop("motivo", None) or "Compromiso"
+    motivo = payload.pop("motivo_auditoria", None) or "Compromiso"
     registro = add_compromiso(db, user, id_caso, correlation_id=correlation_id, motivo_auditoria=motivo, **payload)
     return _serialize_hijo(registro, CAMPOS_COMPROMISO, "id_compromiso")
 
@@ -142,7 +142,7 @@ def crear_cierre(
     payload = dict(payload)
     expected_version = payload.pop("expected_version", None)
     correlation_id = payload.pop("correlation_id", "")
-    motivo = payload.pop("motivo", None) or "Cierre de caso"
+    motivo = payload.pop("motivo_auditoria", None) or "Cierre de caso"
     registro = close_caso(db, user, id_caso, expected_version=expected_version,
                            correlation_id=correlation_id, motivo_auditoria=motivo, **payload)
     return _serialize_hijo(registro, CAMPOS_CIERRE, "id_cierre")

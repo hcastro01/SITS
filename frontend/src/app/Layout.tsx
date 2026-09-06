@@ -14,8 +14,18 @@ export function Layout() {
         <nav className="main-nav">
           <NavLink to="/" end>Inicio</NavLink>
           <NavLink to="/casos">Casos</NavLink>
+          <NavLink to="/atenciones">Atenciones</NavLink>
+          <NavLink to="/novedades">Novedades</NavLink>
+          <NavLink to="/recorridos">Recorridos</NavLink>
+          <NavLink to="/personas">Personas</NavLink>
           <NavLink to="/formularios">Formularios</NavLink>
           <NavLink to="/busqueda">Búsqueda</NavLink>
+          {usuario?.rol_id === 'ROLE_ADMIN' && (
+            <>
+              <NavLink to="/admin/usuarios">Usuarios</NavLink>
+              <NavLink to="/admin/permisos">Permisos</NavLink>
+            </>
+          )}
         </nav>
         <div className="header-user">
           <span>{usuario?.nombre} · {usuario?.rol_nombre}</span>

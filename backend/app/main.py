@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
+from app.api.admin import router as admin_router
 from app.api.atenciones import router as atenciones_router
 from app.api.auth import router as auth_router
 from app.api.bootstrap import router as bootstrap_router
@@ -78,4 +79,5 @@ app.include_router(hallazgos_recorrido_router)
 app.include_router(personas_router)
 app.include_router(formularios_router)
 app.include_router(busqueda_router)
+app.include_router(admin_router)
 

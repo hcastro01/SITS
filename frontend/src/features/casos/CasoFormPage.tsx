@@ -22,7 +22,7 @@ export function CasoFormPage() {
         estado_caso: estadoCaso || undefined,
         tipo_caso: tipoCaso || undefined,
         prioridad: prioridad || undefined,
-        motivo: 'Apertura desde el frontend',
+        motivo_auditoria: 'Apertura desde el frontend',
       });
       navigate(`/casos/${caso.id_caso}`);
     } catch (err) {

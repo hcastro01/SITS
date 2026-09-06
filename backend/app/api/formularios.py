@@ -55,7 +55,7 @@ def obtener(id_formulario: str, db: Session = Depends(get_db), user: Authenticat
 @router.post("", status_code=201)
 def crear(payload: dict, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
     payload = dict(payload)
-    motivo = payload.pop("motivo", None) or "Alta de formulario"
+    motivo = payload.pop("motivo_auditoria", None) or "Alta de formulario"
     correlation_id = payload.pop("correlation_id", "")
     registro = create_formulario(db, user, motivo_auditoria=motivo, correlation_id=correlation_id, **payload)
     return _serialize_formulario(registro)
@@ -68,7 +68,7 @@ def actualizar(
 ):
     payload = dict(payload)
     expected_version = payload.pop("expected_version", None)
-    motivo = payload.pop("motivo", None) or "Edición de formulario"
+    motivo = payload.pop("motivo_auditoria", None) or "Edición de formulario"
     correlation_id = payload.pop("correlation_id", "")
     registro = update_formulario(db, user, id_formulario, expected_version=expected_version,
                                   motivo_auditoria=motivo, correlation_id=correlation_id, **payload)
@@ -93,7 +93,7 @@ def crear_pregunta(
     user: AuthenticatedUser = Depends(get_current_user),
 ):
     payload = dict(payload)
-    motivo = payload.pop("motivo", None) or "Alta de pregunta"
+    motivo = payload.pop("motivo_auditoria", None) or "Alta de pregunta"
     correlation_id = payload.pop("correlation_id", "")
     registro = preguntas.create(db, user, motivo_auditoria=motivo, correlation_id=correlation_id,
                                  id_formulario=id_formulario, **payload)
@@ -107,7 +107,7 @@ def actualizar_pregunta(
 ):
     payload = dict(payload)
     expected_version = payload.pop("expected_version", None)
-    motivo = payload.pop("motivo", None) or "Edición de pregunta"
+    motivo = payload.pop("motivo_auditoria", None) or "Edición de pregunta"
     correlation_id = payload.pop("correlation_id", "")
     registro = preguntas.update(db, user, id_pregunta, expected_version=expected_version,
                                  motivo_auditoria=motivo, correlation_id=correlation_id, **payload)
@@ -120,7 +120,7 @@ def crear_opcion(
     user: AuthenticatedUser = Depends(get_current_user),
 ):
     payload = dict(payload)
-    motivo = payload.pop("motivo", None) or "Alta de opción"
+    motivo = payload.pop("motivo_auditoria", None) or "Alta de opción"
     correlation_id = payload.pop("correlation_id", "")
     registro = opciones_pregunta.create(db, user, motivo_auditoria=motivo, correlation_id=correlation_id,
                                          id_pregunta=id_pregunta, **payload)
@@ -133,7 +133,7 @@ def crear_regla(
     user: AuthenticatedUser = Depends(get_current_user),
 ):
     payload = dict(payload)
-    motivo = payload.pop("motivo", None) or "Alta de regla"
+    motivo = payload.pop("motivo_auditoria", None) or "Alta de regla"
     correlation_id = payload.pop("correlation_id", "")
     registro = reglas_formulario.create(db, user, motivo_auditoria=motivo, correlation_id=correlation_id,
                                          id_formulario=id_formulario, **payload)

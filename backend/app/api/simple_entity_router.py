@@ -33,7 +33,7 @@ def build_router(entidad: EntityService, prefix: str, tag: str) -> APIRouter:
     @router.post("", status_code=201)
     def crear(payload: dict, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
         payload = dict(payload)
-        motivo = payload.pop("motivo", None) or payload.pop("reason", None) or "Creación de registro"
+        motivo = payload.pop("motivo_auditoria", None) or "Creación de registro"
         correlation_id = payload.pop("correlation_id", "")
         registro = entidad.create(db, user, motivo_auditoria=motivo, correlation_id=correlation_id, **payload)
         return entidad.serialize(registro)
@@ -51,7 +51,7 @@ def build_router(entidad: EntityService, prefix: str, tag: str) -> APIRouter:
     ):
         payload = dict(payload)
         expected_version = payload.pop("expected_version", None)
-        motivo = payload.pop("motivo", None) or payload.pop("reason", None) or "Edición de registro"
+        motivo = payload.pop("motivo_auditoria", None) or "Edición de registro"
         correlation_id = payload.pop("correlation_id", "")
         registro = entidad.update(db, user, id_valor, expected_version=expected_version,
                                    motivo_auditoria=motivo, correlation_id=correlation_id, **payload)

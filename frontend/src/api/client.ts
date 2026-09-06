@@ -52,6 +52,10 @@ export function patch<T>(path: string, body?: unknown): Promise<T> {
   return request<T>(path, { method: 'PATCH', body: body !== undefined ? JSON.stringify(body) : undefined });
 }
 
+export function put<T>(path: string, body?: unknown): Promise<T> {
+  return request<T>(path, { method: 'PUT', body: body !== undefined ? JSON.stringify(body) : undefined });
+}
+
 /** Para respuestas que no son JSON (p. ej. CSV de exportación). */
 export async function postForBlob(path: string, body?: unknown): Promise<Blob> {
   const response = await fetch(`${baseUrl}${path}`, {

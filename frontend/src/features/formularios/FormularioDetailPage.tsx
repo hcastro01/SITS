@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import {
   cambiarEstadoFormulario, crearPregunta, obtenerFormulario, type Formulario, type Pregunta,
 } from '../../api/formularios';
@@ -69,6 +69,7 @@ export function FormularioDetailPage() {
         <h2>{formulario.nombre}</h2>
         <span>Estado: {formulario.estado}</span>
       </div>
+      {publicado && <Link className="button-link" to={`/formularios/${id}/responder`}>Responder</Link>}
       {error && <p className="form-error" role="alert">{error}</p>}
 
       <h3>Preguntas</h3>
