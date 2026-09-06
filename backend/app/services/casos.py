@@ -5,13 +5,13 @@ SQLAlchemy — el flujo crítico que Base Sistema/CaseService.gs:150-151 no pod�
 de forma atómica (MIGRACION_FASE_1.md discrepancia D9).
 """
 
-from datetime import UTC, datetime
 from uuid import uuid4
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
+from app.core.time import ecuador_now, utc_now_iso
 from app.core.permissions import AuthenticatedUser, authorize
 from app.models import Caso, Catalogo, Cierre, Compromiso, Derivacion, Seguimiento
 from app.services.audit import log_change
@@ -55,7 +55,7 @@ def _rechazar_desconocidos(campos: dict, permitidos: tuple[str, ...]) -> None:
 
 def _generar_codigo_caso() -> str:
     """Equivalente a Base Sistema/CaseService.gs:2-5 (caseCode)."""
-    year = datetime.now(UTC).year
+    year = ecuador_now().year
     return f"CAS-{year}-{uuid4().hex[:10].upper()}"
 
 
@@ -130,6 +130,30 @@ def _ensure_caso_editable(session: Session, user: AuthenticatedUser, id_caso: st
     return caso, sensible
 
 
+def list_seguimientos(session: Session, user: AuthenticatedUser, id_caso: str) -> list[Seguimiento]:
+    caso = get_active(session, Caso, id_caso, Caso.id_caso)
+    sensible = is_sensitive_caso(session, caso.nivel_sensibilidad)
+    authorize(user, CASOS_MODULE, "read", sensitive=sensible)
+    authorize(user, "SEGUIMIENTOS", "read", sensitive=sensible)
+    return list(session.scalars(
+        select(Seguimiento).where(
+            Seguimiento.id_caso == id_caso, Seguimiento.eliminado.is_(False),
+        ).order_by(Seguimiento.fecha.desc(), Seguimiento.fecha_creacion.desc())
+    ))
+
+
+def list_compromisos(session: Session, user: AuthenticatedUser, id_caso: str) -> list[Compromiso]:
+    caso = get_active(session, Caso, id_caso, Caso.id_caso)
+    sensible = is_sensitive_caso(session, caso.nivel_sensibilidad)
+    authorize(user, CASOS_MODULE, "read", sensitive=sensible)
+    authorize(user, "COMPROMISOS", "read", sensitive=sensible)
+    return list(session.scalars(
+        select(Compromiso).where(
+            Compromiso.id_caso == id_caso, Compromiso.eliminado.is_(False),
+        ).order_by(Compromiso.fecha_limite.asc(), Compromiso.fecha_creacion.desc())
+    ))
+
+
 def add_seguimiento(session: Session, user: AuthenticatedUser, id_caso: str, *,
                      correlation_id: str, motivo_auditoria: str = "Seguimiento", **campos) -> Seguimiento:
     _rechazar_desconocidos(campos, CAMPOS_SEGUIMIENTO)
@@ -175,7 +199,7 @@ def add_compromiso(session: Session, user: AuthenticatedUser, id_caso: str, *,
     _rechazar_desconocidos(campos, CAMPOS_COMPROMISO)
     _caso, sensible = _ensure_caso_editable(session, user, id_caso)
     authorize(user, "COMPROMISOS", "create", sensitive=sensible)
-    campos.setdefault("fecha_creacion_compromiso", datetime.now(UTC).isoformat())
+    campos.setdefault("fecha_creacion_compromiso", utc_now_iso())
     compromiso = Compromiso(id_compromiso=str(uuid4()), id_caso=id_caso,
                              **creation_metadata(user.correo), **campos)
     session.add(compromiso)

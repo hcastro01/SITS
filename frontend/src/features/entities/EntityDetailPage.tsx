@@ -1,12 +1,16 @@
 import { Fragment, useCallback, useEffect, useState, type FormEvent } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { HttpError } from '../../api/client';
 import type { EntityRecord, EventoHistorial } from '../../api/entities';
 import { DocumentosPanel } from '../documentos/DocumentosPanel';
 import { EntityFormModal } from './EntityFormModal';
 import type { EntityPageConfig } from './EntityConfig';
+import { useFeedback } from '../../components/FeedbackProvider';
+import { useUnsavedChanges } from '../../components/useUnsavedChanges';
+import { formatDate, formatDateTime, humanizeCode } from '../../utils/dates';
 
 export function EntityDetailPage({ config }: { config: EntityPageConfig }) {
+  const { notify, confirm } = useFeedback();
   const { id = '' } = useParams();
   const [registro, setRegistro] = useState<EntityRecord | null>(null);
   const [historial, setHistorial] = useState<EventoHistorial[]>([]);
@@ -15,6 +19,7 @@ export function EntityDetailPage({ config }: { config: EntityPageConfig }) {
   const [motivoEliminacion, setMotivoEliminacion] = useState('');
   const [procesando, setProcesando] = useState(false);
   const [editando, setEditando] = useState(false);
+  useUnsavedChanges(Boolean(motivoEliminacion));
 
   const cargar = useCallback(async () => {
     setError(null);
@@ -34,12 +39,14 @@ export function EntityDetailPage({ config }: { config: EntityPageConfig }) {
   async function handleEliminar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!registro) return;
+    if (!await confirm({ title: `Eliminar ${config.tituloSingular}`, message: 'Se aplicará una eliminación lógica y el evento quedará auditado.', confirmLabel: 'Eliminar registro', danger: true })) return;
     setProcesando(true);
     setError(null);
     try {
       await config.api.softDelete(id, { expected_version: registro.version, motivo: motivoEliminacion });
       setMotivoEliminacion('');
       await cargar();
+      notify('Registro eliminado correctamente.');
     } catch (err) {
       setError(err instanceof HttpError ? err.message : 'No fue posible eliminar el registro.');
     } finally {
@@ -53,6 +60,7 @@ export function EntityDetailPage({ config }: { config: EntityPageConfig }) {
     try {
       await config.api.restore(id);
       await cargar();
+      notify('Registro restaurado correctamente.');
     } catch (err) {
       setError(err instanceof HttpError ? err.message : 'No fue posible restaurar el registro.');
     } finally {
@@ -64,7 +72,8 @@ export function EntityDetailPage({ config }: { config: EntityPageConfig }) {
   if (!registro) return <p className="form-error">Registro no encontrado.</p>;
 
   return (
-    <div className="detail-grid">
+    <div className="detail-page">
+      <Link className="back-link" to={config.rutaBase}>← Volver a {config.titulo.toLowerCase()}</Link>
       <section className="panel">
         <div className="panel-header">
           <h2>{config.tituloSingular} {registro.eliminado ? '(eliminado)' : ''}</h2>
@@ -77,14 +86,14 @@ export function EntityDetailPage({ config }: { config: EntityPageConfig }) {
           {config.campos.map((campo) => (
             <Fragment key={campo.nombre}>
               <dt>{campo.etiqueta}</dt>
-              <dd>{String(registro[campo.nombre] ?? '—')}</dd>
+              <dd>{campo.nombre.startsWith('fecha') ? formatDate(String(registro[campo.nombre] ?? '')) : String(registro[campo.nombre] ?? '—')}</dd>
             </Fragment>
           ))}
           <dt>Versión</dt><dd>{registro.version}</dd>
         </dl>
 
         {registro.eliminado ? (
-          <button onClick={handleRestaurar} disabled={procesando}>
+            <button onClick={handleRestaurar} disabled={procesando}>
             {procesando ? 'Restaurando…' : 'Restaurar'}
           </button>
         ) : (
@@ -94,7 +103,7 @@ export function EntityDetailPage({ config }: { config: EntityPageConfig }) {
               id="motivo-eliminacion" required value={motivoEliminacion}
               onChange={(event) => setMotivoEliminacion(event.target.value)}
             />
-            <button type="submit" disabled={procesando}>{procesando ? 'Eliminando…' : 'Eliminar'}</button>
+            <button type="submit" className="danger" disabled={procesando}>{procesando ? 'Eliminando…' : 'Eliminar registro'}</button>
           </form>
         )}
       </section>
@@ -109,8 +118,8 @@ export function EntityDetailPage({ config }: { config: EntityPageConfig }) {
           <ul className="history-list">
             {historial.map((evento, indice) => (
               <li key={indice}>
-                <strong>{evento.accion}</strong> · {evento.campo}: {evento.valor_anterior ?? '—'} → {evento.valor_nuevo ?? '—'}
-                <br /><small>{evento.usuario} · {evento.fecha_hora}</small>
+                <strong>{evento.usuario} {humanizeCode(evento.accion).toLowerCase()} {humanizeCode(evento.campo).toLowerCase()}</strong>
+                <small>{formatDateTime(evento.fecha_hora)}{evento.motivo ? ` · ${evento.motivo}` : ''}</small>
               </li>
             ))}
           </ul>

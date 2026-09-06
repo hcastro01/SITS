@@ -5,7 +5,7 @@ import { HttpError } from '../api/client';
 interface AuthState {
   usuario: UsuarioActual | null;
   cargando: boolean;
-  login: (correo: string) => Promise<void>;
+  login: (correo: string, password?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -27,8 +27,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { activo = false; };
   }, []);
 
-  async function login(correo: string) {
-    const perfil = await loginRequest(correo);
+  async function login(correo: string, password?: string) {
+    const perfil = await loginRequest(correo, password);
     setUsuario(perfil);
   }
 

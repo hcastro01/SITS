@@ -14,7 +14,7 @@ de formato (email/teléfono/regex). Se guardan los valores ya tipados que entreg
 llamador en `respuestas`.
 """
 
-from datetime import UTC, datetime
+from app.core.time import utc_now_iso
 from uuid import uuid4
 
 from sqlalchemy import select
@@ -47,7 +47,7 @@ def _retire_existing_details(session: Session, id_respuesta: str, usuario: str) 
     for fila in existentes:
         fila.activo = False
         fila.eliminado = True
-        fila.fecha_eliminacion = datetime.now(UTC).isoformat()
+        fila.fecha_eliminacion = utc_now_iso()
         fila.usuario_eliminacion = usuario
         fila.motivo_eliminacion = "Nueva versión de respuesta"
 
@@ -76,7 +76,7 @@ def save_response(
         envio = EnvioFormulario(
             id_respuesta=str(uuid4()), id_formulario=id_formulario, usuario_respuesta=user.correo,
             id_envio_cliente=id_envio_cliente, estado=nuevo_estado,
-            fecha_respuesta=datetime.now(UTC).isoformat(), id_registro_proceso=id_registro_proceso,
+            fecha_respuesta=utc_now_iso(), id_registro_proceso=id_registro_proceso,
             **creation_metadata(user.correo),
         )
         session.add(envio)
@@ -84,7 +84,7 @@ def save_response(
     else:
         _retire_existing_details(session, envio.id_respuesta, user.correo)
         envio.estado = nuevo_estado
-        envio.fecha_respuesta = datetime.now(UTC).isoformat()
+        envio.fecha_respuesta = utc_now_iso()
         mark_updated(envio, user.correo)
 
     for respuesta in respuestas:

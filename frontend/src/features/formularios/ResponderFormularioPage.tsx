@@ -2,8 +2,11 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { obtenerFormulario, responderFormulario, type Formulario, type Pregunta } from '../../api/formularios';
 import { HttpError } from '../../api/client';
+import { useFeedback } from '../../components/FeedbackProvider';
+import { useUnsavedChanges } from '../../components/useUnsavedChanges';
 
 export function ResponderFormularioPage() {
+  const { notify } = useFeedback();
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const [formulario, setFormulario] = useState<(Formulario & { preguntas: Pregunta[] }) | null>(null);
@@ -11,6 +14,7 @@ export function ResponderFormularioPage() {
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
   const [enviando, setEnviando] = useState(false);
+  useUnsavedChanges(Object.values(valores).some(Boolean) && !enviando);
 
   useEffect(() => {
     let activo = true;
@@ -30,6 +34,8 @@ export function ResponderFormularioPage() {
         .filter((pregunta) => valores[pregunta.id_pregunta])
         .map((pregunta) => ({ id_pregunta: pregunta.id_pregunta, valor_texto: valores[pregunta.id_pregunta] }));
       await responderFormulario(id, respuestas, borrador);
+      setValores({});
+      notify(borrador ? 'Borrador guardado correctamente.' : 'Respuesta enviada correctamente.');
       navigate(`/formularios/${id}`);
     } catch (err) {
       setError(err instanceof HttpError ? err.message : 'No fue posible guardar la respuesta.');
@@ -52,11 +58,7 @@ export function ResponderFormularioPage() {
   return (
     <section className="panel">
       <h2>{formulario.nombre}</h2>
-      <p className="footnote">
-        Captura simplificada: todas las respuestas se guardan como texto libre. La
-        validación por tipo de pregunta y las reglas de visibilidad condicional todavía
-        no están implementadas.
-      </p>
+      <p className="footnote">Complete los campos obligatorios antes de enviar. Puede guardar un borrador para continuar después.</p>
       <form onSubmit={handleSubmit}>
         {formulario.preguntas.map((pregunta) => (
           <div key={pregunta.id_pregunta}>

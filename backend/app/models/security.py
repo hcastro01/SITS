@@ -71,3 +71,4 @@ class User(MetadatosComunes, Base):
     estado: Mapped[str] = mapped_column(String, default="ACTIVO")
     ultimo_acceso: Mapped[str | None] = mapped_column(String)
     google_sub: Mapped[str | None] = mapped_column(String, unique=True)
+    password_hash: Mapped[str | None] = mapped_column(String)

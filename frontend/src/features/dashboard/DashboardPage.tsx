@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../app/AuthContext';
 import { obtenerDashboard, type DatosDashboard } from '../../api/dashboard';
 import { HttpError } from '../../api/client';
+import { formatDate, humanizeCode } from '../../utils/dates';
 
 const TARJETAS: { clave: keyof DatosDashboard; etiqueta: string; icono: string; alerta?: boolean; ruta: string }[] = [
   { clave: 'casesOpen', etiqueta: 'Casos abiertos', icono: '◇', ruta: '/casos' },
@@ -31,12 +32,18 @@ export function DashboardPage() {
 
   const tarjetasVisibles = datos ? TARJETAS.filter((tarjeta) => datos[tarjeta.clave] !== undefined) : [];
 
+  const bloques = datos ? [
+    { title: 'Pendientes', subtitle: 'Casos que requieren gestión', items: datos.pendingCases ?? [], danger: false },
+    { title: 'Próximos seguimientos', subtitle: 'Acciones programadas desde hoy', items: datos.upcomingFollowUpItems ?? [], danger: false },
+    { title: 'Compromisos vencidos', subtitle: 'Atención prioritaria', items: datos.overdueCommitmentItems ?? [], danger: true },
+  ] : [];
+
   return (
     <section className="panel wide-panel">
       <div className="panel-header">
         <div>
           <p className="eyebrow">Resumen operativo</p>
-          <h2>Hola, {usuario?.nombre}</h2>
+          <h2>Hola, {usuario?.nombre}. Esto requiere atención.</h2>
         </div>
         <Link className="button-link" to="/casos">+ Nuevo caso</Link>
       </div>
@@ -64,6 +71,33 @@ export function DashboardPage() {
               </Link>
             );
           })}
+        </div>
+      )}
+      {!cargando && datos && (
+        <div className="dashboard-actions">
+          {bloques.map((bloque) => (
+            <section key={bloque.title} className={`dashboard-block${bloque.danger ? ' dashboard-block--danger' : ''}`}>
+              <div className="section-heading">
+                <div><h3>{bloque.title}</h3><p className="footnote">{bloque.subtitle}</p></div>
+                <span className={bloque.danger && bloque.items.length ? 'badge badge--danger' : 'badge'}>{bloque.items.length}</span>
+              </div>
+              {bloque.items.length === 0 ? (
+                <p className="footnote">No hay elementos en esta categoría.</p>
+              ) : (
+                <ul className="action-list">
+                  {bloque.items.map((item, index) => (
+                    <li key={`${item.caseId}-${item.date}-${index}`} className={bloque.danger ? 'overdue' : undefined}>
+                      <Link to={`/casos/${item.caseId}`}>
+                        <strong>{item.caseCode}</strong><span>{formatDate(item.date)}</span>
+                        <p>{item.description ?? item.owner ?? humanizeCode(item.status)}</p>
+                        <small>{item.priority ? `Prioridad: ${humanizeCode(item.priority)}` : humanizeCode(item.status)}</small>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          ))}
         </div>
       )}
     </section>

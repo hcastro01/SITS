@@ -62,7 +62,7 @@ export function BusquedaPage() {
       {error && <p className="form-error" role="alert">{error}</p>}
       {total !== null && <p className="footnote">{total} resultado(s)</p>}
       {resultados.length > 0 && (
-        <table className="data-table">
+        <div className="table-scroll"><table className="data-table">
           <thead><tr><th>Tabla</th><th>ID</th><th>Fecha</th><th>Sensible</th></tr></thead>
           <tbody>
             {resultados.map((item) => (
@@ -74,7 +74,7 @@ export function BusquedaPage() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
     </section>
   );

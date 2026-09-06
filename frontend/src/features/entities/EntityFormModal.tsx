@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { HttpError } from '../../api/client';
 import type { EntityRecord } from '../../api/entities';
 import { Modal } from '../../components/Modal';
+import { useFeedback } from '../../components/FeedbackProvider';
 import type { EntityPageConfig } from './EntityConfig';
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function EntityFormModal({ config, registro, onClose, onSaved }: Props) {
+  const { confirm } = useFeedback();
   const editando = Boolean(registro);
   const camposFormulario = config.campos.filter((campo) => campo.enFormulario !== false);
   const [valores, setValores] = useState<Record<string, string>>(() => {
@@ -24,6 +26,14 @@ export function EntityFormModal({ config, registro, onClose, onSaved }: Props) {
   });
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const dirty = camposFormulario.some((campo) => (valores[campo.nombre] ?? '') !== String(registro?.[campo.nombre] ?? ''));
+
+  async function requestClose() {
+    if (!dirty || await confirm({
+      title: 'Cambios sin guardar', message: 'Tienes cambios sin guardar. ¿Deseas salir sin guardar?',
+      confirmLabel: 'Salir sin guardar', cancelLabel: 'Continuar editando', danger: true,
+    })) onClose();
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -50,8 +60,9 @@ export function EntityFormModal({ config, registro, onClose, onSaved }: Props) {
   }
 
   return (
-    <Modal titulo={editando ? `Editar ${config.tituloSingular}` : `Nueva ${config.tituloSingular}`} onClose={onClose}>
+    <Modal titulo={editando ? `Editar ${config.tituloSingular}` : `Nuevo registro: ${config.tituloSingular}`} onClose={() => void requestClose()} size="large">
       <form onSubmit={handleSubmit}>
+        <div className="form-grid">
         {camposFormulario.map((campo) => (
           <div key={campo.nombre}>
             <label htmlFor={campo.nombre}>{campo.etiqueta}</label>
@@ -63,9 +74,10 @@ export function EntityFormModal({ config, registro, onClose, onSaved }: Props) {
             />
           </div>
         ))}
+        </div>
         {error && <p className="form-error" role="alert">{error}</p>}
         <div className="modal-actions">
-          <button type="button" className="secondary" onClick={onClose}>Cancelar</button>
+          <button type="button" className="secondary" onClick={() => void requestClose()}>Cancelar</button>
           <button type="submit" disabled={enviando}>
             {enviando ? 'Guardando…' : editando ? 'Guardar cambios' : `Crear ${config.tituloSingular}`}
           </button>

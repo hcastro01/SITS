@@ -9,6 +9,19 @@ export interface DatosDashboard {
   overdueCommitments?: number;
   pendingNews?: number;
   toursCompleted?: number;
+  pendingCases?: DashboardItem[];
+  upcomingFollowUpItems?: DashboardItem[];
+  overdueCommitmentItems?: DashboardItem[];
+}
+
+export interface DashboardItem {
+  caseId: string;
+  caseCode: string;
+  date: string | null;
+  description?: string | null;
+  owner?: string | null;
+  status?: string | null;
+  priority?: string | null;
 }
 
 export function obtenerDashboard(): Promise<DatosDashboard> {

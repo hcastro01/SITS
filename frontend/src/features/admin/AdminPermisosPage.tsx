@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { actualizarPermiso, listarAdministracion, type DatosAdministracion, type PermisoAdmin } from '../../api/admin';
 import { HttpError } from '../../api/client';
+import { useFeedback } from '../../components/FeedbackProvider';
 
 const ACCIONES: Array<keyof Pick<PermisoAdmin, 'create' | 'read' | 'edit' | 'delete' | 'sensitive' | 'export'>> = [
   'create', 'read', 'edit', 'delete', 'sensitive', 'export',
@@ -10,6 +11,7 @@ const ETIQUETAS_ACCION: Record<string, string> = {
 };
 
 export function AdminPermisosPage() {
+  const { notify } = useFeedback();
   const [datos, setDatos] = useState<DatosAdministracion | null>(null);
   const [rolSeleccionado, setRolSeleccionado] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +44,7 @@ export function AdminPermisosPage() {
     try {
       await actualizarPermiso(permiso.rol_id, permiso.modulo, derechos, permiso.version);
       await cargar();
+      notify('Permisos actualizados correctamente.');
     } catch (err) {
       setError(err instanceof HttpError ? err.message : 'No fue posible guardar el permiso.');
     } finally {
@@ -61,7 +64,7 @@ export function AdminPermisosPage() {
         </select>
       </div>
       {error && <p className="form-error" role="alert">{error}</p>}
-      <table className="data-table">
+      <div className="table-scroll"><table className="data-table">
         <thead>
           <tr><th>Módulo</th>{ACCIONES.map((accion) => <th key={accion}>{ETIQUETAS_ACCION[accion]}</th>)}<th></th></tr>
         </thead>
@@ -75,7 +78,7 @@ export function AdminPermisosPage() {
             />
           ))}
         </tbody>
-      </table>
+      </table></div>
     </section>
   );
 }

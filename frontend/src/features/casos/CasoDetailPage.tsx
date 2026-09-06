@@ -7,6 +7,7 @@ import {
 import { HttpError } from '../../api/client';
 import { DocumentosPanel } from '../documentos/DocumentosPanel';
 import { CasoFormModal } from './CasoFormModal';
+import { todayInEcuador } from '../../utils/dates';
 
 export function CasoDetailPage() {
   const { id = '' } = useParams();
@@ -43,7 +44,7 @@ export function CasoDetailPage() {
     setError(null);
     try {
       await agregarSeguimiento(id, {
-        fecha: new Date().toISOString().slice(0, 10),
+        fecha: todayInEcuador(),
         descripcion: descripcionSeguimiento,
       });
       setDescripcionSeguimiento('');
@@ -63,7 +64,7 @@ export function CasoDetailPage() {
     try {
       await cerrarCaso(id, {
         expected_version: caso.version,
-        fecha_cierre_caso: new Date().toISOString().slice(0, 10),
+        fecha_cierre_caso: todayInEcuador(),
         responsable: caso.responsable ?? 'Sin responsable',
         motivo_cierre: motivoCierre,
       });

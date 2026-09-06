@@ -4,8 +4,10 @@ import { HttpError } from '../../api/client';
 import type { EntityRecord } from '../../api/entities';
 import { EntityFormModal } from './EntityFormModal';
 import type { EntityPageConfig } from './EntityConfig';
+import { useFeedback } from '../../components/FeedbackProvider';
 
 export function EntityListPage({ config }: { config: EntityPageConfig }) {
+  const { notify } = useFeedback();
   const [registros, setRegistros] = useState<EntityRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -28,7 +30,7 @@ export function EntityListPage({ config }: { config: EntityPageConfig }) {
     <section className="panel wide-panel">
       <div className="panel-header">
         <h2>{config.titulo}</h2>
-        <button type="button" className="button-link as-button" onClick={() => setModalAbierto(true)}>Nuevo</button>
+        <button type="button" className="button-link as-button" onClick={() => setModalAbierto(true)}>Nuevo registro</button>
       </div>
       {error && <p className="form-error" role="alert">{error}</p>}
       {cargando ? (
@@ -36,7 +38,7 @@ export function EntityListPage({ config }: { config: EntityPageConfig }) {
       ) : registros.length === 0 ? (
         <p className="footnote">No hay registros todavía.</p>
       ) : (
-        <table className="data-table">
+        <div className="table-scroll"><table className="data-table">
           <thead>
             <tr>{columnas.map((campo) => <th key={campo.nombre}>{campo.etiqueta}</th>)}<th /></tr>
           </thead>
@@ -53,14 +55,14 @@ export function EntityListPage({ config }: { config: EntityPageConfig }) {
               );
             })}
           </tbody>
-        </table>
+        </table></div>
       )}
 
       {modalAbierto && (
         <EntityFormModal
           config={config}
           onClose={() => setModalAbierto(false)}
-          onSaved={(registro) => { setModalAbierto(false); setRegistros((previo) => [registro, ...previo]); }}
+          onSaved={(registro) => { setModalAbierto(false); setRegistros((previo) => [registro, ...previo]); notify('Registro guardado correctamente.'); }}
         />
       )}
     </section>

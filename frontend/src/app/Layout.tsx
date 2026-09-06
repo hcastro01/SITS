@@ -1,42 +1,66 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
+
+const gestion = [
+  ['/', 'Inicio', '⌂'], ['/casos', 'Casos', '◇'], ['/atenciones', 'Atenciones', '+'],
+  ['/novedades', 'Novedades', '!'], ['/recorridos', 'Recorridos', '↗'],
+  ['/personas', 'Personas', '♙'], ['/formularios', 'Formularios', '▤'], ['/busqueda', 'Búsqueda', '⌕'],
+] as const;
 
 export function Layout() {
   const { usuario, logout } = useAuth();
+  const location = useLocation();
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
+
+  function navItem([to, label, icon]: readonly [string, string, string]) {
+    return (
+      <NavLink key={to} to={to} end={to === '/'} title={collapsed ? label : undefined}>
+        <span className="nav-icon" aria-hidden="true">{icon}</span><span className="nav-label">{label}</span>
+      </NavLink>
+    );
+  }
 
   return (
-    <div className="page app-shell">
-      <header>
-        <a href="/" className="brand">
+    <div className={`page app-shell${collapsed ? ' sidebar-collapsed' : ''}${mobileOpen ? ' mobile-nav-open' : ''}`}>
+      <header className="topbar">
+        <button type="button" className="mobile-menu-button" aria-label="Abrir menú" aria-expanded={mobileOpen}
+                aria-controls="sidebar-navigation" onClick={() => setMobileOpen((open) => !open)}>☰</button>
+        <Link to="/" className="brand">
           <span className="mark" aria-hidden="true">TS</span>
           <span>Trabajo Social<small>Sistema integral de gestión</small></span>
-        </a>
-        <nav className="main-nav">
-          <NavLink to="/" end>Inicio</NavLink>
-          <NavLink to="/casos">Casos</NavLink>
-          <NavLink to="/atenciones">Atenciones</NavLink>
-          <NavLink to="/novedades">Novedades</NavLink>
-          <NavLink to="/recorridos">Recorridos</NavLink>
-          <NavLink to="/personas">Personas</NavLink>
-          <NavLink to="/formularios">Formularios</NavLink>
-          <NavLink to="/busqueda">Búsqueda</NavLink>
+        </Link>
+        <div className="header-user">
+          <span><strong>{usuario?.nombre}</strong><small>{usuario?.rol_nombre}</small></span>
+          <button className="logout-button" onClick={() => logout()} title="Cerrar sesión">Salir</button>
+        </div>
+      </header>
+      <button className="sidebar-backdrop" type="button" aria-label="Cerrar menú" onClick={() => setMobileOpen(false)} />
+      <aside id="sidebar-navigation" className="sidebar" aria-label="Navegación principal">
+        <button type="button" className="sidebar-toggle" onClick={() => setCollapsed((value) => !value)}
+                aria-label={collapsed ? 'Expandir menú' : 'Contraer menú'} aria-expanded={!collapsed}>
+          <span aria-hidden="true">{collapsed ? '›' : '‹'}</span><span className="nav-label">Contraer menú</span>
+        </button>
+        <nav>
+          <p className="nav-group-title">Gestión</p>
+          {gestion.map(navItem)}
           {usuario?.rol_id === 'ROLE_ADMIN' && (
             <>
-              <NavLink to="/admin/usuarios">Usuarios</NavLink>
-              <NavLink to="/admin/permisos">Permisos</NavLink>
+              <p className="nav-group-title">Administración</p>
+              {navItem(['/admin/usuarios', 'Usuarios', '♙'])}
+              {navItem(['/admin/permisos', 'Roles y permisos', '⚙'])}
             </>
           )}
         </nav>
-        <div className="header-user">
-          <span>{usuario?.nombre} · {usuario?.rol_nombre}</span>
-          <button className="logout-button" onClick={() => logout()}>Cerrar sesión</button>
-        </div>
-      </header>
+      </aside>
       <main className="app-main">
         <Outlet />
       </main>
-      <footer>
-        Sistema Integral de Gestión de Trabajo Social<span>Inicio de la migración</span>
+      <footer className="app-footer">
+        Sistema Integral de Gestión de Trabajo Social<span>Hora oficial: Ecuador continental</span>
       </footer>
     </div>
   );

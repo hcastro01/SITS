@@ -2,13 +2,17 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { crearFormulario, listarFormularios, type Formulario } from '../../api/formularios';
 import { HttpError } from '../../api/client';
+import { useFeedback } from '../../components/FeedbackProvider';
+import { useUnsavedChanges } from '../../components/useUnsavedChanges';
 
 export function FormulariosListPage() {
+  const { notify } = useFeedback();
   const [formularios, setFormularios] = useState<Formulario[]>([]);
   const [nombre, setNombre] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
   const [creando, setCreando] = useState(false);
+  useUnsavedChanges(Boolean(nombre));
 
   async function cargar() {
     try {
@@ -30,6 +34,7 @@ export function FormulariosListPage() {
       await crearFormulario({ nombre });
       setNombre('');
       await cargar();
+      notify('Formulario creado correctamente.');
     } catch (err) {
       setError(err instanceof HttpError ? err.message : 'No fue posible crear el formulario.');
     } finally {
@@ -52,7 +57,7 @@ export function FormulariosListPage() {
       ) : formularios.length === 0 ? (
         <p className="footnote">No hay formularios creados todavía.</p>
       ) : (
-        <table className="data-table">
+        <div className="table-scroll"><table className="data-table">
           <thead><tr><th>Nombre</th><th>Estado</th><th></th></tr></thead>
           <tbody>
             {formularios.map((formulario) => (
@@ -63,7 +68,7 @@ export function FormulariosListPage() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
     </section>
   );

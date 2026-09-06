@@ -3,6 +3,9 @@ import { HttpError } from '../../api/client';
 import {
   eliminarDocumento, listarDocumentos, subirDocumento, urlDescargaDocumento, type Documento,
 } from '../../api/documentos';
+import { Modal } from '../../components/Modal';
+import { useFeedback } from '../../components/FeedbackProvider';
+import { formatDateTime } from '../../utils/dates';
 
 const CATEGORIAS = [
   { valor: '', etiqueta: 'Sin categoría' },
@@ -19,11 +22,15 @@ function formatoTamano(bytes: number): string {
 }
 
 export function DocumentosPanel({ tipoRegistro, idRegistro }: { tipoRegistro: string; idRegistro: string }) {
+  const { notify, confirm } = useFeedback();
   const [documentos, setDocumentos] = useState<Documento[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
   const [subiendo, setSubiendo] = useState(false);
   const [categoria, setCategoria] = useState('');
+  const [documentoEliminar, setDocumentoEliminar] = useState<Documento | null>(null);
+  const [motivoEliminacion, setMotivoEliminacion] = useState('');
+  const [eliminando, setEliminando] = useState(false);
   const inputArchivoRef = useRef<HTMLInputElement>(null);
 
   const cargar = useCallback(async () => {
@@ -50,22 +57,37 @@ export function DocumentosPanel({ tipoRegistro, idRegistro }: { tipoRegistro: st
       if (inputArchivoRef.current) inputArchivoRef.current.value = '';
       setCategoria('');
       await cargar();
+      notify('Documento cargado correctamente.');
     } catch (err) {
-      setError(err instanceof HttpError ? err.message : 'No fue posible subir el archivo.');
+      const message = err instanceof HttpError ? err.message : 'No fue posible subir el archivo.';
+      setError(message); notify(message, 'error');
     } finally {
       setSubiendo(false);
     }
   }
 
-  async function handleEliminar(documento: Documento) {
-    const motivo = window.prompt(`Motivo de eliminación de "${documento.nombre_archivo}":`);
-    if (!motivo) return;
+  async function handleEliminar(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!documentoEliminar) return;
+    setEliminando(true);
     setError(null);
     try {
-      await eliminarDocumento(documento.id_archivo, { expected_version: documento.version, motivo });
+      await eliminarDocumento(documentoEliminar.id_archivo, { expected_version: documentoEliminar.version, motivo: motivoEliminacion });
+      setDocumentoEliminar(null); setMotivoEliminacion('');
       await cargar();
+      notify('Documento eliminado correctamente.');
     } catch (err) {
-      setError(err instanceof HttpError ? err.message : 'No fue posible eliminar el documento.');
+      const message = err instanceof HttpError ? err.message : 'No fue posible eliminar el documento.';
+      setError(message); notify(message, 'error');
+    } finally { setEliminando(false); }
+  }
+
+  async function closeDeleteDialog() {
+    if (!motivoEliminacion || await confirm({
+      title: 'Cambios sin guardar', message: 'El motivo escrito todavía no se guardó.',
+      confirmLabel: 'Salir sin guardar', cancelLabel: 'Continuar editando', danger: true,
+    })) {
+      setDocumentoEliminar(null); setMotivoEliminacion('');
     }
   }
 
@@ -92,7 +114,7 @@ export function DocumentosPanel({ tipoRegistro, idRegistro }: { tipoRegistro: st
       ) : documentos.length === 0 ? (
         <p className="footnote">Sin documentos adjuntos.</p>
       ) : (
-        <table className="data-table">
+        <div className="table-scroll"><table className="data-table">
           <thead>
             <tr><th>Nombre</th><th>Categoría</th><th>Tamaño</th><th>Cargado</th><th></th></tr>
           </thead>
@@ -102,17 +124,30 @@ export function DocumentosPanel({ tipoRegistro, idRegistro }: { tipoRegistro: st
                 <td>{documento.nombre_archivo}</td>
                 <td>{documento.categoria_documento ?? '—'}</td>
                 <td>{formatoTamano(documento.tamano_bytes)}</td>
-                <td>{documento.creado_por ?? '—'}</td>
+                <td>{formatDateTime(documento.fecha_creacion)}<br /><small>{documento.creado_por ?? '—'}</small></td>
                 <td className="doc-actions">
                   <a className="button-link" href={urlDescargaDocumento(documento.id_archivo)} download={documento.nombre_archivo}>
                     Descargar
                   </a>
-                  <button type="button" onClick={() => handleEliminar(documento)}>Eliminar</button>
+                  <button type="button" className="danger" onClick={() => setDocumentoEliminar(documento)}>Eliminar</button>
                 </td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
+      )}
+      {documentoEliminar && (
+        <Modal titulo="Eliminar documento" onClose={() => void closeDeleteDialog()} closeOnBackdrop={!eliminando} size="small">
+          <p>Se eliminará <strong>{documentoEliminar.nombre_archivo}</strong>. El archivo dejará de estar disponible, pero el evento permanecerá auditado.</p>
+          <form onSubmit={handleEliminar}>
+            <label htmlFor={`motivo-eliminacion-${documentoEliminar.id_archivo}`}>Motivo de eliminación</label>
+            <textarea id={`motivo-eliminacion-${documentoEliminar.id_archivo}`} required data-autofocus value={motivoEliminacion} onChange={(event) => setMotivoEliminacion(event.target.value)} />
+            <div className="modal-actions">
+              <button type="button" className="secondary" onClick={() => void closeDeleteDialog()}>Cancelar</button>
+              <button type="submit" className="danger" disabled={eliminando}>{eliminando ? 'Eliminando…' : 'Eliminar documento'}</button>
+            </div>
+          </form>
+        </Modal>
       )}
     </section>
   );

@@ -4,10 +4,13 @@ import {
   cambiarEstadoFormulario, crearPregunta, obtenerFormulario, type Formulario, type Pregunta,
 } from '../../api/formularios';
 import { HttpError } from '../../api/client';
+import { useFeedback } from '../../components/FeedbackProvider';
+import { useUnsavedChanges } from '../../components/useUnsavedChanges';
 
 type FormularioConPreguntas = Formulario & { preguntas: Pregunta[] };
 
 export function FormularioDetailPage() {
+  const { notify } = useFeedback();
   const { id = '' } = useParams();
   const [formulario, setFormulario] = useState<FormularioConPreguntas | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -15,6 +18,7 @@ export function FormularioDetailPage() {
   const [etiquetaPregunta, setEtiquetaPregunta] = useState('');
   const [agregando, setAgregando] = useState(false);
   const [publicando, setPublicando] = useState(false);
+  useUnsavedChanges(Boolean(etiquetaPregunta));
 
   const cargar = useCallback(async () => {
     setError(null);
@@ -37,6 +41,7 @@ export function FormularioDetailPage() {
       await crearPregunta(id, { etiqueta: etiquetaPregunta });
       setEtiquetaPregunta('');
       await cargar();
+      notify('Pregunta agregada correctamente.');
     } catch (err) {
       setError(err instanceof HttpError ? err.message : 'No fue posible agregar la pregunta.');
     } finally {
@@ -51,6 +56,7 @@ export function FormularioDetailPage() {
     try {
       await cambiarEstadoFormulario(id, 'PUBLICADO', formulario.version);
       await cargar();
+      notify('Formulario publicado correctamente.');
     } catch (err) {
       setError(err instanceof HttpError ? err.message : 'No fue posible publicar el formulario.');
     } finally {

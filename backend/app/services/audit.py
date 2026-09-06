@@ -7,7 +7,7 @@ sesión y transacción de SQLAlchemy: si `log_change` falla, la mutación tambi�
 """
 
 import re
-from datetime import UTC, datetime
+from app.core.time import utc_now_iso
 from uuid import uuid4
 
 from sqlalchemy.orm import Session
@@ -52,7 +52,7 @@ def log_change(
 ) -> list[Auditoria]:
     if accion not in ACTIONS:
         raise ValueError(f"Acción de auditoría inválida: {accion!r}")
-    fecha_hora = datetime.now(UTC).isoformat()
+    fecha_hora = utc_now_iso()
     fields = dict.fromkeys([*before.keys(), *after.keys()])
     rows = [
         Auditoria(

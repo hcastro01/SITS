@@ -30,10 +30,11 @@ describe('LoginPage', () => {
     fetchCurrentUser.mockRejectedValue(new HttpError(401, { ok: false, code: 'SESSION_REQUIRED', message: 'x', correlationId: '' }));
   });
 
-  it('muestra el formulario de acceso temporal por correo', async () => {
+  it('muestra el formulario de acceso con correo y contraseña', async () => {
     renderLoginPage();
     await waitFor(() => expect(screen.getByLabelText('Correo electrónico')).toBeInTheDocument());
-    expect(screen.getByText(/Acceso temporal de desarrollo/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Contraseña')).toBeInTheDocument();
+    expect(screen.getByText(/credenciales asignadas/)).toBeInTheDocument();
   });
 
   it('muestra el mensaje de error del servidor si el login falla', async () => {
@@ -42,6 +43,7 @@ describe('LoginPage', () => {
     renderLoginPage();
     await waitFor(() => screen.getByLabelText('Correo electrónico'));
     await usuarioEvento.type(screen.getByLabelText('Correo electrónico'), 'nadie@example.com');
+    await usuarioEvento.type(screen.getByLabelText('Contraseña'), 'ClaveSegura123');
     await usuarioEvento.click(screen.getByRole('button', { name: 'Ingresar' }));
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Su usuario no está registrado.'));
   });

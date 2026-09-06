@@ -20,6 +20,9 @@ def build_engine(database_url: str):
         cursor = connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.execute("PRAGMA busy_timeout=10000")
+        if url.database != ":memory:":
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA synchronous=NORMAL")
         cursor.close()
 
     return engine
@@ -27,4 +30,3 @@ def build_engine(database_url: str):
 
 engine = build_engine(get_settings().database_url)
 SessionLocal = sessionmaker(bind=engine)
-

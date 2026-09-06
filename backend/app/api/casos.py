@@ -10,6 +10,7 @@ from app.models import Caso
 from app.services.casos import (
     CAMPOS_CASO, CAMPOS_CIERRE, CAMPOS_COMPROMISO, CAMPOS_DERIVACION, CAMPOS_SEGUIMIENTO,
     add_compromiso, add_derivacion, add_seguimiento, close_caso, create_caso, is_sensitive_caso,
+    list_compromisos as get_compromisos, list_seguimientos as get_seguimientos,
     soft_delete_caso, update_caso,
 )
 from app.services.records import get_active, get_history
@@ -110,6 +111,13 @@ def crear_seguimiento(
     return _serialize_hijo(registro, CAMPOS_SEGUIMIENTO, "id_seguimiento")
 
 
+@router.get("/{id_caso}/seguimientos")
+def listar_seguimientos(
+    id_caso: str, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user),
+):
+    return [_serialize_hijo(row, CAMPOS_SEGUIMIENTO, "id_seguimiento") for row in get_seguimientos(db, user, id_caso)]
+
+
 @router.post("/{id_caso}/derivaciones", status_code=201)
 def crear_derivacion(
     id_caso: str, payload: dict, db: Session = Depends(get_db),
@@ -132,6 +140,13 @@ def crear_compromiso(
     motivo = payload.pop("motivo_auditoria", None) or "Compromiso"
     registro = add_compromiso(db, user, id_caso, correlation_id=correlation_id, motivo_auditoria=motivo, **payload)
     return _serialize_hijo(registro, CAMPOS_COMPROMISO, "id_compromiso")
+
+
+@router.get("/{id_caso}/compromisos")
+def listar_compromisos(
+    id_caso: str, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user),
+):
+    return [_serialize_hijo(row, CAMPOS_COMPROMISO, "id_compromiso") for row in get_compromisos(db, user, id_caso)]
 
 
 @router.post("/{id_caso}/cierres", status_code=201)

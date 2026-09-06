@@ -7,6 +7,7 @@ sesión activa de Google, y el nombre nunca se rellena con el correo.
 """
 
 import argparse
+from getpass import getpass
 from uuid import uuid4
 
 from sqlalchemy import select
@@ -14,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal
 from app.models import Role, User
+from app.services.passwords import hash_password
 
 ADMIN_ROLE_ID = "ROLE_ADMIN"
 
@@ -22,7 +24,7 @@ class AdminAlreadyBootstrapped(RuntimeError):
     """Ya existe al menos un usuario; el arranque debe venir de la migración de cuentas."""
 
 
-def bootstrap_admin(session: Session, correo: str, nombre: str) -> User:
+def bootstrap_admin(session: Session, correo: str, nombre: str, password: str | None = None) -> User:
     if session.scalars(select(User.id_usuario).limit(1)).first() is not None:
         raise AdminAlreadyBootstrapped(
             "Ya existen usuarios registrados. El primer administrador solo se crea sobre una "
@@ -43,6 +45,7 @@ def bootstrap_admin(session: Session, correo: str, nombre: str) -> User:
         nombre=nombre_normalizado,
         rol_id=ADMIN_ROLE_ID,
         estado="ACTIVO",
+        password_hash=hash_password(password) if password else None,
     )
     session.add(user)
     session.flush()
@@ -54,8 +57,12 @@ def main() -> None:
     parser.add_argument("--correo", required=True, help="Correo del administrador inicial.")
     parser.add_argument("--nombre", required=True, help="Nombre real de la persona, no el correo.")
     args = parser.parse_args()
+    password = getpass("Contraseña inicial (mínimo 12 caracteres): ")
+    confirmation = getpass("Repita la contraseña: ")
+    if password != confirmation:
+        raise ValueError("Las contraseñas no coinciden.")
     with SessionLocal.begin() as session:
-        user = bootstrap_admin(session, correo=args.correo, nombre=args.nombre)
+        user = bootstrap_admin(session, correo=args.correo, nombre=args.nombre, password=password)
         print(f"Administrador creado: {user.id_usuario} ({user.correo})")
 
 

@@ -7,7 +7,7 @@ Caso, ...) tiene su propio módulo de servicio con su propia lista de campos per
 estas funciones solo evitan repetir la mecánica de versión/auditoría/soft-delete.
 """
 
-from datetime import UTC, datetime
+from app.core.time import utc_now_iso
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -39,12 +39,12 @@ def check_expected_version(record, expected_version: int | None) -> None:
 
 
 def creation_metadata(usuario: str) -> dict:
-    return {"fecha_creacion": datetime.now(UTC).isoformat(), "creado_por": usuario}
+    return {"fecha_creacion": utc_now_iso(), "creado_por": usuario}
 
 
 def mark_updated(record, usuario: str) -> None:
     record.version += 1
-    record.fecha_actualizacion = datetime.now(UTC).isoformat()
+    record.fecha_actualizacion = utc_now_iso()
     record.actualizado_por = usuario
 
 
@@ -60,7 +60,7 @@ def apply_soft_delete(record, usuario: str, motivo: str | None) -> None:
         raise AppError("DELETE_REASON_REQUIRED", "Debe indicar el motivo de eliminación.", 422)
     record.activo = False
     record.eliminado = True
-    record.fecha_eliminacion = datetime.now(UTC).isoformat()
+    record.fecha_eliminacion = utc_now_iso()
     record.usuario_eliminacion = usuario
     record.motivo_eliminacion = motivo.strip()
 

@@ -3,6 +3,7 @@ en SQLite (decisión explícita del usuario, ver app/services/documentos.py)."""
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from fastapi.responses import Response
+from urllib.parse import quote
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
@@ -54,7 +55,7 @@ def descargar(id_archivo: str, db: Session = Depends(get_db), user: Authenticate
     documento, contenido = download_documento(db, user, id_archivo)
     return Response(
         content=contenido, media_type=documento.mime_type,
-        headers={"Content-Disposition": f'attachment; filename="{documento.nombre_archivo}"'},
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(documento.nombre_archivo)}"},
     )
 
 

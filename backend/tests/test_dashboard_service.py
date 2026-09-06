@@ -1,5 +1,5 @@
 import unittest
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from tempfile import TemporaryDirectory
 
 from alembic import command
@@ -8,15 +8,16 @@ from sqlalchemy.orm import Session
 
 import app.db.session as db_session
 from app.core.errors import AppError
+from app.core.time import ecuador_today
 from app.core.permissions import resolve_current_user
 from app.db.session import build_engine
 from app.models import Caso, Compromiso, Novedad, Permission, Recorrido, Role, Seguimiento, User
 from app.services.dashboard import get_dashboard
 from app.services.security_seed import ACTION_TO_FIELD, MODULES, seed_security
 
-HOY = datetime.now(UTC).date().isoformat()
-AYER = (datetime.now(UTC).date() - timedelta(days=1)).isoformat()
-MANANA = (datetime.now(UTC).date() + timedelta(days=1)).isoformat()
+HOY = ecuador_today().isoformat()
+AYER = (ecuador_today() - timedelta(days=1)).isoformat()
+MANANA = (ecuador_today() + timedelta(days=1)).isoformat()
 
 
 class DashboardServiceTests(unittest.TestCase):
@@ -67,6 +68,17 @@ class DashboardServiceTests(unittest.TestCase):
             self.assertEqual(datos["casesOpen"], 2)  # c1 (Abierto) + c3 (borrador, no está en CERRADO/INACTIVO)
             self.assertEqual(datos["casesClosed"], 1)
             self.assertEqual(datos["casesPending"], 1)  # c3 (BORRADOR)
+            self.assertEqual(datos["pendingCases"][0]["caseCode"], "CAS-3")
+
+    def test_pending_cases_are_prioritized_before_older_low_priority_items(self):
+        with Session(self.engine) as session, session.begin():
+            session.add(Caso(id_caso="c1", codigo_caso="CAS-BAJA", estado_caso="PENDIENTE",
+                              prioridad="BAJA", fecha_apertura="2025-01-01"))
+            session.add(Caso(id_caso="c2", codigo_caso="CAS-ALTA", estado_caso="PENDIENTE",
+                              prioridad="ALTA", fecha_apertura="2026-01-01"))
+        with Session(self.engine) as session, session.begin():
+            datos = get_dashboard(session, self._admin(session))
+            self.assertEqual([item["caseCode"] for item in datos["pendingCases"]], ["CAS-ALTA", "CAS-BAJA"])
 
     def test_upcoming_followups_excludes_past_dates_and_closed_status(self):
         with Session(self.engine) as session, session.begin():
@@ -80,6 +92,7 @@ class DashboardServiceTests(unittest.TestCase):
             admin = self._admin(session)
             datos = get_dashboard(session, admin)
             self.assertEqual(datos["upcomingFollowUps"], 2)  # s1 y s4
+            self.assertEqual(len(datos["upcomingFollowUpItems"]), 2)
 
     def test_overdue_commitments_excludes_completed_states(self):
         with Session(self.engine) as session, session.begin():
@@ -92,6 +105,7 @@ class DashboardServiceTests(unittest.TestCase):
             admin = self._admin(session)
             datos = get_dashboard(session, admin)
             self.assertEqual(datos["overdueCommitments"], 1)  # cp1
+            self.assertEqual(datos["overdueCommitmentItems"][0]["caseCode"], "CAS-1")
 
     def test_pending_news_excludes_closed_and_resolved(self):
         with Session(self.engine) as session, session.begin():

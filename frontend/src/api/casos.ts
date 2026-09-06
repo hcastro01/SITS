@@ -34,8 +34,27 @@ export interface Seguimiento {
   fecha: string | null;
   responsable: string | null;
   descripcion: string | null;
+  hora: string | null;
+  tipo_seguimiento: string | null;
+  canal: string | null;
+  tecnica: string | null;
   resultado: string | null;
+  proxima_accion: string | null;
+  fecha_proxima_accion: string | null;
   estado: string | null;
+  version: number;
+}
+
+export interface Compromiso {
+  id_compromiso: string;
+  id_seguimiento: string | null;
+  fecha_creacion_compromiso: string | null;
+  responsable: string | null;
+  descripcion: string | null;
+  fecha_limite: string | null;
+  estado: string | null;
+  fecha_cumplimiento: string | null;
+  observacion: string | null;
   version: number;
 }
 
@@ -71,6 +90,14 @@ export function historialCaso(idCaso: string): Promise<EventoHistorial[]> {
 
 export function agregarSeguimiento(idCaso: string, datos: Record<string, unknown>): Promise<Seguimiento> {
   return post<Seguimiento>(`/casos/${idCaso}/seguimientos`, datos);
+}
+
+export function listarSeguimientos(idCaso: string): Promise<Seguimiento[]> {
+  return get<Seguimiento[]>(`/casos/${idCaso}/seguimientos`);
+}
+
+export function listarCompromisos(idCaso: string): Promise<Compromiso[]> {
+  return get<Compromiso[]>(`/casos/${idCaso}/compromisos`);
 }
 
 export function agregarDerivacion(idCaso: string, datos: Record<string, unknown>) {

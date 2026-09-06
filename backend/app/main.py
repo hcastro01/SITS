@@ -6,6 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.admin import router as admin_router
 from app.api.atenciones import router as atenciones_router
@@ -24,12 +25,33 @@ from app.core.config import get_settings
 from app.core.errors import AppError
 
 settings = get_settings()
-app = FastAPI(title=settings.app_name, version="0.1.0")
+logging.basicConfig(
+    level=getattr(logging, settings.log_level.upper(), logging.INFO),
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+app = FastAPI(
+    title=settings.app_name,
+    version="0.1.0",
+    docs_url=None if settings.environment == "production" else "/docs",
+    redoc_url=None if settings.environment == "production" else "/redoc",
+    openapi_url=None if settings.environment == "production" else "/openapi.json",
+)
 # allow_credentials=True: la sesión viaja en una cookie (app/services/sessions.py).
 # cors_origins es una lista explícita, nunca "*" — obligatorio junto con credentials.
 app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins,
                    allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"],
                    allow_headers=["Content-Type"], allow_credentials=True)
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.trusted_hosts)
+
+
+@app.middleware("http")
+async def csrf_origin_check(request: Request, call_next):
+    """Las mutaciones con cookie solo se aceptan desde un origen configurado."""
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"} and settings.environment == "production":
+        origin = request.headers.get("origin")
+        if origin not in settings.cors_origins:
+            return error_response(request, 403, "ORIGIN_FORBIDDEN", "Origen de la solicitud no permitido.")
+    return await call_next(request)
 
 
 @app.middleware("http")
@@ -38,7 +60,11 @@ async def correlation(request: Request, call_next):
     response = await call_next(request)
     response.headers["X-Correlation-ID"] = request.state.correlation_id
     response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["Cache-Control"] = "no-store"
+    if settings.environment == "production":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
 

@@ -6,7 +6,7 @@ OpcionesPregunta y ReglasFormulario no tienen esta protección de estado y usan 
 genérica (app/services/preguntas.py, etc.).
 """
 
-from datetime import UTC, datetime
+from app.core.time import utc_now_iso
 from uuid import uuid4
 
 from sqlalchemy import func, select
@@ -83,7 +83,7 @@ def change_status(session: Session, user: AuthenticatedUser, id_formulario: str,
             raise AppError("FORM_WITHOUT_QUESTIONS", "Agregue al menos una pregunta antes de publicar.", 422)
     before = _snapshot(record)
     record.estado = estado_normalizado
-    record.fecha_publicacion = datetime.now(UTC).isoformat() if estado_normalizado == "PUBLICADO" else None
+    record.fecha_publicacion = utc_now_iso() if estado_normalizado == "PUBLICADO" else None
     mark_updated(record, user.correo)
     log_change(session, "formularios", id_formulario, "UPDATE", before, _snapshot(record),
                user.correo, f"Cambio de estado a {estado_normalizado}", correlation_id)

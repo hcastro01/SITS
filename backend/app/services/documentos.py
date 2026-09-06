@@ -16,7 +16,6 @@ existencia del registro padre en el servicio (Fase 1 §4 línea 109).
 import hashlib
 import re
 import zlib
-from datetime import UTC, datetime
 from uuid import uuid4
 
 from sqlalchemy import func, select
@@ -24,6 +23,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
 from app.core.permissions import AuthenticatedUser, authorize
+from app.core.time import utc_now_iso
 from app.models import (
     Atencion, Caso, Cierre, Compromiso, Derivacion, Documento, HallazgoRecorrido, Novedad, Persona, Recorrido,
     Seguimiento,
@@ -66,7 +66,7 @@ _FIRMAS: dict[str, tuple[bytes, ...]] = {
     "docx": (b"PK\x03\x04",), "xlsx": (b"PK\x03\x04",),
 }
 
-_NOMBRE_INVALIDO = re.compile(r'[\\/:*?"<>|]')
+_NOMBRE_INVALIDO = re.compile(r'[\x00-\x1f\x7f\\/:*?"<>|]')
 
 
 def _nombre_seguro(nombre: str) -> str:
@@ -120,7 +120,7 @@ def upload_documento(
         raise AppError("TOO_MANY_FILES", "Se alcanzó el máximo de archivos para este registro.", 422)
 
     comprimido = zlib.compress(contenido, level=9)
-    ahora = datetime.now(UTC).isoformat()
+    ahora = utc_now_iso()
     documento = Documento(
         id_archivo=str(uuid4()), tipo_registro=tipo, id_registro=id_registro,
         nombre_archivo=_nombre_seguro(nombre_archivo), mime_type=mime_type, extension=extension,

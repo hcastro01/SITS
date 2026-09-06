@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { actualizarUsuario, listarAdministracion, type DatosAdministracion } from '../../api/admin';
 import { HttpError } from '../../api/client';
+import { useFeedback } from '../../components/FeedbackProvider';
 
 export function AdminUsuariosPage() {
+  const { notify } = useFeedback();
   const [datos, setDatos] = useState<DatosAdministracion | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -27,6 +29,7 @@ export function AdminUsuariosPage() {
     try {
       await actualizarUsuario(idUsuario, rolId, estado, version);
       await cargar();
+      notify('Usuario actualizado correctamente.');
     } catch (err) {
       setError(err instanceof HttpError ? err.message : 'No fue posible guardar los cambios.');
     } finally {
@@ -41,7 +44,7 @@ export function AdminUsuariosPage() {
     <section className="panel wide-panel">
       <h2>Usuarios y roles</h2>
       {error && <p className="form-error" role="alert">{error}</p>}
-      <table className="data-table">
+      <div className="table-scroll"><table className="data-table">
         <thead><tr><th>Correo</th><th>Nombre</th><th>Rol</th><th>Estado</th><th></th></tr></thead>
         <tbody>
           {datos.usuarios.map((usuario) => (
@@ -54,7 +57,7 @@ export function AdminUsuariosPage() {
             />
           ))}
         </tbody>
-      </table>
+      </table></div>
     </section>
   );
 }

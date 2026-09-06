@@ -7,7 +7,7 @@ services:
     environment:
       APP_NAME: ${APP_NAME:-Sistema Integral de Gestión de Trabajo Social}
       DATABASE_URL: sqlite:////data/trabajo_social.db
-      CORS_ORIGINS: '${CORS_ORIGINS:-["http://localhost:8080"]}'
+      CORS_ORIGINS: '${CORS_ORIGINS:-["http://localhost:8081"]}'
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     volumes:
@@ -36,7 +36,7 @@ services:
       args:
         VITE_API_URL: /api/v1
     ports:
-      - "127.0.0.1:${FRONTEND_PORT:-8080}:8080"
+      - "127.0.0.1:${FRONTEND_PORT:-8081}:8080"
     depends_on:
       backend:
         condition: service_healthy

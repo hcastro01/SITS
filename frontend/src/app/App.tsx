@@ -1,11 +1,12 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
 import { AuthProvider } from './AuthContext';
 import { RequireAuth } from './RequireAuth';
 import { Layout } from './Layout';
+import { FeedbackProvider } from '../components/FeedbackProvider';
 import { LoginPage } from '../features/auth/LoginPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { CasosListPage } from '../features/casos/CasosListPage';
-import { CasoDetailPage } from '../features/casos/CasoDetailPage';
+import { CasoDetailProductionPage } from '../features/casos/CasoDetailProductionPage';
 import { FormulariosListPage } from '../features/formularios/FormulariosListPage';
 import { FormularioDetailPage } from '../features/formularios/FormularioDetailPage';
 import { ResponderFormularioPage } from '../features/formularios/ResponderFormularioPage';
@@ -16,43 +17,42 @@ import { atencionesConfig, novedadesConfig, personasConfig, recorridosConfig } f
 import { AdminUsuariosPage } from '../features/admin/AdminUsuariosPage';
 import { AdminPermisosPage } from '../features/admin/AdminPermisosPage';
 
+const router = createBrowserRouter([
+  { path: '/login', element: <LoginPage /> },
+  {
+    element: <RequireAuth />,
+    children: [{
+      element: <Layout />,
+      children: [
+        { index: true, element: <DashboardPage /> },
+        { path: 'casos', element: <CasosListPage /> },
+        { path: 'casos/:id', element: <CasoDetailProductionPage /> },
+        { path: 'atenciones', element: <EntityListPage config={atencionesConfig} /> },
+        { path: 'atenciones/:id', element: <EntityDetailPage config={atencionesConfig} /> },
+        { path: 'novedades', element: <EntityListPage config={novedadesConfig} /> },
+        { path: 'novedades/:id', element: <EntityDetailPage config={novedadesConfig} /> },
+        { path: 'recorridos', element: <EntityListPage config={recorridosConfig} /> },
+        { path: 'recorridos/:id', element: <EntityDetailPage config={recorridosConfig} /> },
+        { path: 'personas', element: <EntityListPage config={personasConfig} /> },
+        { path: 'personas/:id', element: <EntityDetailPage config={personasConfig} /> },
+        { path: 'formularios', element: <FormulariosListPage /> },
+        { path: 'formularios/:id', element: <FormularioDetailPage /> },
+        { path: 'formularios/:id/responder', element: <ResponderFormularioPage /> },
+        { path: 'busqueda', element: <BusquedaPage /> },
+        { path: 'admin/usuarios', element: <AdminUsuariosPage /> },
+        { path: 'admin/permisos', element: <AdminPermisosPage /> },
+      ],
+    }],
+  },
+  { path: '*', element: <Navigate to="/" replace /> },
+]);
+
 export function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route element={<RequireAuth />}>
-            <Route element={<Layout />}>
-              <Route path="/" element={<DashboardPage />} />
-
-              <Route path="/casos" element={<CasosListPage />} />
-              <Route path="/casos/:id" element={<CasoDetailPage />} />
-
-              <Route path="/atenciones" element={<EntityListPage config={atencionesConfig} />} />
-              <Route path="/atenciones/:id" element={<EntityDetailPage config={atencionesConfig} />} />
-
-              <Route path="/novedades" element={<EntityListPage config={novedadesConfig} />} />
-              <Route path="/novedades/:id" element={<EntityDetailPage config={novedadesConfig} />} />
-
-              <Route path="/recorridos" element={<EntityListPage config={recorridosConfig} />} />
-              <Route path="/recorridos/:id" element={<EntityDetailPage config={recorridosConfig} />} />
-
-              <Route path="/personas" element={<EntityListPage config={personasConfig} />} />
-              <Route path="/personas/:id" element={<EntityDetailPage config={personasConfig} />} />
-
-              <Route path="/formularios" element={<FormulariosListPage />} />
-              <Route path="/formularios/:id" element={<FormularioDetailPage />} />
-              <Route path="/formularios/:id/responder" element={<ResponderFormularioPage />} />
-
-              <Route path="/busqueda" element={<BusquedaPage />} />
-
-              <Route path="/admin/usuarios" element={<AdminUsuariosPage />} />
-              <Route path="/admin/permisos" element={<AdminPermisosPage />} />
-            </Route>
-          </Route>
-        </Routes>
-      </BrowserRouter>
+      <FeedbackProvider>
+        <RouterProvider router={router} />
+      </FeedbackProvider>
     </AuthProvider>
   );
 }

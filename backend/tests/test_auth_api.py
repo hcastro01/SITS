@@ -5,6 +5,8 @@ llama a las funciones de ruta como funciones Python normales en vez de por HTTP 
 
 import unittest
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from alembic import command
 from alembic.config import Config
@@ -19,6 +21,7 @@ from app.db.session import build_engine
 from app.models import User
 from app.services.security_seed import seed_security
 from app.services.sessions import COOKIE_NAME
+from app.services.passwords import hash_password
 
 
 class AuthApiTests(unittest.TestCase):
@@ -70,6 +73,19 @@ class AuthApiTests(unittest.TestCase):
             perfil = me(user)
             self.assertEqual(perfil.id_usuario, user.id_usuario)
             self.assertEqual(perfil.rol_nombre, user.rol_nombre)
+
+    def test_password_mode_accepts_only_the_configured_password(self):
+        settings = SimpleNamespace(auth_mode="password", cookie_secure=True, cookie_samesite="none", session_ttl_hours=12)
+        with Session(self.engine) as session, session.begin():
+            session.get(User, "u1").password_hash = hash_password("ClaveSegura123")
+        with patch("app.api.auth.get_settings", return_value=settings):
+            with Session(self.engine) as session, session.begin():
+                with self.assertRaises(AppError) as ctx:
+                    login(LoginRequest(correo="ana@example.com", password="ClaveIncorrecta123"), Response(), session)
+                self.assertEqual(ctx.exception.code, "INVALID_CREDENTIALS")
+            with Session(self.engine) as session, session.begin():
+                profile = login(LoginRequest(correo="ana@example.com", password="ClaveSegura123"), Response(), session)
+                self.assertEqual(profile.id_usuario, "u1")
 
 
 if __name__ == "__main__":

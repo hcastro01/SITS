@@ -9,13 +9,14 @@ viaja únicamente en la cookie HttpOnly del navegador.
 
 import hashlib
 import secrets
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from uuid import uuid4
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.core.time import utc_now, utc_now_iso
 from app.models import Sesion
 
 COOKIE_NAME = "sits_session"
@@ -28,7 +29,7 @@ def _hash_token(token: str) -> str:
 def create_session(session: Session, id_usuario: str) -> str:
     """Crea la sesión y devuelve el token en claro (solo existe aquí y en la cookie)."""
     token = secrets.token_urlsafe(32)
-    ahora = datetime.now(UTC)
+    ahora = utc_now()
     expira = ahora + timedelta(hours=get_settings().session_ttl_hours)
     session.add(Sesion(
         id_sesion=str(uuid4()),
@@ -47,7 +48,7 @@ def resolve_session_user_id(session: Session, token: str) -> str | None:
     fila = session.scalar(select(Sesion).where(Sesion.token_hash == _hash_token(token)))
     if fila is None or fila.revocada_en is not None:
         return None
-    if fila.expira_en < datetime.now(UTC).isoformat():
+    if fila.expira_en < utc_now_iso():
         return None
     return fila.id_usuario
 
@@ -57,4 +58,4 @@ def revoke_session(session: Session, token: str) -> None:
         return
     fila = session.scalar(select(Sesion).where(Sesion.token_hash == _hash_token(token)))
     if fila is not None and fila.revocada_en is None:
-        fila.revocada_en = datetime.now(UTC).isoformat()
+        fila.revocada_en = utc_now_iso()
