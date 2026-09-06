@@ -56,6 +56,26 @@ export function put<T>(path: string, body?: unknown): Promise<T> {
   return request<T>(path, { method: 'PUT', body: body !== undefined ? JSON.stringify(body) : undefined });
 }
 
+/** Multipart: no fija Content-Type, el navegador agrega el boundary. */
+export async function postForm<T>(path: string, formData: FormData): Promise<T> {
+  const response = await fetch(`${baseUrl}${path}`, { method: 'POST', credentials: 'include', body: formData });
+  if (!response.ok) {
+    let body: ApiErrorBody;
+    try {
+      body = await response.json();
+    } catch {
+      body = { ok: false, code: `HTTP_${response.status}`, message: response.statusText, correlationId: '' };
+    }
+    throw new HttpError(response.status, body);
+  }
+  return (await response.json()) as T;
+}
+
+/** URL absoluta para enlaces de descarga (la cookie de sesión viaja con la navegación normal). */
+export function fileUrl(path: string): string {
+  return `${baseUrl}${path}`;
+}
+
 /** Para respuestas que no son JSON (p. ej. CSV de exportación). */
 export async function postForBlob(path: string, body?: unknown): Promise<Blob> {
   const response = await fetch(`${baseUrl}${path}`, {

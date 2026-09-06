@@ -18,6 +18,7 @@ header .brand+button,header .brand+.logout-button{margin-left:auto}
 .app-main{flex:1;width:88%;max-width:1190px;margin:50px auto;display:flex;flex-direction:column;gap:24px}
 .wide-panel{max-width:none;width:100%}
 .panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.panel-header button{padding:10px 16px}
 .button-link{background:#1c4949;color:white;border-radius:9px;padding:10px 16px;text-decoration:none;font-size:14px;font-weight:600}
 .data-table{width:100%;border-collapse:collapse;margin-top:16px;font-size:14px}
 .data-table th{text-align:left;color:#6a7a78;font-weight:600;padding:8px 10px;border-bottom:1px solid #e2e8df}
@@ -39,4 +40,36 @@ header .brand+button,header .brand+.logout-button{margin-left:auto}
 .data-table select{font:inherit;font-size:13px;padding:6px 8px;border-radius:6px;border:1px solid #ced9d1}
 .data-table input[type=checkbox]{width:16px;height:16px}
 .main-nav{flex-wrap:wrap;row-gap:6px}
+.upload-form{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;margin:16px 0}
+.upload-form label{width:100%}
+.upload-form input[type=file]{flex:1;min-width:220px;padding:8px}
+.upload-form select{padding:10px 12px;border:1px solid #ced9d1;border-radius:9px}
+.upload-form button{width:auto;padding:12px 18px;margin-top:0}
+.doc-actions{display:flex;gap:8px;align-items:center}
+.doc-actions button{width:auto;padding:8px 14px;font-size:13px;background:#9b3f38}
+.doc-actions button:hover{background:#b54d42}
+.doc-actions .button-link{padding:8px 14px;font-size:13px}
+button.as-button,a.button-link.as-button{width:auto}
+button.secondary,button.secondary.as-button{background:transparent;color:#1c4949;border:1px solid #ced9d1}
+button.secondary:hover{background:#edf3e9;color:#173f40}
+.modal-overlay{position:fixed;inset:0;background:#152321a3;display:flex;align-items:center;justify-content:center;padding:20px;z-index:100;backdrop-filter:blur(2px)}
+.modal{background:white;border-radius:20px;box-shadow:0 25px 70px #0d1f1c40;width:100%;max-width:520px;max-height:88vh;overflow-y:auto;animation:modal-in .16s ease-out}
+@keyframes modal-in{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:24px 28px 0}
+.modal-header h2{margin:0}
+.modal-close{width:auto;background:transparent;color:#6a7a78;font-size:22px;line-height:1;padding:6px 10px;border-radius:8px}
+.modal-close:hover{background:#f2f5f1;color:#173f40}
+.modal-body{padding:8px 28px 28px}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+.modal-actions button{width:auto;padding:12px 20px;margin-top:0}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin:20px 0 4px}
+.kpi-card{display:block;background:#fbfcfa;border:1px solid #e2e8df;border-radius:16px;padding:20px;text-decoration:none;color:inherit;transition:box-shadow .15s,transform .15s}
+.kpi-card:hover{box-shadow:0 12px 32px #20413214;transform:translateY(-2px)}
+.kpi-card.is-alert{background:#fcf3f0;border-color:#f0d7ce}
+.kpi-label{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#6a7a78;font-weight:600}
+.kpi-icon{background:#edf3e9;color:#507a63;border-radius:8px;padding:4px 9px;font-size:12px}
+.kpi-card.is-alert .kpi-icon{background:#f6e2da;color:#9b3f38}
+.kpi-value{display:block;font-size:34px;font-weight:600;margin:12px 0 4px;letter-spacing:-1px}
+.kpi-trend{font-size:12px;color:#748078}
+.kpi-card.is-alert .kpi-trend{color:#9b3f38;font-weight:600}
 @media(max-width:800px){.detail-grid{grid-template-columns:1fr}.app-shell header{flex-wrap:wrap;gap:12px}.header-user{margin-left:0}}

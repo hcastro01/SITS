@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { HttpError } from '../../api/client';
 import type { EntityRecord } from '../../api/entities';
+import { EntityFormModal } from './EntityFormModal';
 import type { EntityPageConfig } from './EntityConfig';
 
 export function EntityListPage({ config }: { config: EntityPageConfig }) {
   const [registros, setRegistros] = useState<EntityRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [modalAbierto, setModalAbierto] = useState(false);
 
   useEffect(() => {
     let activo = true;
@@ -26,7 +28,7 @@ export function EntityListPage({ config }: { config: EntityPageConfig }) {
     <section className="panel wide-panel">
       <div className="panel-header">
         <h2>{config.titulo}</h2>
-        <Link className="button-link" to={`${config.rutaBase}/nuevo`}>Nuevo</Link>
+        <button type="button" className="button-link as-button" onClick={() => setModalAbierto(true)}>Nuevo</button>
       </div>
       {error && <p className="form-error" role="alert">{error}</p>}
       {cargando ? (
@@ -52,6 +54,14 @@ export function EntityListPage({ config }: { config: EntityPageConfig }) {
             })}
           </tbody>
         </table>
+      )}
+
+      {modalAbierto && (
+        <EntityFormModal
+          config={config}
+          onClose={() => setModalAbierto(false)}
+          onSaved={(registro) => { setModalAbierto(false); setRegistros((previo) => [registro, ...previo]); }}
+        />
       )}
     </section>
   );

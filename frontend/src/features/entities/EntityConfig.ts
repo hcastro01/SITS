@@ -16,6 +16,8 @@ export interface EntityPageConfig {
   rutaBase: string;
   api: EntityClient;
   campos: CampoConfig[];
+  /** Valor de tipo_registro en app/services/documentos.py::TIPO_REGISTRO_MODELOS. */
+  tipoRegistro: string;
 }
 
 export const atencionesConfig: EntityPageConfig = {
@@ -23,6 +25,7 @@ export const atencionesConfig: EntityPageConfig = {
   tituloSingular: 'atención',
   rutaBase: '/atenciones',
   api: atencionesApi,
+  tipoRegistro: 'ATENCIONES',
   campos: [
     { nombre: 'fecha', etiqueta: 'Fecha' },
     { nombre: 'responsable', etiqueta: 'Responsable' },
@@ -41,6 +44,7 @@ export const novedadesConfig: EntityPageConfig = {
   tituloSingular: 'novedad',
   rutaBase: '/novedades',
   api: novedadesApi,
+  tipoRegistro: 'NOVEDADES',
   campos: [
     { nombre: 'fecha', etiqueta: 'Fecha' },
     { nombre: 'responsable', etiqueta: 'Responsable' },
@@ -58,6 +62,7 @@ export const recorridosConfig: EntityPageConfig = {
   tituloSingular: 'recorrido',
   rutaBase: '/recorridos',
   api: recorridosApi,
+  tipoRegistro: 'RECORRIDOS',
   campos: [
     { nombre: 'fecha', etiqueta: 'Fecha' },
     { nombre: 'responsable', etiqueta: 'Responsable' },
@@ -73,6 +78,7 @@ export const personasConfig: EntityPageConfig = {
   tituloSingular: 'persona',
   rutaBase: '/personas',
   api: personasApi,
+  tipoRegistro: 'PERSONAS',
   campos: [
     { nombre: 'nombre', etiqueta: 'Nombre', requerido: true },
     { nombre: 'codigo_empleado', etiqueta: 'Código de empleado' },

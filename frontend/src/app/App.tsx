@@ -5,14 +5,12 @@ import { Layout } from './Layout';
 import { LoginPage } from '../features/auth/LoginPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { CasosListPage } from '../features/casos/CasosListPage';
-import { CasoFormPage } from '../features/casos/CasoFormPage';
 import { CasoDetailPage } from '../features/casos/CasoDetailPage';
 import { FormulariosListPage } from '../features/formularios/FormulariosListPage';
 import { FormularioDetailPage } from '../features/formularios/FormularioDetailPage';
 import { ResponderFormularioPage } from '../features/formularios/ResponderFormularioPage';
 import { BusquedaPage } from '../features/busqueda/BusquedaPage';
 import { EntityListPage } from '../features/entities/EntityListPage';
-import { EntityFormPage } from '../features/entities/EntityFormPage';
 import { EntityDetailPage } from '../features/entities/EntityDetailPage';
 import { atencionesConfig, novedadesConfig, personasConfig, recorridosConfig } from '../features/entities/EntityConfig';
 import { AdminUsuariosPage } from '../features/admin/AdminUsuariosPage';
@@ -29,23 +27,18 @@ export function App() {
               <Route path="/" element={<DashboardPage />} />
 
               <Route path="/casos" element={<CasosListPage />} />
-              <Route path="/casos/nuevo" element={<CasoFormPage />} />
               <Route path="/casos/:id" element={<CasoDetailPage />} />
 
               <Route path="/atenciones" element={<EntityListPage config={atencionesConfig} />} />
-              <Route path="/atenciones/nuevo" element={<EntityFormPage config={atencionesConfig} />} />
               <Route path="/atenciones/:id" element={<EntityDetailPage config={atencionesConfig} />} />
 
               <Route path="/novedades" element={<EntityListPage config={novedadesConfig} />} />
-              <Route path="/novedades/nuevo" element={<EntityFormPage config={novedadesConfig} />} />
               <Route path="/novedades/:id" element={<EntityDetailPage config={novedadesConfig} />} />
 
               <Route path="/recorridos" element={<EntityListPage config={recorridosConfig} />} />
-              <Route path="/recorridos/nuevo" element={<EntityFormPage config={recorridosConfig} />} />
               <Route path="/recorridos/:id" element={<EntityDetailPage config={recorridosConfig} />} />
 
               <Route path="/personas" element={<EntityListPage config={personasConfig} />} />
-              <Route path="/personas/nuevo" element={<EntityFormPage config={personasConfig} />} />
               <Route path="/personas/:id" element={<EntityDetailPage config={personasConfig} />} />
 
               <Route path="/formularios" element={<FormulariosListPage />} />

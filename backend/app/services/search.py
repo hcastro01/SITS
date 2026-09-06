@@ -22,7 +22,7 @@ from app.models import (
     Atencion, Caso, Cierre, Compromiso, Derivacion, HallazgoRecorrido, Novedad, Persona,
     Recorrido, Seguimiento,
 )
-from app.services.casos import is_sensitive_caso
+from app.services.sensitivity import is_sensitive_record
 
 PROVENANCE_FIELDS = frozenset(
     {"archivo_fuente", "hoja_fuente", "registro_fuente", "fecha_importacion", "usuario_importacion"}
@@ -105,17 +105,6 @@ DEFAULT_TABLES = (
 )
 
 
-def _is_sensitive(session: Session, tabla: str, registro) -> bool:
-    if tabla == "casos":
-        return is_sensitive_caso(session, registro.nivel_sensibilidad)
-    id_caso = getattr(registro, "id_caso", None)
-    if id_caso:
-        caso = session.get(Caso, id_caso)
-        if caso is not None:
-            return is_sensitive_caso(session, caso.nivel_sensibilidad)
-    return False
-
-
 def _puede_ver_sensible(user: AuthenticatedUser, modulo: str, sensible: bool) -> bool:
     if not sensible:
         return True
@@ -164,7 +153,7 @@ def search(
                 continue
             if filtros.get("area") and getattr(registro, "area", None) != filtros["area"]:
                 continue
-            sensible = _is_sensitive(session, tabla, registro)
+            sensible = is_sensitive_record(session, registro)
             puede_ver = _puede_ver_sensible(user, config.modulo, sensible)
             items.append({
                 "tabla": tabla,

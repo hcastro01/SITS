@@ -13,6 +13,8 @@ from app.api.auth import router as auth_router
 from app.api.bootstrap import router as bootstrap_router
 from app.api.busqueda import router as busqueda_router
 from app.api.casos import router as casos_router
+from app.api.dashboard import router as dashboard_router
+from app.api.documentos import router as documentos_router
 from app.api.formularios import router as formularios_router
 from app.api.routers_simples import (
     hallazgos_recorrido_router, novedades_router, personas_router, recorridos_router,
@@ -80,4 +82,6 @@ app.include_router(personas_router)
 app.include_router(formularios_router)
 app.include_router(busqueda_router)
 app.include_router(admin_router)
+app.include_router(documentos_router)
+app.include_router(dashboard_router)
 

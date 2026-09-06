@@ -5,6 +5,8 @@ import {
   type Caso, type EventoHistorial,
 } from '../../api/casos';
 import { HttpError } from '../../api/client';
+import { DocumentosPanel } from '../documentos/DocumentosPanel';
+import { CasoFormModal } from './CasoFormModal';
 
 export function CasoDetailPage() {
   const { id = '' } = useParams();
@@ -12,6 +14,7 @@ export function CasoDetailPage() {
   const [historial, setHistorial] = useState<EventoHistorial[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [editando, setEditando] = useState(false);
 
   const [descripcionSeguimiento, setDescripcionSeguimiento] = useState('');
   const [enviandoSeguimiento, setEnviandoSeguimiento] = useState(false);
@@ -81,7 +84,10 @@ export function CasoDetailPage() {
   return (
     <div className="detail-grid">
       <section className="panel">
-        <h2>{caso.codigo_caso}</h2>
+        <div className="panel-header">
+          <h2>{caso.codigo_caso}</h2>
+          {!cerrado && <button type="button" className="secondary as-button" onClick={() => setEditando(true)}>Editar</button>}
+        </div>
         {error && <p className="form-error" role="alert">{error}</p>}
         <dl className="field-list">
           <dt>Responsable</dt><dd>{caso.responsable ?? '—'}</dd>
@@ -116,6 +122,8 @@ export function CasoDetailPage() {
         )}
       </section>
 
+      <DocumentosPanel tipoRegistro="CASOS" idRegistro={id} />
+
       <section className="panel">
         <h2>Historial</h2>
         {historial.length === 0 ? (
@@ -131,6 +139,14 @@ export function CasoDetailPage() {
           </ul>
         )}
       </section>
+
+      {editando && (
+        <CasoFormModal
+          caso={caso}
+          onClose={() => setEditando(false)}
+          onSaved={() => { setEditando(false); cargar(); }}
+        />
+      )}
     </div>
   );
 }

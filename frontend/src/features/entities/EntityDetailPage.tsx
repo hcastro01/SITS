@@ -2,6 +2,8 @@ import { Fragment, useCallback, useEffect, useState, type FormEvent } from 'reac
 import { useParams } from 'react-router-dom';
 import { HttpError } from '../../api/client';
 import type { EntityRecord, EventoHistorial } from '../../api/entities';
+import { DocumentosPanel } from '../documentos/DocumentosPanel';
+import { EntityFormModal } from './EntityFormModal';
 import type { EntityPageConfig } from './EntityConfig';
 
 export function EntityDetailPage({ config }: { config: EntityPageConfig }) {
@@ -12,6 +14,7 @@ export function EntityDetailPage({ config }: { config: EntityPageConfig }) {
   const [cargando, setCargando] = useState(true);
   const [motivoEliminacion, setMotivoEliminacion] = useState('');
   const [procesando, setProcesando] = useState(false);
+  const [editando, setEditando] = useState(false);
 
   const cargar = useCallback(async () => {
     setError(null);
@@ -63,7 +66,12 @@ export function EntityDetailPage({ config }: { config: EntityPageConfig }) {
   return (
     <div className="detail-grid">
       <section className="panel">
-        <h2>{config.tituloSingular} {registro.eliminado ? '(eliminado)' : ''}</h2>
+        <div className="panel-header">
+          <h2>{config.tituloSingular} {registro.eliminado ? '(eliminado)' : ''}</h2>
+          {!registro.eliminado && (
+            <button type="button" className="secondary as-button" onClick={() => setEditando(true)}>Editar</button>
+          )}
+        </div>
         {error && <p className="form-error" role="alert">{error}</p>}
         <dl className="field-list">
           {config.campos.map((campo) => (
@@ -91,6 +99,8 @@ export function EntityDetailPage({ config }: { config: EntityPageConfig }) {
         )}
       </section>
 
+      <DocumentosPanel tipoRegistro={config.tipoRegistro} idRegistro={id} />
+
       <section className="panel">
         <h2>Historial</h2>
         {historial.length === 0 ? (
@@ -106,6 +116,15 @@ export function EntityDetailPage({ config }: { config: EntityPageConfig }) {
           </ul>
         )}
       </section>
+
+      {editando && (
+        <EntityFormModal
+          config={config}
+          registro={registro}
+          onClose={() => setEditando(false)}
+          onSaved={() => { setEditando(false); cargar(); }}
+        />
+      )}
     </div>
   );
 }
