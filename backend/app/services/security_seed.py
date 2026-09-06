@@ -17,8 +17,26 @@ ROLES = {
     "ROLE_CONSULTA": "Consulta",
     "ROLE_GERENCIA": "Gerencia",
 }
+# Descripciones verbatim de Base Sistema/Setup.gs:101-105.
+ROLE_DESCRIPTIONS = {
+    "ROLE_ADMIN": "Acceso integral y administracion de seguridad.",
+    "ROLE_COORDINADOR": "Supervision consolidada de procesos.",
+    "ROLE_TRABAJADOR_SOCIAL": "Captura y gestion operativa autorizada.",
+    "ROLE_CONSULTA": "Consulta sin modificacion segun permisos.",
+    "ROLE_GERENCIA": "Indicadores y consulta agregada sin detalle sensible.",
+}
 OPERATIONAL = {"ATENCIONES", "CASOS", "NOVEDADES", "RECORRIDOS", "SEGUIMIENTOS", "DERIVACIONES", "COMPROMISOS"}
 BASE_READ = OPERATIONAL | {"DASHBOARD", "PERSONAS", "FORMULARIOS", "RESPUESTAS", "CATALOGOS", "DOCUMENTOS", "BUSQUEDA", "REPORTES"}
+
+# Mapea la acción RPC (AuthService.gs:2, ACTION_COLUMNS) a la columna en español.
+ACTION_TO_FIELD = {
+    "create": "puede_crear",
+    "read": "puede_leer",
+    "edit": "puede_editar",
+    "delete": "puede_eliminar",
+    "sensitive": "puede_sensible",
+    "export": "puede_exportar",
+}
 
 
 def initial_rights(role: str, module: str) -> dict[str, bool]:
@@ -45,14 +63,15 @@ def initial_rights(role: str, module: str) -> dict[str, bool]:
 
 def seed_security(session: Session) -> None:
     # Solo inserta faltantes. Nunca crea usuarios ni eleva permisos existentes.
-    for role_id, name in ROLES.items():
-        if session.get(Role, role_id) is None:
-            session.add(Role(id=role_id, name=name))
+    for id_rol, nombre in ROLES.items():
+        if session.get(Role, id_rol) is None:
+            session.add(Role(id_rol=id_rol, nombre=nombre, descripcion=ROLE_DESCRIPTIONS[id_rol]))
     session.flush()
-    existing = set(session.execute(select(Permission.role_id, Permission.module)).all())
-    for role_id in ROLES:
-        for module in MODULES:
-            if (role_id, module) not in existing:
-                session.add(Permission(id=f"{role_id}:{module}", role_id=role_id, module=module,
-                                       **{f"can_{action}": value for action, value in initial_rights(role_id, module).items()}))
-
+    existing = set(session.execute(select(Permission.rol_id, Permission.modulo)).all())
+    for id_rol in ROLES:
+        for modulo in MODULES:
+            if (id_rol, modulo) not in existing:
+                session.add(Permission(
+                    id_permiso=f"{id_rol}:{modulo}", rol_id=id_rol, modulo=modulo,
+                    **{ACTION_TO_FIELD[action]: value for action, value in initial_rights(id_rol, modulo).items()},
+                ))

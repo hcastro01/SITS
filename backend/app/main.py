@@ -9,11 +9,13 @@ from starlette.exceptions import HTTPException
 
 from app.api.routes import router
 from app.core.config import get_settings
+from app.core.errors import AppError
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name, version="0.1.0")
 app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins,
-                   allow_methods=["GET"], allow_headers=["Content-Type"], allow_credentials=False)
+                   allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"],
+                   allow_headers=["Content-Type"], allow_credentials=False)
 
 
 @app.middleware("http")
@@ -31,6 +33,11 @@ def error_response(request: Request, status: int, code: str, message: str):
     return JSONResponse(status_code=status, content={"ok": False, "code": code, "message": message,
                         "correlationId": correlation_id},
                         headers={"X-Correlation-ID": correlation_id, "Cache-Control": "no-store"})
+
+
+@app.exception_handler(AppError)
+async def app_error(request: Request, error: AppError):
+    return error_response(request, error.status_code, error.code, str(error.detail))
 
 
 @app.exception_handler(HTTPException)
