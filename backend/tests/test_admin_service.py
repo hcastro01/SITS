@@ -3,14 +3,16 @@ from tempfile import TemporaryDirectory
 
 from alembic import command
 from alembic.config import Config
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 import app.db.session as db_session
 from app.core.errors import AppError
 from app.core.permissions import resolve_current_user
 from app.db.session import build_engine
-from app.models import User
-from app.services.admin import list_administration, save_permission, save_user_role
+from app.models import Auditoria, User
+from app.services.admin import create_user, list_administration, save_permission, save_user_role
+from app.services.passwords import verify_password
 from app.services.security_seed import seed_security
 
 
@@ -49,6 +51,82 @@ class AdminServiceTests(unittest.TestCase):
             self.assertEqual(len(datos["roles"]), 5)
             self.assertEqual(len(datos["permisos"]), 90)
             self.assertEqual(len(datos["usuarios"]), 3)
+
+    def test_admin_can_create_an_active_user_with_a_hashed_password_and_audit(self):
+        password = "TemporalSegura123"
+        with Session(self.engine) as session, session.begin():
+            admin = resolve_current_user(session, "admin1@example.com")
+            resultado = create_user(
+                session, admin, correo="  NUEVA@Example.COM ", nombre="  Nueva Persona  ",
+                rol_id="ROLE_TRABAJADOR_SOCIAL", password=password, correlation_id="create-1",
+            )
+            usuario = session.get(User, resultado["id_usuario"])
+            self.assertEqual(resultado["correo"], "nueva@example.com")
+            self.assertEqual(resultado["nombre"], "Nueva Persona")
+            self.assertEqual(resultado["estado"], "ACTIVO")
+            self.assertTrue(resultado["activo"])
+            self.assertFalse(resultado["eliminado"])
+            self.assertNotIn("password", resultado)
+            self.assertNotIn("password_hash", resultado)
+            self.assertIsNotNone(usuario)
+            self.assertNotEqual(usuario.password_hash, password)
+            self.assertTrue(verify_password(password, usuario.password_hash))
+            self.assertEqual(usuario.creado_por, admin.correo)
+            self.assertIsNotNone(usuario.fecha_creacion)
+
+            auditorias = session.scalars(select(Auditoria).where(
+                Auditoria.tabla == "usuarios", Auditoria.id_registro == usuario.id_usuario,
+                Auditoria.accion == "CREATE",
+            )).all()
+            self.assertTrue(auditorias)
+            self.assertTrue(all(row.usuario == admin.correo for row in auditorias))
+            self.assertTrue(all(row.motivo == "Alta de usuario" for row in auditorias))
+            self.assertTrue(all(row.campo not in {"password", "password_hash"} for row in auditorias))
+            self.assertNotIn(password, " ".join((row.valor_nuevo or "") for row in auditorias))
+
+    def test_user_without_create_permission_cannot_create_user(self):
+        with Session(self.engine) as session, session.begin():
+            consulta = resolve_current_user(session, "consulta@example.com")
+            with self.assertRaises(AppError) as ctx:
+                create_user(
+                    session, consulta, correo="otra@example.com", nombre="Otra Persona",
+                    rol_id="ROLE_CONSULTA", password="TemporalSegura123",
+                )
+            self.assertEqual(ctx.exception.code, "FORBIDDEN")
+            self.assertEqual(ctx.exception.status_code, 403)
+
+    def test_create_user_rejects_a_duplicate_email_case_insensitively(self):
+        with Session(self.engine) as session, session.begin():
+            admin = resolve_current_user(session, "admin1@example.com")
+            with self.assertRaises(AppError) as ctx:
+                create_user(
+                    session, admin, correo=" ADMIN1@EXAMPLE.COM ", nombre="Duplicado",
+                    rol_id="ROLE_CONSULTA", password="TemporalSegura123",
+                )
+            self.assertEqual(ctx.exception.code, "USER_ALREADY_EXISTS")
+            self.assertEqual(ctx.exception.status_code, 409)
+
+    def test_create_user_rejects_an_unknown_role(self):
+        with Session(self.engine) as session, session.begin():
+            admin = resolve_current_user(session, "admin1@example.com")
+            with self.assertRaises(AppError) as ctx:
+                create_user(
+                    session, admin, correo="otra@example.com", nombre="Otra Persona",
+                    rol_id="ROLE_INEXISTENTE", password="TemporalSegura123",
+                )
+            self.assertEqual(ctx.exception.code, "ROLE_NOT_FOUND")
+            self.assertEqual(ctx.exception.status_code, 422)
+
+    def test_create_user_rejects_a_weak_password(self):
+        with Session(self.engine) as session, session.begin():
+            admin = resolve_current_user(session, "admin1@example.com")
+            with self.assertRaises(AppError) as ctx:
+                create_user(
+                    session, admin, correo="otra@example.com", nombre="Otra Persona",
+                    rol_id="ROLE_CONSULTA", password="debil",
+                )
+            self.assertEqual(ctx.exception.code, "WEAK_PASSWORD")
+            self.assertEqual(ctx.exception.status_code, 422)
 
     def test_cannot_demote_the_last_active_admin(self):
         with Session(self.engine) as session, session.begin():

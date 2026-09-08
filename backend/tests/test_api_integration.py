@@ -2,6 +2,8 @@
 
 import unittest
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from alembic import command
 from alembic.config import Config
@@ -12,7 +14,8 @@ from app.api.deps import get_db
 import app.db.session as db_session
 from app.db.session import build_engine
 from app.main import app
-from app.models import User
+from app.models import Auditoria, User
+from app.services.passwords import verify_password
 from app.services.security_seed import seed_security
 
 
@@ -27,6 +30,8 @@ class ApiIntegrationTests(unittest.TestCase):
             seed_security(session)
             session.add(User(id_usuario="admin", correo="admin@example.com", nombre="Admin",
                              rol_id="ROLE_ADMIN", estado="ACTIVO"))
+            session.add(User(id_usuario="consulta", correo="consulta@example.com", nombre="Consulta",
+                             rol_id="ROLE_CONSULTA", estado="ACTIVO"))
 
         def override_db():
             with Session(self.engine) as session:
@@ -92,6 +97,69 @@ class ApiIntegrationTests(unittest.TestCase):
 
         self.assertEqual(self.client.post("/api/v1/auth/logout").status_code, 200)
         self.assertEqual(self.client.get("/api/v1/casos").status_code, 401)
+
+    def test_admin_can_create_a_user_that_can_authenticate(self):
+        self.assertEqual(self.client.post(
+            "/api/v1/auth/login", json={"correo": "admin@example.com", "password": "ClaveSegura123"},
+        ).status_code, 200)
+        password = "TemporalSegura123"
+        response = self.client.post("/api/v1/admin/usuarios", json={
+            "correo": " NUEVA@Example.COM ", "nombre": " Nueva Persona ",
+            "rol_id": "ROLE_TRABAJADOR_SOCIAL", "password": password,
+        })
+        self.assertEqual(response.status_code, 201)
+        body = response.json()
+        self.assertEqual(body["correo"], "nueva@example.com")
+        self.assertNotIn("password", body)
+        self.assertNotIn("password_hash", body)
+
+        with Session(self.engine) as session:
+            usuario = session.get(User, body["id_usuario"])
+            self.assertIsNotNone(usuario)
+            self.assertNotEqual(usuario.password_hash, password)
+            self.assertTrue(verify_password(password, usuario.password_hash))
+            auditorias = session.query(Auditoria).filter_by(
+                tabla="usuarios", id_registro=body["id_usuario"], accion="CREATE",
+            ).all()
+            self.assertTrue(auditorias)
+            self.assertTrue(all(row.campo not in {"password", "password_hash"} for row in auditorias))
+
+        password_settings = SimpleNamespace(
+            auth_mode="password", cookie_secure=False, cookie_samesite="lax", session_ttl_hours=12,
+        )
+        with patch("app.api.auth.get_settings", return_value=password_settings):
+            login = self.client.post("/api/v1/auth/login", json={
+                "correo": "nueva@example.com", "password": password,
+            })
+        self.assertEqual(login.status_code, 200)
+        self.assertEqual(login.json()["id_usuario"], body["id_usuario"])
+
+    def test_user_without_create_permission_receives_403(self):
+        self.assertEqual(self.client.post(
+            "/api/v1/auth/login", json={"correo": "consulta@example.com", "password": "irrelevante"},
+        ).status_code, 200)
+        response = self.client.post("/api/v1/admin/usuarios", json={
+            "correo": "otra@example.com", "nombre": "Otra Persona",
+            "rol_id": "ROLE_CONSULTA", "password": "TemporalSegura123",
+        })
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["code"], "FORBIDDEN")
+
+    def test_admin_user_creation_returns_expected_validation_errors(self):
+        self.client.post("/api/v1/auth/login", json={"correo": "admin@example.com", "password": "irrelevante"})
+        cases = (
+            ({"correo": "ADMIN@example.com", "nombre": "Duplicado", "rol_id": "ROLE_CONSULTA",
+              "password": "TemporalSegura123"}, 409, "USER_ALREADY_EXISTS"),
+            ({"correo": "otra@example.com", "nombre": "Otra", "rol_id": "ROLE_INEXISTENTE",
+              "password": "TemporalSegura123"}, 422, "ROLE_NOT_FOUND"),
+            ({"correo": "otra@example.com", "nombre": "Otra", "rol_id": "ROLE_CONSULTA",
+              "password": "debil"}, 422, "WEAK_PASSWORD"),
+        )
+        for payload, status_code, code in cases:
+            with self.subTest(code=code):
+                response = self.client.post("/api/v1/admin/usuarios", json=payload)
+                self.assertEqual(response.status_code, status_code)
+                self.assertEqual(response.json()["code"], code)
 
 
 if __name__ == "__main__":

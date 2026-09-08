@@ -1,4 +1,4 @@
-import { get, patch, put } from './client';
+import { get, patch, post, put } from './client';
 
 export interface UsuarioAdmin {
   id_usuario: string;
@@ -36,8 +36,19 @@ export interface DatosAdministracion {
   permisos: PermisoAdmin[];
 }
 
+export interface CrearUsuarioPayload {
+  correo: string;
+  nombre: string;
+  rol_id: string;
+  password: string;
+}
+
 export function listarAdministracion(): Promise<DatosAdministracion> {
   return get<DatosAdministracion>('/admin/usuarios');
+}
+
+export function crearUsuario(payload: CrearUsuarioPayload): Promise<UsuarioAdmin> {
+  return post<UsuarioAdmin>('/admin/usuarios', payload);
 }
 
 export function actualizarUsuario(

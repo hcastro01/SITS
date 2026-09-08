@@ -1,18 +1,37 @@
 """Router de Administración: usuarios, roles y permisos."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.core.permissions import AuthenticatedUser
-from app.services.admin import list_administration, save_permission, save_user_role
+from app.services.admin import create_user, list_administration, save_permission, save_user_role
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Administración"])
+
+
+class CrearUsuarioRequest(BaseModel):
+    correo: str
+    nombre: str
+    rol_id: str
+    password: str
 
 
 @router.get("/usuarios")
 def listar(db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
     return list_administration(db, user)
+
+
+@router.post("/usuarios", status_code=status.HTTP_201_CREATED)
+def crear_usuario(
+    payload: CrearUsuarioRequest, request: Request, db: Session = Depends(get_db),
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    return create_user(
+        db, user, correo=payload.correo, nombre=payload.nombre, rol_id=payload.rol_id,
+        password=payload.password, correlation_id=getattr(request.state, "correlation_id", ""),
+    )
 
 
 @router.patch("/usuarios/{id_usuario}")

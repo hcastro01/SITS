@@ -3,10 +3,12 @@
 Equivalente a Base Sistema/AuthService.gs (listAdministration, saveUserRole,
 savePermissions). Conserva las dos protecciones verificadas en la auditoría: no se puede
 cambiar de rol ni desactivar al último administrador (AuthService.gs:141-143), y el rol
-Administrador no puede perder lectura/edición de ADMINISTRACION (AuthService.gs:166). El
-alta de usuarios nuevos no ocurre aquí: solo por app/cli/bootstrap_admin.py o, en el
-futuro, por la importación histórica — nunca por esta API.
+Administrador no puede perder lectura/edición de ADMINISTRACION (AuthService.gs:166).
+El alta de usuarios exige de forma independiente ADMINISTRACION:create.
 """
+
+import re
+from uuid import uuid4
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -15,7 +17,8 @@ from app.core.errors import AppError
 from app.core.permissions import AuthenticatedUser, authorize
 from app.models import Permission, Role, User
 from app.services.audit import log_change
-from app.services.records import check_expected_version, mark_updated
+from app.services.passwords import hash_password
+from app.services.records import check_expected_version, creation_metadata, mark_updated
 
 ADMIN_MODULE = "ADMINISTRACION"
 ADMIN_ROLE_ID = "ROLE_ADMIN"
@@ -24,6 +27,8 @@ ACTION_TO_FIELD = {
     "create": "puede_crear", "read": "puede_leer", "edit": "puede_editar",
     "delete": "puede_eliminar", "sensitive": "puede_sensible", "export": "puede_exportar",
 }
+
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def serialize_user(user: User) -> dict:
@@ -54,6 +59,41 @@ def list_administration(session: Session, user: AuthenticatedUser) -> dict:
         "roles": [serialize_role(r) for r in roles],
         "permisos": [serialize_permission(p) for p in permisos],
     }
+
+
+def create_user(
+    session: Session, admin: AuthenticatedUser, *, correo: str, nombre: str,
+    rol_id: str, password: str, correlation_id: str = "",
+) -> dict:
+    authorize(admin, ADMIN_MODULE, "create")
+    correo_normalizado = correo.strip().lower()
+    nombre_normalizado = nombre.strip()
+    if not correo_normalizado or not nombre_normalizado:
+        raise AppError("INVALID_INPUT", "El correo y el nombre son obligatorios.", 422)
+    if EMAIL_PATTERN.fullmatch(correo_normalizado) is None:
+        raise AppError("INVALID_EMAIL", "Ingrese un correo electrónico válido.", 422)
+    if session.scalar(select(User).where(func.lower(User.correo) == correo_normalizado)) is not None:
+        raise AppError("USER_ALREADY_EXISTS", "Ya existe un usuario registrado con ese correo.", 409)
+    if session.get(Role, rol_id) is None:
+        raise AppError("ROLE_NOT_FOUND", "El rol seleccionado no existe.", 422)
+    try:
+        password_hash = hash_password(password)
+    except ValueError as error:
+        raise AppError("WEAK_PASSWORD", str(error), 422) from None
+
+    usuario = User(
+        id_usuario=str(uuid4()), correo=correo_normalizado, nombre=nombre_normalizado,
+        rol_id=rol_id, password_hash=password_hash, estado="ACTIVO", activo=True,
+        eliminado=False, **creation_metadata(admin.correo),
+    )
+    session.add(usuario)
+    session.flush()
+    serialized = serialize_user(usuario)
+    log_change(
+        session, "usuarios", usuario.id_usuario, "CREATE", {}, serialized,
+        admin.correo, "Alta de usuario", correlation_id,
+    )
+    return serialized
 
 
 def save_user_role(
