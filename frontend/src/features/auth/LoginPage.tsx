@@ -32,7 +32,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="page">
+    <div className="page login-page">
       <header>
         <a href="/" className="brand">
           <span className="mark" aria-hidden="true">TS</span>
@@ -45,7 +45,7 @@ export function LoginPage() {
           <span className="panel-icon" aria-hidden="true">TS</span>
           <h2 id="login-title">Iniciar sesión</h2>
           <p>Ingrese con las credenciales asignadas por la administración del sistema.</p>
-          <form onSubmit={handleSubmit}>
+          <form className="login-form" onSubmit={handleSubmit}>
             <label htmlFor="correo">Correo electrónico</label>
             <input
               id="correo"
