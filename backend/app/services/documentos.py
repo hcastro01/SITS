@@ -25,8 +25,8 @@ from app.core.errors import AppError
 from app.core.permissions import AuthenticatedUser, authorize
 from app.core.time import utc_now_iso
 from app.models import (
-    Atencion, Caso, Cierre, Compromiso, Derivacion, Documento, HallazgoRecorrido, Novedad, Persona, Recorrido,
-    Seguimiento,
+    Atencion, Caso, Cierre, Compromiso, Derivacion, Documento, EnvioFormulario,
+    HallazgoRecorrido, Novedad, Persona, Recorrido, Seguimiento,
 )
 from app.services.audit import log_change
 from app.services.records import apply_soft_delete, check_expected_version, get_active, mark_updated
@@ -36,9 +36,9 @@ MODULE = "DOCUMENTOS"
 MAX_FILE_BYTES = 10 * 1024 * 1024
 MAX_FILES_PER_RECORD = 10
 
-ALLOWED_EXTENSIONS = frozenset({"jpg", "jpeg", "png", "pdf", "doc", "docx", "xls", "xlsx"})
+ALLOWED_EXTENSIONS = frozenset({"jpg", "jpeg", "png", "webp", "pdf", "doc", "docx", "xls", "xlsx"})
 ALLOWED_MIME_TYPES = frozenset({
-    "image/jpeg", "image/png", "application/pdf", "application/msword",
+    "image/jpeg", "image/png", "image/webp", "application/pdf", "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.ms-excel",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -56,11 +56,12 @@ TIPO_REGISTRO_MODELOS: dict[str, tuple[type, str, str]] = {
     "DERIVACIONES": (Derivacion, "DERIVACIONES", "id_derivacion"),
     "COMPROMISOS": (Compromiso, "COMPROMISOS", "id_compromiso"),
     "CIERRES": (Cierre, "CASOS", "id_cierre"),
+    "RESPUESTAS_FORMULARIO": (EnvioFormulario, "RESPUESTAS", "id_respuesta"),
 }
 
 _FIRMAS: dict[str, tuple[bytes, ...]] = {
     "jpg": (b"\xff\xd8\xff",), "jpeg": (b"\xff\xd8\xff",),
-    "png": (b"\x89PNG\r\n\x1a\n",),
+    "png": (b"\x89PNG\r\n\x1a\n",), "webp": (b"RIFF",),
     "pdf": (b"%PDF-",),
     "doc": (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1",), "xls": (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1",),
     "docx": (b"PK\x03\x04",), "xlsx": (b"PK\x03\x04",),
@@ -75,6 +76,8 @@ def _nombre_seguro(nombre: str) -> str:
 
 
 def _firma_valida(contenido: bytes, extension: str) -> bool:
+    if extension == "webp":
+        return contenido.startswith(b"RIFF") and contenido[8:12] == b"WEBP"
     firmas = _FIRMAS.get(extension)
     return bool(firmas) and any(contenido.startswith(firma) for firma in firmas)
 
@@ -89,12 +92,21 @@ def _resolver_registro_padre(session: Session, tipo_registro: str, id_registro: 
     return registro, modulo, tipo
 
 
+def _autorizar_propietario_respuesta(user: AuthenticatedUser, registro_padre) -> None:
+    """Una respuesta solo admite documentos de su autor o de un administrador."""
+    if (isinstance(registro_padre, EnvioFormulario)
+            and registro_padre.usuario_respuesta != user.correo
+            and user.rol_id != "ROLE_ADMIN"):
+        raise AppError("FORBIDDEN", "No tiene permisos sobre los archivos de esta respuesta.", 403)
+
+
 def upload_documento(
     session: Session, user: AuthenticatedUser, *,
     tipo_registro: str, id_registro: str, nombre_archivo: str, mime_type: str, contenido: bytes,
     categoria_documento: str | None = None, correlation_id: str = "",
 ) -> Documento:
     registro_padre, modulo, tipo = _resolver_registro_padre(session, tipo_registro, id_registro)
+    _autorizar_propietario_respuesta(user, registro_padre)
     sensible = is_sensitive_record(session, registro_padre)
     authorize(user, modulo, "edit", sensitive=sensible)
     authorize(user, MODULE, "create", sensitive=sensible)
@@ -142,6 +154,7 @@ def upload_documento(
 
 def list_documentos(session: Session, user: AuthenticatedUser, *, tipo_registro: str, id_registro: str) -> list[Documento]:
     registro_padre, modulo, tipo = _resolver_registro_padre(session, tipo_registro, id_registro)
+    _autorizar_propietario_respuesta(user, registro_padre)
     sensible = is_sensitive_record(session, registro_padre)
     authorize(user, modulo, "read", sensitive=sensible)
     authorize(user, MODULE, "read", sensitive=sensible)
@@ -156,6 +169,7 @@ def list_documentos(session: Session, user: AuthenticatedUser, *, tipo_registro:
 def download_documento(session: Session, user: AuthenticatedUser, id_archivo: str, *, correlation_id: str = "") -> tuple[Documento, bytes]:
     documento = get_active(session, Documento, id_archivo, Documento.id_archivo)
     registro_padre, modulo, _tipo = _resolver_registro_padre(session, documento.tipo_registro, documento.id_registro)
+    _autorizar_propietario_respuesta(user, registro_padre)
     sensible = is_sensitive_record(session, registro_padre)
     authorize(user, modulo, "read", sensitive=sensible)
     authorize(user, MODULE, "read", sensitive=sensible)
@@ -170,6 +184,7 @@ def soft_delete_documento(
 ) -> Documento:
     documento = get_active(session, Documento, id_archivo, Documento.id_archivo)
     registro_padre, modulo, _tipo = _resolver_registro_padre(session, documento.tipo_registro, documento.id_registro)
+    _autorizar_propietario_respuesta(user, registro_padre)
     sensible = is_sensitive_record(session, registro_padre)
     authorize(user, modulo, "edit", sensitive=sensible)
     authorize(user, MODULE, "delete", sensitive=sensible)

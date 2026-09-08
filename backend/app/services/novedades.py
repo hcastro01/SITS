@@ -7,7 +7,7 @@ novedades = EntityService(
     id_field="id_novedad",
     modulo="NOVEDADES",
     campos=(
-        "fecha", "hora", "responsable", "fuente", "tipo", "subtipo", "area", "turno", "lugar",
+        "id_persona", "fecha", "hora", "responsable", "fuente", "tipo", "subtipo", "area", "turno", "lugar",
         "descripcion", "impacto", "prioridad", "accion_inmediata", "genera_atencion",
         "genera_caso", "estado", "evidencias",
     ),

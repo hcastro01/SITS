@@ -11,9 +11,9 @@ preguntas = EntityService(
     id_field="id_pregunta",
     modulo="FORMULARIOS",
     campos=(
-        "id_formulario", "etiqueta", "descripcion", "tipo", "obligatoria", "orden", "categoria",
+        "id_formulario", "id_seccion", "etiqueta", "descripcion", "tipo", "obligatoria", "orden", "categoria",
         "subcategoria", "valor_predeterminado", "texto_ayuda", "visible", "solo_lectura",
         "longitud_maxima", "validacion", "sensibilidad", "condicion_visibilidad",
-        "campo_dependiente", "valor_dependiente", "formula",
+        "campo_dependiente", "valor_dependiente", "formula", "configuracion", "fuente_datos", "mapping",
     ),
 )

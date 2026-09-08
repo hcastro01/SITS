@@ -11,7 +11,7 @@ import app.db.session as db_session
 from app.core.errors import AppError
 from app.core.permissions import resolve_current_user
 from app.db.session import build_engine
-from app.models import Auditoria, Caso, Catalogo, Persona, Seguimiento, User
+from app.models import Auditoria, Caso, Catalogo, EnvioFormulario, Formulario, Persona, Seguimiento, User
 from app.services.documentos import (
     MAX_FILES_PER_RECORD, download_documento, list_documentos, soft_delete_documento, upload_documento,
 )
@@ -19,6 +19,7 @@ from app.services.security_seed import seed_security
 
 PDF_BYTES = b"%PDF-1.4\n%dummy pdf content for tests\n%%EOF"
 JPEG_BYTES = b"\xff\xd8\xff\xe0" + b"\x00" * 32
+WEBP_BYTES = b"RIFF" + (16).to_bytes(4, "little") + b"WEBPVP8 " + b"\x00" * 8
 WRONG_SIGNATURE_JPEG = PDF_BYTES  # contenido de PDF con nombre .jpg
 
 
@@ -33,6 +34,8 @@ class DocumentosServiceTests(unittest.TestCase):
             seed_security(session)
             session.add(User(id_usuario="ts", correo="ts@example.com", nombre="Trabajador",
                               rol_id="ROLE_TRABAJADOR_SOCIAL", estado="ACTIVO"))
+            session.add(User(id_usuario="ts2", correo="ts2@example.com", nombre="Trabajador 2",
+                              rol_id="ROLE_TRABAJADOR_SOCIAL", estado="ACTIVO"))
             session.add(User(id_usuario="consulta", correo="consulta@example.com", nombre="Consulta",
                               rol_id="ROLE_CONSULTA", estado="ACTIVO"))
             session.add(User(id_usuario="admin", correo="admin@example.com", nombre="Admin",
@@ -40,8 +43,11 @@ class DocumentosServiceTests(unittest.TestCase):
             session.add(Persona(id_persona="p1", nombre="Ana"))
             session.add(Caso(id_caso="c1", codigo_caso="CAS-2026-0001", nivel_sensibilidad="ALTA"))
             session.add(Caso(id_caso="c2", codigo_caso="CAS-2026-0002"))
+            session.add(Formulario(id_formulario="f1", nombre="Adjuntos"))
             session.flush()
             session.add(Seguimiento(id_seguimiento="s1", id_caso="c1", descripcion="Seguimiento de caso sensible"))
+            session.add(EnvioFormulario(id_respuesta="r1", id_formulario="f1", usuario_respuesta="ts@example.com",
+                                        estado="BORRADOR", contexto_tipo="GENERAL"))
             session.add(Catalogo(id_catalogo="cat1", tipo="NIVEL_SENSIBILIDAD", codigo="ALTA", valor="Alta",
                                   es_sensible=True))
 
@@ -93,6 +99,33 @@ class DocumentosServiceTests(unittest.TestCase):
                                   nombre_archivo="foto.jpg", mime_type="image/jpeg",
                                   contenido=WRONG_SIGNATURE_JPEG)
             self.assertEqual(ctx.exception.code, "FILE_SIGNATURE_MISMATCH")
+
+    def test_webp_requires_riff_and_webp_signature(self):
+        with Session(self.engine) as session, session.begin():
+            ts = self._user(session, "ts@example.com")
+            document = upload_documento(session, ts, tipo_registro="PERSONAS", id_registro="p1",
+                                         nombre_archivo="foto.webp", mime_type="image/webp", contenido=WEBP_BYTES)
+            self.assertEqual(document.extension, "webp")
+            with self.assertRaises(AppError) as ctx:
+                upload_documento(session, ts, tipo_registro="PERSONAS", id_registro="p1",
+                                  nombre_archivo="falso.webp", mime_type="image/webp",
+                                  contenido=b"RIFF" + b"\x00" * 20)
+            self.assertEqual(ctx.exception.code, "FILE_SIGNATURE_MISMATCH")
+
+    def test_response_attachment_round_trip_and_ownership(self):
+        with Session(self.engine) as session, session.begin():
+            owner = self._user(session, "ts@example.com")
+            document = upload_documento(session, owner, tipo_registro="RESPUESTAS_FORMULARIO", id_registro="r1",
+                                         nombre_archivo="evidencia.pdf", mime_type="application/pdf", contenido=PDF_BYTES)
+            document_id = document.id_archivo
+        with Session(self.engine) as session, session.begin():
+            owner = self._user(session, "ts@example.com")
+            self.assertEqual(download_documento(session, owner, document_id)[1], PDF_BYTES)
+            other = self._user(session, "ts2@example.com")
+            with self.assertRaises(AppError) as ctx:
+                upload_documento(session, other, tipo_registro="RESPUESTAS_FORMULARIO", id_registro="r1",
+                                  nombre_archivo="ajeno.pdf", mime_type="application/pdf", contenido=PDF_BYTES)
+            self.assertEqual(ctx.exception.code, "FORBIDDEN")
 
     def test_upload_enforces_size_limit(self):
         with Session(self.engine) as session, session.begin():

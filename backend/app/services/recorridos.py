@@ -7,7 +7,7 @@ recorridos = EntityService(
     id_field="id_recorrido",
     modulo="RECORRIDOS",
     campos=(
-        "fecha", "hora_inicio", "hora_fin", "responsable", "planta", "area", "turno",
+        "id_persona", "fecha", "hora_inicio", "hora_fin", "responsable", "planta", "area", "turno",
         "objetivo", "observaciones", "personas_contactadas", "novedades_detectadas",
         "acciones", "evidencias",
     ),

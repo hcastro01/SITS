@@ -5,6 +5,8 @@ import type { EntityRecord } from '../../api/entities';
 import { EntityFormModal } from './EntityFormModal';
 import type { EntityPageConfig } from './EntityConfig';
 import { useFeedback } from '../../components/FeedbackProvider';
+import { ModuleFormRecordsPanel } from '../formularios/ModuleFormRecordsPanel';
+import { ModuleFormSelector } from '../formularios/ModuleFormSelector';
 
 export function EntityListPage({ config }: { config: EntityPageConfig }) {
   const { notify } = useFeedback();
@@ -12,6 +14,8 @@ export function EntityListPage({ config }: { config: EntityPageConfig }) {
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [selectorAbierto, setSelectorAbierto] = useState(false);
+  const isPeople = config.tipoRegistro === 'PERSONAS';
 
   useEffect(() => {
     let activo = true;
@@ -30,7 +34,10 @@ export function EntityListPage({ config }: { config: EntityPageConfig }) {
     <section className="panel wide-panel">
       <div className="panel-header">
         <h2>{config.titulo}</h2>
-        <button type="button" className="button-link as-button" onClick={() => setModalAbierto(true)}>Nuevo registro</button>
+        <div className="panel-header-actions">
+          {isPeople && <button type="button" className="secondary" onClick={() => setModalAbierto(true)}>Nueva persona</button>}
+          <button type="button" className="button-link as-button" onClick={() => setSelectorAbierto(true)}>Nuevo registro</button>
+        </div>
       </div>
       {error && <p className="form-error" role="alert">{error}</p>}
       {cargando ? (
@@ -58,13 +65,17 @@ export function EntityListPage({ config }: { config: EntityPageConfig }) {
         </table></div>
       )}
 
-      {modalAbierto && (
+      <ModuleFormRecordsPanel module={config.tipoRegistro} />
+
+      {isPeople && modalAbierto && (
         <EntityFormModal
           config={config}
           onClose={() => setModalAbierto(false)}
           onSaved={(registro) => { setModalAbierto(false); setRegistros((previo) => [registro, ...previo]); notify('Registro guardado correctamente.'); }}
         />
       )}
+      {selectorAbierto && <ModuleFormSelector module={config.tipoRegistro} moduleLabel={config.titulo}
+                                              onClose={() => setSelectorAbierto(false)} />}
     </section>
   );
 }

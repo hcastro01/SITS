@@ -19,12 +19,12 @@ from app.services.audit import log_change
 from app.services.records import check_expected_version, creation_metadata, get_active, mark_updated
 
 MODULE = "FORMULARIOS"
-ESTADOS_VALIDOS = ("BORRADOR", "PUBLICADO", "INACTIVO")
-CAMPOS = ("nombre", "descripcion", "proceso", "responsable")
+ESTADOS_VALIDOS = ("BORRADOR", "PUBLICADO", "INACTIVO", "ARCHIVADO")
+CAMPOS = ("nombre", "descripcion", "proceso", "responsable", "permite_multiples_respuestas")
 
 
 def _snapshot(record: Formulario) -> dict:
-    return {campo: getattr(record, campo) for campo in (*CAMPOS, "estado", "fecha_publicacion")}
+    return {campo: getattr(record, campo) for campo in (*CAMPOS, "estado", "fecha_publicacion", "version_publicada")}
 
 
 def _rechazar_desconocidos(campos: dict) -> None:
@@ -34,13 +34,18 @@ def _rechazar_desconocidos(campos: dict) -> None:
 
 
 def create_formulario(session: Session, user: AuthenticatedUser, *, motivo_auditoria: str,
-                       correlation_id: str, **campos) -> Formulario:
+                       correlation_id: str, destinos: list[str] | None = None, **campos) -> Formulario:
     _rechazar_desconocidos(campos)
     authorize(user, MODULE, "create")
     record = Formulario(id_formulario=str(uuid4()), estado="BORRADOR",
                          **creation_metadata(user.correo), **campos)
     session.add(record)
     session.flush()
+    from app.services.form_builder import sync_destinations
+    proceso = str(campos.get("proceso") or "").strip().upper()
+    aliases = {"CASO": "CASOS", "ATENCION": "ATENCIONES", "NOVEDAD": "NOVEDADES",
+               "RECORRIDO": "RECORRIDOS", "PERSONA": "PERSONAS"}
+    sync_destinations(session, record.id_formulario, destinos or [aliases.get(proceso, proceso or "GENERAL")], user.correo)
     log_change(session, "formularios", record.id_formulario, "CREATE", {}, _snapshot(record),
                user.correo, motivo_auditoria, correlation_id)
     return record
@@ -81,10 +86,16 @@ def change_status(session: Session, user: AuthenticatedUser, id_formulario: str,
         )
         if not total_preguntas:
             raise AppError("FORM_WITHOUT_QUESTIONS", "Agregue al menos una pregunta antes de publicar.", 422)
+        from app.services.form_builder import create_version, get_definition
+        if not get_definition(session, id_formulario)["destinos"]:
+            raise AppError("FORM_WITHOUT_DESTINATIONS", "Seleccione al menos un módulo de destino.", 422)
     before = _snapshot(record)
     record.estado = estado_normalizado
     record.fecha_publicacion = utc_now_iso() if estado_normalizado == "PUBLICADO" else None
+    record.activo = estado_normalizado != "ARCHIVADO"
     mark_updated(record, user.correo)
+    if estado_normalizado == "PUBLICADO":
+        create_version(session, record, user)
     log_change(session, "formularios", id_formulario, "UPDATE", before, _snapshot(record),
                user.correo, f"Cambio de estado a {estado_normalizado}", correlation_id)
     return record

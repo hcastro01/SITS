@@ -10,9 +10,10 @@ import { useFeedback } from '../../components/FeedbackProvider';
 import { useUnsavedChanges } from '../../components/useUnsavedChanges';
 import { formatDate, formatDateTime, humanizeCode, todayInEcuador } from '../../utils/dates';
 import { DocumentosPanel } from '../documentos/DocumentosPanel';
+import { ContextFormsPanel } from '../formularios/ContextFormsPanel';
 import { CasoFormModal } from './CasoFormModal';
 
-type Tab = 'resumen' | 'seguimientos' | 'documentos' | 'historial';
+type Tab = 'resumen' | 'seguimientos' | 'documentos' | 'formularios' | 'historial';
 
 const FIELD_LABELS: Record<string, string> = {
   estado_caso: 'estado del caso', prioridad: 'prioridad', responsable: 'responsable',
@@ -154,7 +155,7 @@ export function CasoDetailProductionPage() {
       </section>
 
       <div className="tabs" role="tablist" aria-label="Secciones del caso">
-        {([['resumen', 'Resumen'], ['seguimientos', `Seguimientos (${seguimientos.length})`], ['documentos', 'Documentos'], ['historial', 'Historial']] as [Tab, string][]).map(([value, label]) => (
+        {([['resumen', 'Resumen'], ['seguimientos', `Seguimientos (${seguimientos.length})`], ['documentos', 'Documentos'], ['formularios', 'Formularios'], ['historial', 'Historial']] as [Tab, string][]).map(([value, label]) => (
           <button key={value} type="button" role="tab" aria-selected={tab === value} aria-controls={`panel-${value}`} onClick={() => setTab(value)}>{label}</button>
         ))}
       </div>
@@ -199,6 +200,8 @@ export function CasoDetailProductionPage() {
       )}
 
       {tab === 'documentos' && <div id="panel-documentos" role="tabpanel" className="tab-panel"><DocumentosPanel tipoRegistro="CASOS" idRegistro={id} /></div>}
+
+      {tab === 'formularios' && <div id="panel-formularios" role="tabpanel" className="tab-panel"><ContextFormsPanel contextType="CASOS" contextId={id} /></div>}
 
       {tab === 'historial' && (
         <section id="panel-historial" role="tabpanel" className="panel tab-panel">

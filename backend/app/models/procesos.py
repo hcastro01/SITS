@@ -35,6 +35,7 @@ class Novedad(MetadatosComunes, Base):
     __table_args__ = (CheckConstraint("version >= 1", name="version_positive"),)
 
     id_novedad: Mapped[str] = mapped_column(String, primary_key=True)
+    id_persona: Mapped[str | None] = mapped_column(ForeignKey("personas.id_persona"), index=True)
     fecha: Mapped[str | None] = mapped_column(String)
     hora: Mapped[str | None] = mapped_column(String)
     responsable: Mapped[str | None] = mapped_column(String)
@@ -65,6 +66,7 @@ class Recorrido(MetadatosComunes, Base):
     __table_args__ = (CheckConstraint("version >= 1", name="version_positive"),)
 
     id_recorrido: Mapped[str] = mapped_column(String, primary_key=True)
+    id_persona: Mapped[str | None] = mapped_column(ForeignKey("personas.id_persona"), index=True)
     fecha: Mapped[str | None] = mapped_column(String)
     hora_inicio: Mapped[str | None] = mapped_column(String)
     hora_fin: Mapped[str | None] = mapped_column(String)

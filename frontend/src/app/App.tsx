@@ -7,9 +7,9 @@ import { LoginPage } from '../features/auth/LoginPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { CasosListPage } from '../features/casos/CasosListPage';
 import { CasoDetailProductionPage } from '../features/casos/CasoDetailProductionPage';
-import { FormulariosListPage } from '../features/formularios/FormulariosListPage';
-import { FormularioDetailPage } from '../features/formularios/FormularioDetailPage';
-import { ResponderFormularioPage } from '../features/formularios/ResponderFormularioPage';
+import { FormulariosAdminPage } from '../features/formularios/FormulariosAdminPage';
+import { FormBuilderPage } from '../features/formularios/FormBuilderPage';
+import { DynamicResponsePage } from '../features/formularios/DynamicResponsePage';
 import { BusquedaPage } from '../features/busqueda/BusquedaPage';
 import { EntityListPage } from '../features/entities/EntityListPage';
 import { EntityDetailPage } from '../features/entities/EntityDetailPage';
@@ -35,9 +35,9 @@ const router = createBrowserRouter([
         { path: 'recorridos/:id', element: <EntityDetailPage config={recorridosConfig} /> },
         { path: 'personas', element: <EntityListPage config={personasConfig} /> },
         { path: 'personas/:id', element: <EntityDetailPage config={personasConfig} /> },
-        { path: 'formularios', element: <FormulariosListPage /> },
-        { path: 'formularios/:id', element: <FormularioDetailPage /> },
-        { path: 'formularios/:id/responder', element: <ResponderFormularioPage /> },
+        { path: 'formularios', element: <FormulariosAdminPage /> },
+        { path: 'formularios/:id', element: <FormBuilderPage /> },
+        { path: 'formularios/:id/responder', element: <DynamicResponsePage /> },
         { path: 'busqueda', element: <BusquedaPage /> },
         { path: 'admin/usuarios', element: <AdminUsuariosPage /> },
         { path: 'admin/permisos', element: <AdminPermisosPage /> },

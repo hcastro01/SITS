@@ -10,6 +10,7 @@ from app.core.permissions import AuthenticatedUser, authorize
 from app.models import Atencion
 from app.services.atenciones import CAMPOS, create_atencion, restore_atencion, soft_delete_atencion, update_atencion
 from app.services.records import get_active, get_history
+from app.services.response_contexts import dynamic_context_ids
 
 router = APIRouter(prefix="/api/v1/atenciones", tags=["Atenciones"])
 
@@ -30,7 +31,10 @@ def listar(
     authorize(user, "ATENCIONES", "read")
     stmt = select(Atencion)
     if not incluir_eliminados:
-        stmt = stmt.where(Atencion.eliminado.is_(False))
+        stmt = stmt.where(
+            Atencion.eliminado.is_(False),
+            Atencion.id_atencion.not_in(dynamic_context_ids("ATENCIONES")),
+        )
     return [_serialize(r) for r in db.scalars(stmt.offset(offset).limit(limite)).all()]
 
 

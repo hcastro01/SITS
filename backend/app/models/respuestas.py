@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, CheckConstraint, Float, ForeignKey, String, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, Float, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.security import Base, MetadatosComunes
@@ -19,11 +19,14 @@ class EnvioFormulario(MetadatosComunes, Base):
     __tablename__ = "envios_formulario"
     __table_args__ = (
         UniqueConstraint("usuario_respuesta", "id_envio_cliente"),
+        Index("ux_envios_formulario_numero_secuencial", "numero_secuencial", unique=True),
+        Index("ux_envios_formulario_codigo_respuesta", "codigo_respuesta", unique=True),
         CheckConstraint("version >= 1", name="version_positive"),
     )
 
     id_respuesta: Mapped[str] = mapped_column(String, primary_key=True)
     id_formulario: Mapped[str] = mapped_column(ForeignKey("formularios.id_formulario"), index=True, nullable=False)
+    id_version_formulario: Mapped[str | None] = mapped_column(ForeignKey("versiones_formulario.id_version_formulario"), index=True)
     usuario_respuesta: Mapped[str] = mapped_column(String, nullable=False)
     id_envio_cliente: Mapped[str | None] = mapped_column(String)
     estado: Mapped[str | None] = mapped_column(String)
@@ -31,6 +34,24 @@ class EnvioFormulario(MetadatosComunes, Base):
     # Referencia polimórfica (Fase 1 §4 línea 109): puede apuntar a Casos u otro proceso.
     # Se valida en servicio, nunca como FK real.
     id_registro_proceso: Mapped[str | None] = mapped_column(String)
+    contexto_tipo: Mapped[str | None] = mapped_column(String, index=True)
+    contexto_id: Mapped[str | None] = mapped_column(String, index=True)
+    contexto_creado_dinamicamente: Mapped[bool] = mapped_column(Boolean, default=False)
+    numero_secuencial: Mapped[int | None] = mapped_column(Integer)
+    codigo_respuesta: Mapped[str | None] = mapped_column(String(21))
+
+
+class SecuenciaRespuestaFormulario(Base):
+    """Contador técnico global; no se elimina ni se reinicia por formulario o contexto."""
+
+    __tablename__ = "secuencias_respuestas_formulario"
+    __table_args__ = (
+        CheckConstraint("ultimo_numero >= 0", name="secuencia_respuesta_non_negative"),
+        CheckConstraint("ultimo_numero <= 99999999999", name="secuencia_respuesta_max_11_digits"),
+    )
+
+    nombre: Mapped[str] = mapped_column(String, primary_key=True)
+    ultimo_numero: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
 class RespuestaFormulario(MetadatosComunes, Base):

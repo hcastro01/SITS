@@ -8,6 +8,7 @@ import type { EntityPageConfig } from './EntityConfig';
 import { useFeedback } from '../../components/FeedbackProvider';
 import { useUnsavedChanges } from '../../components/useUnsavedChanges';
 import { formatDate, formatDateTime, humanizeCode } from '../../utils/dates';
+import { ContextFormsPanel } from '../formularios/ContextFormsPanel';
 
 export function EntityDetailPage({ config }: { config: EntityPageConfig }) {
   const { notify, confirm } = useFeedback();
@@ -109,6 +110,8 @@ export function EntityDetailPage({ config }: { config: EntityPageConfig }) {
       </section>
 
       <DocumentosPanel tipoRegistro={config.tipoRegistro} idRegistro={id} />
+
+      <ContextFormsPanel contextType={config.tipoRegistro} contextId={id} />
 
       <section className="panel">
         <h2>Historial</h2>

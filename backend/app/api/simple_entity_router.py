@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_db
 from app.core.permissions import AuthenticatedUser, authorize
 from app.services.records import get_active, get_history
+from app.services.response_contexts import dynamic_context_ids
 from app.services.simple_entities import EntityService
 
 
@@ -27,6 +28,8 @@ def build_router(entidad: EntityService, prefix: str, tag: str) -> APIRouter:
         stmt = select(entidad.model)
         if not incluir_eliminados:
             stmt = stmt.where(entidad.model.eliminado.is_(False))
+            if entidad.modulo in {"NOVEDADES", "RECORRIDOS"}:
+                stmt = stmt.where(id_column.not_in(dynamic_context_ids(entidad.modulo)))
         registros = db.scalars(stmt.offset(offset).limit(limite)).all()
         return [entidad.serialize(r) for r in registros]
 

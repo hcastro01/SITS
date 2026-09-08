@@ -2,16 +2,15 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listarCasos, type Caso } from '../../api/casos';
 import { HttpError } from '../../api/client';
-import { CasoFormModal } from './CasoFormModal';
-import { useFeedback } from '../../components/FeedbackProvider';
 import { humanizeCode } from '../../utils/dates';
+import { ModuleFormRecordsPanel } from '../formularios/ModuleFormRecordsPanel';
+import { ModuleFormSelector } from '../formularios/ModuleFormSelector';
 
 export function CasosListPage() {
-  const { notify } = useFeedback();
   const [casos, setCasos] = useState<Caso[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
-  const [modalAbierto, setModalAbierto] = useState(false);
+  const [selectorAbierto, setSelectorAbierto] = useState(false);
 
   useEffect(() => {
     let activo = true;
@@ -26,7 +25,7 @@ export function CasosListPage() {
     <section className="panel wide-panel">
       <div className="panel-header">
         <h2>Casos</h2>
-        <button type="button" className="button-link as-button" onClick={() => setModalAbierto(true)}>Nuevo caso</button>
+        <button type="button" className="button-link as-button" onClick={() => setSelectorAbierto(true)}>Nuevo registro</button>
       </div>
       {error && <p className="form-error" role="alert">{error}</p>}
       {cargando ? (
@@ -52,12 +51,10 @@ export function CasosListPage() {
         </table></div>
       )}
 
-      {modalAbierto && (
-        <CasoFormModal
-          onClose={() => setModalAbierto(false)}
-          onSaved={(caso) => { setModalAbierto(false); setCasos((previo) => [caso, ...previo]); notify('Caso guardado correctamente.'); }}
-        />
-      )}
+      <ModuleFormRecordsPanel module="CASOS" />
+
+      {selectorAbierto && <ModuleFormSelector module="CASOS" moduleLabel="Casos"
+                                              onClose={() => setSelectorAbierto(false)} />}
     </section>
   );
 }

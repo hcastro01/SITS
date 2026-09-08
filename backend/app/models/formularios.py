@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, String
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.security import Base, MetadatosComunes
@@ -17,6 +17,50 @@ class Formulario(MetadatosComunes, Base):
     estado: Mapped[str | None] = mapped_column(String)
     responsable: Mapped[str | None] = mapped_column(String)
     fecha_publicacion: Mapped[str | None] = mapped_column(String)
+    permite_multiples_respuestas: Mapped[bool] = mapped_column(Boolean(create_constraint=True), default=False)
+    version_publicada: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class FormularioDestino(MetadatosComunes, Base):
+    """Asignación relacional de un formulario a uno o varios módulos SITS."""
+
+    __tablename__ = "formulario_destinos"
+    __table_args__ = (
+        UniqueConstraint("id_formulario", "modulo"),
+        CheckConstraint("version >= 1", name="version_positive"),
+    )
+
+    id_destino: Mapped[str] = mapped_column(String, primary_key=True)
+    id_formulario: Mapped[str] = mapped_column(ForeignKey("formularios.id_formulario"), index=True, nullable=False)
+    modulo: Mapped[str] = mapped_column(String, index=True, nullable=False)
+
+
+class SeccionFormulario(MetadatosComunes, Base):
+    __tablename__ = "secciones_formulario"
+    __table_args__ = (CheckConstraint("version >= 1", name="version_positive"),)
+
+    id_seccion: Mapped[str] = mapped_column(String, primary_key=True)
+    id_formulario: Mapped[str] = mapped_column(ForeignKey("formularios.id_formulario"), index=True, nullable=False)
+    titulo: Mapped[str] = mapped_column(String, nullable=False)
+    descripcion: Mapped[str | None] = mapped_column(String)
+    orden: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class FormularioVersion(MetadatosComunes, Base):
+    """Snapshot inmutable de la definición usada por respuestas históricas."""
+
+    __tablename__ = "versiones_formulario"
+    __table_args__ = (
+        UniqueConstraint("id_formulario", "numero_version"),
+        CheckConstraint("version >= 1", name="version_positive"),
+    )
+
+    id_version_formulario: Mapped[str] = mapped_column(String, primary_key=True)
+    id_formulario: Mapped[str] = mapped_column(ForeignKey("formularios.id_formulario"), index=True, nullable=False)
+    numero_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    definicion_json: Mapped[str] = mapped_column(String, nullable=False)
+    fecha_publicacion_version: Mapped[str] = mapped_column(String, nullable=False)
+    publicado_por: Mapped[str] = mapped_column(String, nullable=False)
 
 
 class Pregunta(MetadatosComunes, Base):
@@ -31,6 +75,7 @@ class Pregunta(MetadatosComunes, Base):
 
     id_pregunta: Mapped[str] = mapped_column(String, primary_key=True)
     id_formulario: Mapped[str] = mapped_column(ForeignKey("formularios.id_formulario"), index=True, nullable=False)
+    id_seccion: Mapped[str | None] = mapped_column(ForeignKey("secciones_formulario.id_seccion"), index=True)
     etiqueta: Mapped[str] = mapped_column(String, nullable=False)
     descripcion: Mapped[str | None] = mapped_column(String)
     tipo: Mapped[str | None] = mapped_column(String)
@@ -49,6 +94,9 @@ class Pregunta(MetadatosComunes, Base):
     campo_dependiente: Mapped[str | None] = mapped_column(ForeignKey("preguntas.id_pregunta"), index=True)
     valor_dependiente: Mapped[str | None] = mapped_column(String)
     formula: Mapped[str | None] = mapped_column(String)
+    configuracion: Mapped[str | None] = mapped_column(String)
+    fuente_datos: Mapped[str | None] = mapped_column(String)
+    mapping: Mapped[str | None] = mapped_column(String)
 
 
 class OpcionPregunta(MetadatosComunes, Base):
@@ -82,6 +130,8 @@ class ReglaFormulario(MetadatosComunes, Base):
     operador: Mapped[str | None] = mapped_column(String)
     valor_comparacion: Mapped[str | None] = mapped_column(String)
     id_pregunta_destino: Mapped[str | None] = mapped_column(ForeignKey("preguntas.id_pregunta"), index=True)
+    id_seccion_destino: Mapped[str | None] = mapped_column(ForeignKey("secciones_formulario.id_seccion"), index=True)
     accion: Mapped[str | None] = mapped_column(String)
+    grupo: Mapped[str | None] = mapped_column(String, default="TODAS")
     mensaje: Mapped[str | None] = mapped_column(String)
     orden: Mapped[int] = mapped_column(Integer, default=0)

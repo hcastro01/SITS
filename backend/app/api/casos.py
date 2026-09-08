@@ -14,6 +14,7 @@ from app.services.casos import (
     soft_delete_caso, update_caso,
 )
 from app.services.records import get_active, get_history
+from app.services.response_contexts import dynamic_context_ids
 
 router = APIRouter(prefix="/api/v1/casos", tags=["Casos"])
 
@@ -41,7 +42,9 @@ def listar(
     authorize(user, "CASOS", "read")
     stmt = select(Caso)
     if not incluir_eliminados:
-        stmt = stmt.where(Caso.eliminado.is_(False))
+        stmt = stmt.where(
+            Caso.eliminado.is_(False), Caso.id_caso.not_in(dynamic_context_ids("CASOS")),
+        )
     return [_serialize_caso(db, r) for r in db.scalars(stmt.offset(offset).limit(limite)).all()]
 
 

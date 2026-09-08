@@ -24,7 +24,7 @@ _SENSITIVE_FIELD_PATTERN = re.compile(
     r"cedula|sensible|diagnostico|antecedente|notaprivada|descripcionsensible", re.IGNORECASE
 )
 _ALWAYS_VISIBLE_FIELD_PATTERN = re.compile(
-    r"^(id_[a-z_]+|codigo_caso|estado|estado_caso|prioridad|nivel_sensibilidad|fecha[a-z_]*|activo|eliminado|version)$",
+    r"^(id_[a-z_]+|codigo_caso|codigo_respuesta|numero_secuencial|estado|estado_caso|prioridad|nivel_sensibilidad|fecha[a-z_]*|activo|eliminado|version)$",
     re.IGNORECASE,
 )
 REDACTED_PLACEHOLDER = "[VALOR SENSIBLE MODIFICADO]"

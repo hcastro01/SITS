@@ -10,6 +10,7 @@ from app.core.errors import AppError
 from app.core.permissions import resolve_current_user
 from app.db.session import build_engine
 from app.models import Pregunta, User
+from app.services.form_builder import list_forms
 from app.services.formularios import change_status, create_formulario, update_formulario
 from app.services.opciones_pregunta import opciones_pregunta
 from app.services.preguntas import preguntas
@@ -95,9 +96,20 @@ class FormulariosServiceTests(unittest.TestCase):
         with Session(self.engine) as session, session.begin():
             admin = resolve_current_user(session, "admin@example.com")
             with self.assertRaises(AppError) as ctx:
-                change_status(session, admin, id_formulario, "ARCHIVADO",
+                change_status(session, admin, id_formulario, "DESCONOCIDO",
                                expected_version=version, correlation_id="c2")
             self.assertEqual(ctx.exception.code, "INVALID_FORM_STATUS")
+
+    def test_archived_form_remains_visible_in_administration_list(self):
+        with Session(self.engine) as session, session.begin():
+            admin = resolve_current_user(session, "admin@example.com")
+            form = create_formulario(session, admin, motivo_auditoria="Alta",
+                                     correlation_id="c1", nombre="Para archivar")
+            change_status(session, admin, form.id_formulario, "ARCHIVADO",
+                          expected_version=form.version, correlation_id="c2")
+            listed = {item["id_formulario"]: item for item in list_forms(session)}
+            self.assertEqual(listed[form.id_formulario]["estado"], "ARCHIVADO")
+            self.assertFalse(listed[form.id_formulario]["activo"])
 
     def test_consulta_role_cannot_create_formulario(self):
         with Session(self.engine) as session, session.begin():

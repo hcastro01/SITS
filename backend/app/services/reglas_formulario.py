@@ -8,6 +8,6 @@ reglas_formulario = EntityService(
     modulo="FORMULARIOS",
     campos=(
         "id_formulario", "id_pregunta_origen", "operador", "valor_comparacion",
-        "id_pregunta_destino", "accion", "mensaje", "orden",
+        "id_pregunta_destino", "id_seccion_destino", "accion", "grupo", "mensaje", "orden",
     ),
 )
