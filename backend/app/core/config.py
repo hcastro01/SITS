@@ -4,6 +4,8 @@ from typing import Literal
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+SQLiteJournalMode = Literal["wal", "delete"]
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -11,6 +13,7 @@ class Settings(BaseSettings):
     app_name: str = "Sistema Integral de Gestión de Trabajo Social"
     environment: Literal["development", "test", "production"] = "development"
     database_url: str = "sqlite:///./data/trabajo_social.db"
+    sqlite_journal_mode: SQLiteJournalMode = "wal"
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:8080"]
     trusted_hosts: list[str] = ["localhost", "127.0.0.1", "testserver"]
     timezone: str = "America/Guayaquil"
