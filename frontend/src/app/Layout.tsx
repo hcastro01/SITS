@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { SongaBrand } from '../components/SongaBrand';
 import { useAuth } from './AuthContext';
 
 const gestion = [
@@ -30,8 +31,7 @@ export function Layout() {
         <button type="button" className="mobile-menu-button" aria-label="Abrir menú" aria-expanded={mobileOpen}
                 aria-controls="sidebar-navigation" onClick={() => setMobileOpen((open) => !open)}>☰</button>
         <Link to="/" className="brand">
-          <span className="mark" aria-hidden="true">TS</span>
-          <span>Trabajo Social<small>Sistema integral de gestión</small></span>
+          <SongaBrand compact />
         </Link>
         <div className="header-user">
           <span><strong>{usuario?.nombre}</strong><small>{usuario?.rol_nombre}</small></span>
@@ -60,7 +60,7 @@ export function Layout() {
         <Outlet />
       </main>
       <footer className="app-footer">
-        Sistema Integral de Gestión de Trabajo Social<span>Hora oficial: Ecuador continental</span>
+        <span>SONGA · Sistema Integral de Gestión de Trabajo Social</span><span>Hora oficial: Ecuador continental</span>
       </footer>
     </div>
   );

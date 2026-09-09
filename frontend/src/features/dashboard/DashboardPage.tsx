@@ -5,14 +5,14 @@ import { obtenerDashboard, type DatosDashboard } from '../../api/dashboard';
 import { HttpError } from '../../api/client';
 import { formatDate, humanizeCode } from '../../utils/dates';
 
-const TARJETAS: { clave: keyof DatosDashboard; etiqueta: string; icono: string; alerta?: boolean; ruta: string }[] = [
-  { clave: 'casesOpen', etiqueta: 'Casos abiertos', icono: '◇', ruta: '/casos' },
-  { clave: 'casesClosed', etiqueta: 'Casos cerrados', icono: '✓', ruta: '/casos' },
-  { clave: 'casesPending', etiqueta: 'Casos pendientes', icono: '…', ruta: '/casos' },
-  { clave: 'upcomingFollowUps', etiqueta: 'Seguimientos próximos', icono: '↻', ruta: '/casos' },
-  { clave: 'overdueCommitments', etiqueta: 'Compromisos vencidos', icono: '!', alerta: true, ruta: '/casos' },
-  { clave: 'pendingNews', etiqueta: 'Novedades pendientes', icono: '!', ruta: '/novedades' },
-  { clave: 'toursCompleted', etiqueta: 'Recorridos realizados', icono: '↗', ruta: '/recorridos' },
+const TARJETAS: { clave: keyof DatosDashboard; etiqueta: string; icono: string; alerta?: boolean; ruta: string; tono: 'info' | 'success' | 'warning' | 'danger' }[] = [
+  { clave: 'casesOpen', etiqueta: 'Casos abiertos', icono: '◇', ruta: '/casos', tono: 'info' },
+  { clave: 'casesClosed', etiqueta: 'Casos cerrados', icono: '✓', ruta: '/casos', tono: 'success' },
+  { clave: 'casesPending', etiqueta: 'Casos pendientes', icono: '…', ruta: '/casos', tono: 'warning' },
+  { clave: 'upcomingFollowUps', etiqueta: 'Seguimientos próximos', icono: '↻', ruta: '/casos', tono: 'info' },
+  { clave: 'overdueCommitments', etiqueta: 'Compromisos vencidos', icono: '!', alerta: true, ruta: '/casos', tono: 'danger' },
+  { clave: 'pendingNews', etiqueta: 'Novedades pendientes', icono: '!', ruta: '/novedades', tono: 'warning' },
+  { clave: 'toursCompleted', etiqueta: 'Recorridos realizados', icono: '↗', ruta: '/recorridos', tono: 'success' },
 ];
 
 export function DashboardPage() {
@@ -39,8 +39,8 @@ export function DashboardPage() {
   ] : [];
 
   return (
-    <section className="panel wide-panel">
-      <div className="panel-header">
+    <section className="dashboard-page">
+      <div className="panel panel-header dashboard-heading">
         <div>
           <p className="eyebrow">Resumen operativo</p>
           <h2>Hola, {usuario?.nombre}. Esto requiere atención.</h2>
@@ -61,7 +61,7 @@ export function DashboardPage() {
             const valor = Number(datos?.[tarjeta.clave] ?? 0);
             const enAlerta = Boolean(tarjeta.alerta) && valor > 0;
             return (
-              <Link key={tarjeta.clave} to={tarjeta.ruta} className={`kpi-card${enAlerta ? ' is-alert' : ''}`}>
+              <Link key={tarjeta.clave} to={tarjeta.ruta} className={`kpi-card kpi-card--${tarjeta.tono}${enAlerta ? ' is-alert' : ''}`}>
                 <div className="kpi-label">
                   <span>{tarjeta.etiqueta}</span>
                   <span className="kpi-icon" aria-hidden="true">{tarjeta.icono}</span>
