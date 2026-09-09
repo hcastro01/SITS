@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   getFormDefinition, listSearchSources, saveFormDefinition, setFormStatus,
@@ -30,7 +30,11 @@ export function FormBuilderPage() {
   const location = useLocation(); const navigate = useNavigate();
   const { notify, confirm } = useFeedback();
   const [definition, setDefinition] = useState<FormDefinition | null>(null);
+  const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
   const [sources, setSources] = useState<SearchSource[]>([]);
+  const questionEditors = useRef(new Map<string, HTMLElement>());
+  const addQuestionButton = useRef<HTMLButtonElement>(null);
+  const pendingFocusQuestionId = useRef<string | null | undefined>(undefined);
   const requestedTab = (location.state as { tab?: Tab } | null)?.tab;
   const [tab, setTab] = useState<Tab>(requestedTab && ['configuracion', 'preguntas', 'vista-previa', 'respuestas'].includes(requestedTab) ? requestedTab : 'configuracion');
   const [previewValues, setPreviewValues] = useState<FormValues>({});
@@ -45,10 +49,30 @@ export function FormBuilderPage() {
     try {
       const [form, availableSources] = await Promise.all([getFormDefinition(id), listSearchSources()]);
       setDefinition(form); setSources(availableSources);
+      setSelectedQuestionId(form.preguntas[0]?.id_pregunta ?? null);
     } catch (err) { setError(err instanceof HttpError ? err.message : 'No fue posible cargar el formulario.'); }
     finally { setLoading(false); }
   }, [id]);
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    setSelectedQuestionId((current) => {
+      if (!definition) return null;
+      if (current && definition.preguntas.some((question) => question.id_pregunta === current)) return current;
+      return definition.preguntas[0]?.id_pregunta ?? null;
+    });
+  }, [definition?.preguntas]);
+
+  useEffect(() => {
+    const questionId = pendingFocusQuestionId.current;
+    if (questionId === undefined) return;
+    const frame = window.requestAnimationFrame(() => {
+      if (questionId) questionEditors.current.get(questionId)?.focus({ preventScroll: true });
+      else addQuestionButton.current?.focus({ preventScroll: true });
+      pendingFocusQuestionId.current = undefined;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [definition?.preguntas, selectedQuestionId]);
 
   function update(patch: Partial<FormDefinition>) {
     setDefinition((current) => current ? { ...current, ...patch } : current); setDirty(true);
@@ -80,10 +104,18 @@ export function FormBuilderPage() {
     finally { setSaving(false); }
   }
 
-  function moveQuestion(index: number, direction: -1 | 1) {
-    if (!definition) return; const questions = [...definition.preguntas];
-    [questions[index], questions[index + direction]] = [questions[index + direction], questions[index]];
-    update({ preguntas: questions.map((question, order) => ({ ...question, orden: order })) });
+  function moveQuestion(questionId: string, direction: -1 | 1) {
+    setDefinition((current) => {
+      if (!current) return current;
+      const index = current.preguntas.findIndex((question) => question.id_pregunta === questionId);
+      const targetIndex = index + direction;
+      if (index < 0 || targetIndex < 0 || targetIndex >= current.preguntas.length) return current;
+      const questions = [...current.preguntas];
+      [questions[index], questions[targetIndex]] = [questions[targetIndex], questions[index]];
+      return { ...current, preguntas: questions.map((question, order) => ({ ...question, orden: order })) };
+    });
+    setSelectedQuestionId(questionId);
+    setDirty(true);
   }
 
   function moveSection(index: number, direction: -1 | 1) {
@@ -94,8 +126,26 @@ export function FormBuilderPage() {
 
   async function deleteQuestion(question: FormQuestion) {
     if (!definition || !await confirm({ title: 'Eliminar pregunta', message: `Se retirará «${question.etiqueta}» de la nueva definición. Las versiones históricas no se modifican.`, confirmLabel: 'Eliminar pregunta', danger: true })) return;
-    update({ preguntas: definition.preguntas.filter((item) => item.id_pregunta !== question.id_pregunta),
-      reglas: definition.reglas.filter((rule) => rule.id_pregunta_origen !== question.id_pregunta && rule.id_pregunta_destino !== question.id_pregunta) });
+    const removedIndex = definition.preguntas.findIndex((item) => item.id_pregunta === question.id_pregunta);
+    const questions = definition.preguntas
+      .filter((item) => item.id_pregunta !== question.id_pregunta)
+      .map((item, order) => ({
+        ...item,
+        orden: order,
+        mapping: Object.fromEntries(Object.entries(item.mapping).filter(([, targetId]) => targetId !== question.id_pregunta)),
+      }));
+    const fallbackQuestion = questions[Math.min(Math.max(removedIndex, 0), questions.length - 1)] ?? null;
+    pendingFocusQuestionId.current = fallbackQuestion?.id_pregunta ?? null;
+    setSelectedQuestionId((current) => {
+      if (current && current !== question.id_pregunta && questions.some((item) => item.id_pregunta === current)) return current;
+      return fallbackQuestion?.id_pregunta ?? null;
+    });
+    setDefinition((current) => current ? {
+      ...current,
+      preguntas: questions,
+      reglas: current.reglas.filter((rule) => rule.id_pregunta_origen !== question.id_pregunta && rule.id_pregunta_destino !== question.id_pregunta),
+    } : current);
+    setDirty(true);
   }
 
   if (loading) return <p className="loading-message">Cargando constructor…</p>;
@@ -144,10 +194,18 @@ export function FormBuilderPage() {
       <div className="question-editors">{definition.preguntas.map((question, index) => <QuestionEditor key={question.id_pregunta}
         question={question} index={index} total={definition.preguntas.length} sections={definition.secciones}
         allQuestions={definition.preguntas} rules={definition.reglas} sources={sources}
+        selected={selectedQuestionId === question.id_pregunta}
+        editorRef={(element) => { if (element) questionEditors.current.set(question.id_pregunta, element); else questionEditors.current.delete(question.id_pregunta); }}
+        onSelect={() => setSelectedQuestionId(question.id_pregunta)}
         onChange={(changed) => update({ preguntas: definition.preguntas.map((item) => item.id_pregunta === changed.id_pregunta ? changed : item) })}
-        onRulesChange={(rules) => update({ reglas: rules })} onMove={(direction) => moveQuestion(index, direction)}
+        onRulesChange={(rules) => update({ reglas: rules })} onMove={(direction) => moveQuestion(question.id_pregunta, direction)}
         onDelete={() => void deleteQuestion(question)} onDuplicate={() => { const copyId = uid(); update({ preguntas: [...definition.preguntas.slice(0, index + 1), { ...question, id_pregunta: copyId, etiqueta: `${question.etiqueta} (copia)`, opciones: question.opciones.map((option) => ({ ...option, id_opcion: uid() })) }, ...definition.preguntas.slice(index + 1)] }); }} />)}</div>
-      <button type="button" className="add-question-button" onClick={() => update({ preguntas: [...definition.preguntas, newQuestion(definition.secciones[0]?.id_seccion ?? null)] })}>+ Agregar pregunta</button>
+      {definition.preguntas.length === 0 && <div className="panel empty-state" role="status"><strong>No hay preguntas</strong><p>Agregue una pregunta para continuar construyendo el formulario.</p></div>}
+      <button ref={addQuestionButton} type="button" className="add-question-button" onClick={() => {
+        const question = { ...newQuestion(definition.secciones[0]?.id_seccion ?? null), orden: definition.preguntas.length };
+        setSelectedQuestionId(question.id_pregunta);
+        update({ preguntas: [...definition.preguntas, question] });
+      }}>+ Agregar pregunta</button>
     </div>}
 
     {tab === 'vista-previa' && <section className="panel form-preview"><div className="preview-banner"><strong>Vista previa interactiva</strong><span>No se guardarán respuestas.</span></div>

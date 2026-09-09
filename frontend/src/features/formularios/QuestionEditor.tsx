@@ -22,9 +22,10 @@ const OPERATORS = [
 function uid() { return crypto.randomUUID(); }
 
 export function QuestionEditor({ question, index, total, sections, allQuestions, rules, sources,
-  onChange, onRulesChange, onDuplicate, onDelete, onMove }: {
+  selected, editorRef, onSelect, onChange, onRulesChange, onDuplicate, onDelete, onMove }: {
   question: FormQuestion; index: number; total: number; sections: FormSection[];
   allQuestions: FormQuestion[]; rules: FormRule[]; sources: SearchSource[];
+  selected: boolean; editorRef: (element: HTMLElement | null) => void; onSelect: () => void;
   onChange: (question: FormQuestion) => void; onRulesChange: (rules: FormRule[]) => void;
   onDuplicate: () => void; onDelete: () => void; onMove: (direction: -1 | 1) => void;
 }) {
@@ -34,7 +35,9 @@ export function QuestionEditor({ question, index, total, sections, allQuestions,
   const updateValidation = (key: string, value: unknown) => onChange({ ...question, validacion: { ...question.validacion, [key]: value } });
   const setRule = (id: string, patch: Partial<FormRule>) => onRulesChange(rules.map((rule) => rule.id_regla === id ? { ...rule, ...patch } : rule));
 
-  return <article className="question-editor">
+  return <article ref={editorRef} className={`question-editor${selected ? ' is-selected' : ''}`}
+    data-question-id={question.id_pregunta} data-selected={selected || undefined}
+    tabIndex={-1} onFocusCapture={onSelect}>
     <div className="question-editor-header">
       <div><span className="question-number">Pregunta {index + 1}</span><strong>{question.etiqueta || 'Sin título'}</strong></div>
       <div className="question-order-actions">

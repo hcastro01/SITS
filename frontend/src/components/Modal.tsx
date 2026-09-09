@@ -26,12 +26,12 @@ export function Modal({ titulo, onClose, children, size = 'medium', closeOnBackd
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
-  const openerRef = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
   useEffect(() => {
-    openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const overlay = overlayRef.current;
     const dialog = dialogRef.current;
     const first = dialog?.querySelector<HTMLElement>('[data-autofocus]')
       ?? dialog?.querySelector<HTMLElement>('input:not([type="hidden"]), select, textarea')
@@ -39,7 +39,7 @@ export function Modal({ titulo, onClose, children, size = 'medium', closeOnBackd
     window.requestAnimationFrame(() => (first ?? dialog)?.focus());
     if (modalStack.length === 0) bodyOverflowBeforeModals = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    if (overlayRef.current) modalStack.push(overlayRef.current);
+    if (overlay) modalStack.push(overlay);
     syncModalAccessibility();
 
     function onKeyDown(event: KeyboardEvent) {
@@ -70,11 +70,11 @@ export function Modal({ titulo, onClose, children, size = 'medium', closeOnBackd
     document.addEventListener('keydown', onKeyDown);
     return () => {
       document.removeEventListener('keydown', onKeyDown);
-      const index = overlayRef.current ? modalStack.indexOf(overlayRef.current) : -1;
+      const index = overlay ? modalStack.indexOf(overlay) : -1;
       if (index >= 0) modalStack.splice(index, 1);
       syncModalAccessibility();
       if (modalStack.length === 0) document.body.style.overflow = bodyOverflowBeforeModals;
-      openerRef.current?.focus();
+      if (opener?.isConnected) opener.focus();
     };
   }, []);
 
