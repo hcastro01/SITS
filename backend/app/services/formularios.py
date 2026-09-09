@@ -14,9 +14,9 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
 from app.core.permissions import AuthenticatedUser, authorize
-from app.models import Formulario, Pregunta
+from app.models import EnvioFormulario, Formulario, Pregunta
 from app.services.audit import log_change
-from app.services.records import check_expected_version, creation_metadata, get_active, mark_updated
+from app.services.records import apply_soft_delete, check_expected_version, creation_metadata, get_active, mark_updated
 
 MODULE = "FORMULARIOS"
 ESTADOS_VALIDOS = ("BORRADOR", "PUBLICADO", "INACTIVO", "ARCHIVADO")
@@ -25,6 +25,10 @@ CAMPOS = ("nombre", "descripcion", "proceso", "responsable", "permite_multiples_
 
 def _snapshot(record: Formulario) -> dict:
     return {campo: getattr(record, campo) for campo in (*CAMPOS, "estado", "fecha_publicacion", "version_publicada")}
+
+
+def _deletion_snapshot(record: Formulario) -> dict:
+    return {**_snapshot(record), "activo": record.activo, "eliminado": record.eliminado}
 
 
 def _rechazar_desconocidos(campos: dict) -> None:
@@ -98,4 +102,38 @@ def change_status(session: Session, user: AuthenticatedUser, id_formulario: str,
         create_version(session, record, user)
     log_change(session, "formularios", id_formulario, "UPDATE", before, _snapshot(record),
                user.correo, f"Cambio de estado a {estado_normalizado}", correlation_id)
+    return record
+
+
+def soft_delete_formulario(session: Session, user: AuthenticatedUser, id_formulario: str, *,
+                           expected_version: int | None, motivo: str,
+                           correlation_id: str) -> Formulario:
+    authorize(user, MODULE, "delete")
+    record = get_active(session, Formulario, id_formulario, Formulario.id_formulario)
+    check_expected_version(record, expected_version)
+    if record.estado == "PUBLICADO":
+        raise AppError(
+            "PUBLISHED_FORM_DELETE_FORBIDDEN",
+            "Debe despublicar el formulario antes de eliminarlo.",
+            409,
+        )
+    response_count = session.scalar(
+        select(func.count()).select_from(EnvioFormulario).where(
+            EnvioFormulario.id_formulario == id_formulario,
+        )
+    ) or 0
+    if response_count:
+        raise AppError(
+            "FORM_HAS_RESPONSES",
+            "Este formulario no puede eliminarse porque contiene respuestas registradas. "
+            "Puede archivarlo para conservar su historial.",
+            409,
+        )
+    before = _deletion_snapshot(record)
+    apply_soft_delete(record, user.correo, motivo)
+    mark_updated(record, user.correo)
+    log_change(
+        session, "formularios", id_formulario, "DELETE", before, _deletion_snapshot(record),
+        user.correo, motivo, correlation_id,
+    )
     return record

@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
-from app.core.permissions import AuthenticatedUser, authorize
+from app.core.permissions import AuthenticatedUser, authorize, can
 from app.models import EnvioFormulario, Formulario, Pregunta
 from app.services.dynamic_responses import (
     context_forms, get_user_response, serialize_response, soft_delete_dynamic_response,
@@ -15,7 +15,7 @@ from app.services.form_builder import duplicate_form, get_definition, list_forms
 from app.services.form_search import list_sources, search_options
 from app.services.formularios import CAMPOS as CAMPOS_FORMULARIO
 from app.services.formularios import MODULE as FORMULARIOS_MODULE
-from app.services.formularios import change_status, create_formulario, update_formulario
+from app.services.formularios import change_status, create_formulario, soft_delete_formulario, update_formulario
 from app.services.opciones_pregunta import opciones_pregunta
 from app.services.preguntas import preguntas
 from app.services.records import get_active
@@ -26,8 +26,12 @@ from app.services.response_contexts import response_action_allowed
 router = APIRouter(prefix="/api/v1/formularios", tags=["Formularios"])
 
 
-def _serialize_formulario(record: Formulario) -> dict:
-    return serialize_form(record)
+def _with_actions(data: dict, user: AuthenticatedUser) -> dict:
+    return {**data, "acciones": {"eliminar": can(user, FORMULARIOS_MODULE, "delete")}}
+
+
+def _serialize_formulario(record: Formulario, user: AuthenticatedUser) -> dict:
+    return _with_actions(serialize_form(record), user)
 
 
 @router.get("/fuentes-busqueda")
@@ -117,14 +121,14 @@ def listar(
     authorize(user, FORMULARIOS_MODULE, "read")
     if incluir_eliminados:
         stmt = select(Formulario).offset(offset).limit(limite)
-        return [_serialize_formulario(r) for r in db.scalars(stmt)]
-    return list_forms(db)[offset:offset + limite]
+        return [_serialize_formulario(r, user) for r in db.scalars(stmt)]
+    return [_with_actions(item, user) for item in list_forms(db)[offset:offset + limite]]
 
 
 @router.get("/{id_formulario}")
 def obtener(id_formulario: str, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
     authorize(user, FORMULARIOS_MODULE, "read")
-    return get_definition(db, id_formulario)
+    return _with_actions(get_definition(db, id_formulario), user)
 
 
 @router.post("", status_code=201)
@@ -135,7 +139,7 @@ def crear(payload: dict, db: Session = Depends(get_db), user: AuthenticatedUser 
     correlation_id = payload.pop("correlation_id", "")
     registro = create_formulario(db, user, motivo_auditoria=motivo, correlation_id=correlation_id,
                                  destinos=destinos, **payload)
-    return get_definition(db, registro.id_formulario)
+    return _with_actions(get_definition(db, registro.id_formulario), user)
 
 
 @router.put("/{id_formulario}/definicion")
@@ -143,8 +147,11 @@ def guardar_definicion(
     id_formulario: str, payload: dict, db: Session = Depends(get_db),
     user: AuthenticatedUser = Depends(get_current_user),
 ):
-    return save_definition(db, user, id_formulario, dict(payload),
-                           correlation_id=payload.get("correlation_id", ""))
+    return _with_actions(
+        save_definition(db, user, id_formulario, dict(payload),
+                        correlation_id=payload.get("correlation_id", "")),
+        user,
+    )
 
 
 @router.post("/{id_formulario}/duplicar", status_code=201)
@@ -154,7 +161,7 @@ def duplicar(
 ):
     record = duplicate_form(db, user, id_formulario,
                             correlation_id=(payload or {}).get("correlation_id", ""))
-    return get_definition(db, record.id_formulario)
+    return _with_actions(get_definition(db, record.id_formulario), user)
 
 
 @router.patch("/{id_formulario}")
@@ -168,7 +175,7 @@ def actualizar(
     correlation_id = payload.pop("correlation_id", "")
     registro = update_formulario(db, user, id_formulario, expected_version=expected_version,
                                   motivo_auditoria=motivo, correlation_id=correlation_id, **payload)
-    return _serialize_formulario(registro)
+    return _serialize_formulario(registro, user)
 
 
 @router.patch("/{id_formulario}/estado")
@@ -180,7 +187,20 @@ def cambiar_estado(
         db, user, id_formulario, payload["estado"],
         expected_version=payload.get("expected_version"), correlation_id=payload.get("correlation_id", ""),
     )
-    return _serialize_formulario(registro)
+    return _serialize_formulario(registro, user)
+
+
+@router.post("/{id_formulario}/eliminacion")
+def eliminar_formulario(
+    id_formulario: str, payload: dict, db: Session = Depends(get_db),
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    registro = soft_delete_formulario(
+        db, user, id_formulario, expected_version=payload.get("expected_version"),
+        motivo=payload.get("motivo") or payload.get("reason") or "",
+        correlation_id=payload.get("correlation_id", ""),
+    )
+    return _serialize_formulario(registro, user)
 
 
 @router.post("/{id_formulario}/preguntas", status_code=201)

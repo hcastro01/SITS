@@ -75,6 +75,9 @@ export interface FormDefinition {
   secciones: FormSection[];
   preguntas: FormQuestion[];
   reglas: FormRule[];
+  acciones?: {
+    eliminar: boolean;
+  };
 }
 
 export interface FormAnswer {
@@ -174,6 +177,11 @@ export const saveFormDefinition = (id: string, data: Record<string, unknown>) =>
 export const duplicateFormDefinition = (id: string) => post<FormDefinition>(`/formularios/${id}/duplicar`, {});
 export const setFormStatus = (id: string, estado: string, expectedVersion: number) =>
   patch<FormDefinition>(`/formularios/${id}/estado`, { estado, expected_version: expectedVersion });
+export const deleteFormDefinition = (id: string, expectedVersion: number) =>
+  post<FormDefinition>(`/formularios/${id}/eliminacion`, {
+    expected_version: expectedVersion,
+    motivo: 'Eliminación de formulario desde administración',
+  });
 export const listSearchSources = () => get<SearchSource[]>('/formularios/fuentes-busqueda');
 export const searchFormOptions = (source: string, query: string, catalogType?: string) =>
   get<SearchResult[]>(`/formularios/search-options?source=${encodeURIComponent(source)}&q=${encodeURIComponent(query)}&limit=15${catalogType ? `&tipo_catalogo=${encodeURIComponent(catalogType)}` : ''}`);

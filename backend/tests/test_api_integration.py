@@ -145,6 +145,47 @@ class ApiIntegrationTests(unittest.TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.json()["code"], "FORBIDDEN")
 
+    def test_form_delete_endpoint_exposes_permission_and_enforces_rbac(self):
+        self.assertEqual(self.client.post(
+            "/api/v1/auth/login", json={"correo": "admin@example.com", "password": "irrelevante"},
+        ).status_code, 200)
+        created_response = self.client.post("/api/v1/formularios", json={
+            "nombre": "Formulario eliminable", "destinos": ["GENERAL"],
+            "motivo_auditoria": "Prueba de eliminación",
+        })
+        self.assertEqual(created_response.status_code, 201)
+        created = created_response.json()
+        self.assertTrue(created["acciones"]["eliminar"])
+        form_id = created["id_formulario"]
+
+        listed = self.client.get("/api/v1/formularios")
+        self.assertEqual(listed.status_code, 200)
+        self.assertTrue(next(item for item in listed.json() if item["id_formulario"] == form_id)["acciones"]["eliminar"])
+
+        self.assertEqual(self.client.post("/api/v1/auth/logout").status_code, 200)
+        self.assertEqual(self.client.post(
+            "/api/v1/auth/login", json={"correo": "consulta@example.com", "password": "irrelevante"},
+        ).status_code, 200)
+        consulta_list = self.client.get("/api/v1/formularios")
+        self.assertEqual(consulta_list.status_code, 200)
+        self.assertFalse(next(item for item in consulta_list.json() if item["id_formulario"] == form_id)["acciones"]["eliminar"])
+        forbidden = self.client.post(f"/api/v1/formularios/{form_id}/eliminacion", json={
+            "expected_version": created["version"], "motivo": "No autorizado",
+        })
+        self.assertEqual(forbidden.status_code, 403)
+        self.assertEqual(forbidden.json()["code"], "FORBIDDEN")
+
+        self.assertEqual(self.client.post("/api/v1/auth/logout").status_code, 200)
+        self.assertEqual(self.client.post(
+            "/api/v1/auth/login", json={"correo": "admin@example.com", "password": "irrelevante"},
+        ).status_code, 200)
+        deleted = self.client.post(f"/api/v1/formularios/{form_id}/eliminacion", json={
+            "expected_version": created["version"], "motivo": "Formulario descartado",
+        })
+        self.assertEqual(deleted.status_code, 200)
+        self.assertTrue(deleted.json()["eliminado"])
+        self.assertNotIn(form_id, {item["id_formulario"] for item in self.client.get("/api/v1/formularios").json()})
+
     def test_admin_user_creation_returns_expected_validation_errors(self):
         self.client.post("/api/v1/auth/login", json={"correo": "admin@example.com", "password": "irrelevante"})
         cases = (

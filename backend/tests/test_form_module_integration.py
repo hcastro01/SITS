@@ -16,7 +16,7 @@ from app.services.form_integrations import (
     list_available_forms, list_module_responses, person_records, response_by_code,
 )
 from app.services.form_search import search_options
-from app.services.formularios import change_status, create_formulario
+from app.services.formularios import change_status, create_formulario, soft_delete_formulario
 from app.services.preguntas import preguntas
 from app.services.respuestas_formulario import save_response
 from app.services.security_seed import seed_security
@@ -76,6 +76,27 @@ class FormModuleIntegrationTests(unittest.TestCase):
             attentions = {item["id_formulario"] for item in list_available_forms(session, admin, "ATENCIONES")}
             self.assertEqual(cases, {case.id_formulario, shared.id_formulario})
             self.assertEqual(attentions, {shared.id_formulario})
+
+    def test_deleted_form_does_not_reappear_in_module_selector(self):
+        with Session(self.engine) as session, session.begin():
+            form, _ = self._form(session, "Para retirar", ["CASOS"])
+            admin = resolve_current_user(session, "admin@example.com")
+            self.assertIn(
+                form.id_formulario,
+                {item["id_formulario"] for item in list_available_forms(session, admin, "CASOS")},
+            )
+            unpublished = change_status(
+                session, admin, form.id_formulario, "INACTIVO",
+                expected_version=form.version, correlation_id="unpublish",
+            )
+            soft_delete_formulario(
+                session, admin, form.id_formulario, expected_version=unpublished.version,
+                motivo="Retiro definitivo", correlation_id="delete",
+            )
+            self.assertNotIn(
+                form.id_formulario,
+                {item["id_formulario"] for item in list_available_forms(session, admin, "CASOS")},
+            )
 
     def test_draft_final_global_sequence_multiple_submissions_and_idempotency(self):
         """Cubre 7-14 y 31-32: renderer payload, borradores, secuencia global y reintento."""
