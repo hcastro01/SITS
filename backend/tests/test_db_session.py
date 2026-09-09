@@ -15,8 +15,8 @@ class SQLiteJournalModeTests(unittest.TestCase):
         directory = tempfile.TemporaryDirectory()
         database_path = Path(directory.name) / "journal-mode.db"
         engine = build_engine(f"sqlite:///{database_path.as_posix()}", journal_mode)
-        self.addCleanup(engine.dispose)
         self.addCleanup(directory.cleanup)
+        self.addCleanup(engine.dispose)
         return engine
 
     @staticmethod

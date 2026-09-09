@@ -82,11 +82,18 @@ function DynamicField({ question, value, required, disabled, onChange, onAutocom
       value={option.valor} checked={text(value) === option.valor} required={required} disabled={disabled}
       onChange={() => onChange(option.valor)} /> {option.etiqueta}</label>)}
   </div>;
-  if (question.tipo === 'LISTA_DESPLEGABLE') return <SearchAutocompleteField
-    id={question.id_pregunta} ariaLabel={question.etiqueta} value={text(value)} required={required} disabled={disabled}
-    placeholder={String(config.placeholder ?? 'Escriba para buscar…')}
-    options={question.opciones.map((option) => ({ id: option.valor, label: option.etiqueta, data: {} }))}
-    selectionOnly onSelect={(result, label) => { if (result) onChange(result.id); else if (!label) onChange(''); }} />;
+  if (question.tipo === 'LISTA_DESPLEGABLE') {
+    if (question.opciones.length <= 12) return <select id={question.id_pregunta} value={text(value)}
+      required={required} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
+      <option value="">Seleccione…</option>
+      {question.opciones.map((option) => <option key={option.id_opcion} value={option.valor}>{option.etiqueta}</option>)}
+    </select>;
+    return <SearchAutocompleteField
+      id={question.id_pregunta} ariaLabel={question.etiqueta} value={text(value)} required={required} disabled={disabled}
+      placeholder={String(config.placeholder ?? 'Escriba para buscar…')}
+      options={question.opciones.map((option) => ({ id: option.valor, label: option.etiqueta, data: {} }))}
+      selectionOnly onSelect={(result, label) => { if (result) onChange(result.id); else if (!label) onChange(''); }} />;
+  }
   if (['SELECCION_MULTIPLE', 'CASILLAS'].includes(question.tipo)) {
     const selected = Array.isArray(value) ? value as string[] : [];
     return <div className="choice-group">{question.opciones.map((option) => <label key={option.id_opcion}>
@@ -104,7 +111,7 @@ function DynamicField({ question, value, required, disabled, onChange, onAutocom
     id={question.id_pregunta} ariaLabel={question.etiqueta} source={question.fuente_datos ?? 'PERSONAS'}
     catalogType={typeof config.catalog_type === 'string' ? config.catalog_type : undefined}
     value={text(value)} placeholder={String(config.placeholder ?? 'Escriba para buscar…')}
-    required={required} disabled={disabled} onSelect={onAutocomplete} />;
+    required={required} disabled={disabled} selectionOnly onSelect={onAutocomplete} />;
   if (['ARCHIVO', 'FOTOGRAFIA'].includes(question.tipo)) {
     const rawItems = Array.isArray(value) ? value : [];
     const files = rawItems.filter((item): item is File => item instanceof File);
@@ -138,9 +145,13 @@ export function DynamicFormRenderer({ definition, values, onChange, readOnly = f
       <DynamicField question={question} value={values[question.id_pregunta]} required={required}
         disabled={readOnly || question.solo_lectura} onChange={(value) => update(question.id_pregunta, value)}
         onAutocomplete={(result, label) => {
-          const next = { ...values, [question.id_pregunta]: result?.id ?? label };
+          if (!result && label) return;
+          const next = { ...values, [question.id_pregunta]: result?.id ?? '' };
           if (result) Object.entries(question.mapping ?? {}).forEach(([sourceField, targetId]) => {
             if (targetId && result.data[sourceField] != null) next[targetId] = String(result.data[sourceField]);
+          });
+          else Object.values(question.mapping ?? {}).forEach((targetId) => {
+            if (targetId) next[targetId] = '';
           });
           onChange(next);
         }} />

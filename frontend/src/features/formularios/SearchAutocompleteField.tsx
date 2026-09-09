@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { searchFormOptions, type SearchResult } from '../../api/formBuilder';
 
 const DEBOUNCE_MS = 350;
@@ -30,8 +30,11 @@ export function SearchAutocompleteField({ id, source, options, catalogType, valu
   const listId = `${id ?? generatedListId}-options`;
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
   const requestNumber = useRef(0);
+  const resolutionNumber = useRef(0);
   const selectedValue = useRef<string | null>(null);
+  const committedLabel = useRef(labelForValue(value, options));
   const propagatedValue = useRef<string | null>(null);
   const previousValue = useRef(value);
   const blurTimer = useRef<number | null>(null);
@@ -41,6 +44,8 @@ export function SearchAutocompleteField({ id, source, options, catalogType, valu
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
+  const [loadError, setLoadError] = useState(false);
+  const [dropAbove, setDropAbove] = useState(false);
 
   useEffect(() => {
     if (value === previousValue.current) return;
@@ -51,7 +56,8 @@ export function SearchAutocompleteField({ id, source, options, catalogType, valu
     }
     if (value === selectedValue.current) return;
     selectedValue.current = null;
-    setQuery(labelForValue(value, options));
+    committedLabel.current = labelForValue(value, options);
+    setQuery(committedLabel.current);
     setSearchTerm(null);
     setOpen(false);
     inputRef.current?.setCustomValidity('');
@@ -59,8 +65,23 @@ export function SearchAutocompleteField({ id, source, options, catalogType, valu
 
   useEffect(() => () => {
     requestNumber.current += 1;
+    resolutionNumber.current += 1;
     if (blurTimer.current !== null) window.clearTimeout(blurTimer.current);
   }, []);
+
+  useEffect(() => {
+    const current = ++resolutionNumber.current;
+    if (!selectionOnly || options || !source || !value || selectedValue.current === value) return;
+    searchFormOptions(source, '', catalogType, false, value)
+      .then((items) => {
+        const resolved = items.find((item) => item.id === value);
+        if (current === resolutionNumber.current && resolved) {
+          committedLabel.current = resolved.label;
+          setQuery(resolved.label);
+        }
+      })
+      .catch(() => undefined);
+  }, [value, source, catalogType, options, selectionOnly]);
 
   function localResults(term: string, browse: boolean): SearchResult[] {
     if (!options) return [];
@@ -71,12 +92,15 @@ export function SearchAutocompleteField({ id, source, options, catalogType, valu
     return matches.slice(0, MAX_LOCAL_RESULTS);
   }
 
-  async function findResults(term: string, browse: boolean) {
+  async function findResults(term: string, browse: boolean, activate: 'first' | 'last' | null = null) {
     const current = ++requestNumber.current;
     setActive(-1);
     setOpen(true);
+    setLoadError(false);
     if (options) {
-      setResults(localResults(term, browse));
+      const items = localResults(term, browse);
+      setResults(items);
+      if (activate && items.length) setActive(activate === 'first' ? 0 : items.length - 1);
       setLoading(false);
       return;
     }
@@ -88,9 +112,15 @@ export function SearchAutocompleteField({ id, source, options, catalogType, valu
     setLoading(true);
     try {
       const items = await searchFormOptions(source, browse ? '' : term, catalogType, browse);
-      if (current === requestNumber.current) setResults(items);
+      if (current === requestNumber.current) {
+        setResults(items);
+        if (activate && items.length) setActive(activate === 'first' ? 0 : items.length - 1);
+      }
     } catch {
-      if (current === requestNumber.current) setResults([]);
+      if (current === requestNumber.current) {
+        setResults([]);
+        setLoadError(true);
+      }
     } finally {
       if (current === requestNumber.current) setLoading(false);
     }
@@ -115,10 +145,13 @@ export function SearchAutocompleteField({ id, source, options, catalogType, valu
     setLoading(false);
     setOpen(false);
     setActive(-1);
+    setLoadError(false);
   }
 
   function choose(result: SearchResult) {
+    resolutionNumber.current += 1;
     selectedValue.current = result.id;
+    committedLabel.current = result.label;
     propagatedValue.current = null;
     setQuery(result.label);
     setSearchTerm(null);
@@ -140,13 +173,33 @@ export function SearchAutocompleteField({ id, source, options, catalogType, valu
         close();
         if (selectionOnly) {
           propagatedValue.current = null;
-          setQuery(labelForValue(value, options));
+          setQuery(value ? committedLabel.current : '');
           setSearchTerm(null);
           inputRef.current?.setCustomValidity('');
         }
       }
     }, 0);
   }
+
+  useLayoutEffect(() => {
+    if (!open) { setDropAbove(false); return; }
+    function reposition() {
+      const root = rootRef.current?.getBoundingClientRect();
+      const list = listRef.current;
+      if (!root || !list) return;
+      const listHeight = Math.min(list.scrollHeight, 240);
+      const spaceBelow = window.innerHeight - root.bottom;
+      setDropAbove(spaceBelow < listHeight + 8 && root.top > spaceBelow);
+    }
+    const frame = window.requestAnimationFrame(reposition);
+    window.addEventListener('resize', reposition);
+    window.addEventListener('scroll', reposition, true);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('resize', reposition);
+      window.removeEventListener('scroll', reposition, true);
+    };
+  }, [open, results.length, loading, loadError]);
 
   return (
     <div ref={rootRef} className="autocomplete" onBlur={handleBlur}>
@@ -157,7 +210,9 @@ export function SearchAutocompleteField({ id, source, options, catalogType, valu
         value={query} placeholder={placeholder ?? 'Escriba para buscar…'} required={required} disabled={disabled}
         onChange={(event) => {
           const next = event.target.value;
+          resolutionNumber.current += 1;
           selectedValue.current = null;
+          if (!next) committedLabel.current = '';
           propagatedValue.current = next;
           if (selectionOnly) event.currentTarget.setCustomValidity(next ? 'Seleccione una opción de la lista.' : '');
           setQuery(next);
@@ -168,10 +223,16 @@ export function SearchAutocompleteField({ id, source, options, catalogType, valu
           if (event.key === 'Escape') { if (open) event.preventDefault(); close(); return; }
           if (event.key === 'ArrowDown') {
             event.preventDefault();
-            if (!open) { setSearchTerm(null); void findResults('', true); return; }
+            if (!open) { setSearchTerm(null); void findResults('', true, 'first'); return; }
             if (results.length) setActive((current) => Math.min(current + 1, results.length - 1));
           }
-          if (event.key === 'ArrowUp' && open && results.length) {
+          if (event.key === 'ArrowUp' && !open) {
+            event.preventDefault();
+            setSearchTerm(null);
+            void findResults('', true, 'last');
+            return;
+          }
+          if (event.key === 'ArrowUp' && results.length) {
             event.preventDefault();
             setActive((current) => current <= 0 ? results.length - 1 : current - 1);
           }
@@ -189,14 +250,17 @@ export function SearchAutocompleteField({ id, source, options, catalogType, valu
         <span aria-hidden="true">▾</span>
       </button>
       {open && (
-        <ul id={listId} className="autocomplete-results" role="listbox"
+        <ul ref={listRef} id={listId}
+          className={`autocomplete-results${dropAbove ? ' autocomplete-results--above' : ''}`} role="listbox"
           aria-label={ariaLabel ? `Opciones de ${ariaLabel}` : 'Opciones'}>
-          {results.length === 0 && !loading
+          {loadError && !loading
+            ? <li className="autocomplete-empty">No fue posible cargar las opciones. Escriba para reintentar.</li>
+            : results.length === 0 && !loading
             ? <li className="autocomplete-empty">No se encontraron coincidencias.</li>
             : results.map((result, index) => (
               <li key={result.id} id={`${listId}-${index}`} role="option" aria-selected={active === index}
                   className={active === index ? 'is-active' : ''} onMouseEnter={() => setActive(index)}
-                  onMouseDown={(event) => { event.preventDefault(); choose(result); }}>
+                  onMouseDown={(event) => event.preventDefault()} onClick={() => choose(result)}>
                 {result.label}
               </li>
             ))}

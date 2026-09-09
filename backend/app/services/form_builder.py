@@ -369,6 +369,9 @@ def duplicate_form(session: Session, user: AuthenticatedUser, id_formulario: str
         "secciones": [{**s, "id_seccion": section_map[s["id_seccion"]]} for s in source["secciones"]],
         "preguntas": [{**q, "id_pregunta": question_map[q["id_pregunta"]],
                        "id_seccion": section_map.get(q.get("id_seccion")),
+                       "mapping": {field: question_map[target_id]
+                                   for field, target_id in q.get("mapping", {}).items()
+                                   if target_id in question_map},
                        "opciones": [{**o, "id_opcion": str(uuid4())} for o in q.get("opciones", [])]}
                       for q in source["preguntas"]],
         "reglas": [{**r, "id_regla": str(uuid4()),

@@ -51,8 +51,9 @@ def _normalized_column(column):
 
 
 def _matches(term: str, *columns):
-    pattern = f"%{_normalize_term(term)}%"
-    return or_(*(_normalized_column(column).like(pattern) for column in columns))
+    normalized = _normalize_term(term).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    pattern = f"%{normalized}%"
+    return or_(*(_normalized_column(column).like(pattern, escape="\\") for column in columns))
 
 
 def list_sources(user: AuthenticatedUser) -> list[dict]:
@@ -68,19 +69,22 @@ def list_sources(user: AuthenticatedUser) -> list[dict]:
 
 def search_options(session: Session, user: AuthenticatedUser, source: str, query: str,
                    *, limit: int = 15, catalog_type: str | None = None,
-                   browse: bool = False) -> list[dict]:
+                   browse: bool = False, selected_id: str | None = None) -> list[dict]:
     code = (source or "").strip().upper()
     config = SOURCES.get(code)
     if config is None:
         raise AppError("INVALID_SEARCH_SOURCE", "Fuente de búsqueda no permitida.", 422)
     authorize(user, config["module"], "read")
     term = (query or "").strip()
-    if len(term) < 2 and not browse:
+    exact_id = (selected_id or "").strip()
+    if len(term) < 2 and not browse and not exact_id:
         return []
     capped = max(1, min(limit, 20))
     if code in {"PERSONAS", "RESPONSABLES"}:
         conditions = [Persona.eliminado.is_(False), Persona.activo.is_(True)]
-        if term:
+        if exact_id:
+            conditions.append(Persona.id_persona == exact_id)
+        elif term:
             conditions.append(_matches(term, Persona.codigo_empleado, Persona.cedula, Persona.nombre))
         rows = session.scalars(select(Persona).where(*conditions).order_by(Persona.nombre).limit(capped)).all()
         return [{"id": r.id_persona,
@@ -93,7 +97,9 @@ def search_options(session: Session, user: AuthenticatedUser, source: str, query
             Persona.eliminado.is_(False), Persona.activo.is_(True),
             field.is_not(None), func.trim(field) != "",
         ]
-        if term:
+        if exact_id:
+            conditions.append(field == exact_id)
+        elif term:
             conditions.append(_matches(term, field))
         values = session.scalars(
             select(field).where(*conditions).distinct().order_by(field).limit(capped)
@@ -101,7 +107,9 @@ def search_options(session: Session, user: AuthenticatedUser, source: str, query
         return [{"id": value, "label": value, "data": {field_name: value}} for value in values]
     if code == "CASOS":
         conditions = [Caso.eliminado.is_(False), Caso.activo.is_(True)]
-        if term:
+        if exact_id:
+            conditions.append(Caso.id_caso == exact_id)
+        elif term:
             conditions.append(_matches(term, Caso.codigo_caso, Caso.colaborador))
         rows = session.scalars(select(Caso).where(
             *conditions,
@@ -110,7 +118,9 @@ def search_options(session: Session, user: AuthenticatedUser, source: str, query
                  "data": {field: getattr(r, field) for field in config["mapping_fields"]}} for r in rows]
     if code == "ATENCIONES":
         conditions = [Atencion.eliminado.is_(False), Atencion.activo.is_(True)]
-        if term:
+        if exact_id:
+            conditions.append(Atencion.id_atencion == exact_id)
+        elif term:
             conditions.append(_matches(term, Atencion.colaborador, Atencion.motivo))
         rows = session.scalars(select(Atencion).where(
             *conditions,
@@ -118,7 +128,9 @@ def search_options(session: Session, user: AuthenticatedUser, source: str, query
         return [{"id": r.id_atencion, "label": " — ".join(v for v in (r.colaborador, r.motivo, r.fecha) if v),
                  "data": {field: getattr(r, field) for field in config["mapping_fields"]}} for r in rows]
     conditions = [Catalogo.eliminado.is_(False), Catalogo.activo.is_(True)]
-    if term:
+    if exact_id:
+        conditions.append(Catalogo.id_catalogo == exact_id)
+    elif term:
         conditions.append(_matches(term, Catalogo.codigo, Catalogo.valor))
     stmt = select(Catalogo).where(*conditions)
     if catalog_type:

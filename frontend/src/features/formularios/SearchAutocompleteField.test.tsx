@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -94,7 +94,11 @@ describe('SearchAutocompleteField', () => {
     const input = screen.getByRole('combobox', { name: 'Área' });
 
     await user.click(input);
-    await user.keyboard('{ArrowDown}{ArrowDown}{Enter}');
+    await user.keyboard('{ArrowDown}');
+    expect(screen.getByRole('option', { name: options[0].label })).toHaveAttribute('aria-selected', 'true');
+    await user.keyboard('{ArrowDown}');
+    expect(screen.getByRole('option', { name: options[1].label })).toHaveAttribute('aria-selected', 'true');
+    await user.keyboard('{ArrowUp}{Enter}');
     expect(onSelect).toHaveBeenLastCalledWith(options[0], options[0].label);
     expect(input).toHaveValue('Gestión de Calidad');
 
@@ -115,6 +119,50 @@ describe('SearchAutocompleteField', () => {
     await user.type(input, 'finanzas');
     expect(await screen.findByText('No se encontraron coincidencias.')).toBeInTheDocument();
     expect(apiMocks.searchFormOptions).not.toHaveBeenCalled();
+  });
+
+  it('restaura la etiqueta de un ID persistido sin mostrar el identificador técnico', async () => {
+    apiMocks.searchFormOptions.mockResolvedValue(people);
+    render(<SearchAutocompleteField source="RESPONSABLES" value="person-1" ariaLabel="Responsable"
+      selectionOnly onSelect={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Responsable' })).toHaveValue(people[0].label));
+    expect(apiMocks.searchFormOptions).toHaveBeenCalledWith('RESPONSABLES', '', undefined, false, 'person-1');
+  });
+
+  it('limpia tanto el ID como la etiqueta seleccionada y no revive el valor al perder foco', async () => {
+    const options = [{ id: 'quality', label: 'Gestión de Calidad', data: {} }];
+    function Harness() {
+      const [value, setValue] = useState('');
+      return <><SearchAutocompleteField options={options} value={value} ariaLabel="Área" selectionOnly
+        onSelect={(result, label) => setValue(result?.id ?? (label ? value : ''))} />
+        <button type="button">Fuera</button><output data-testid="selected-value">{value}</output></>;
+    }
+    const user = userEvent.setup();
+    render(<Harness />);
+    const input = screen.getByRole('combobox', { name: 'Área' });
+
+    await user.click(screen.getByRole('button', { name: 'Mostrar opciones de Área' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Gestión de Calidad' }));
+    expect(screen.getByTestId('selected-value')).toHaveTextContent('quality');
+    expect(input).toHaveValue('Gestión de Calidad');
+
+    await user.clear(input);
+    await user.click(screen.getByRole('button', { name: 'Fuera' }));
+    expect(screen.getByTestId('selected-value')).toBeEmptyDOMElement();
+    expect(input).toHaveValue('');
+  });
+
+  it('se recupera de un error de red al volver a escribir', async () => {
+    apiMocks.searchFormOptions.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(people);
+    const { user, input } = renderRemote();
+
+    await user.type(input, 'jen');
+    expect(await screen.findByText('No fue posible cargar las opciones. Escriba para reintentar.')).toBeInTheDocument();
+    await user.clear(input);
+    await user.type(input, 'jennifer');
+    expect(await screen.findByRole('option', { name: people[0].label })).toBeInTheDocument();
+    expect(apiMocks.searchFormOptions).toHaveBeenCalledTimes(2);
   });
 
   it('mantiene operativa una lista desplegable de un formulario existente', async () => {
@@ -140,9 +188,56 @@ describe('SearchAutocompleteField', () => {
     const user = userEvent.setup();
     render(<Harness />);
 
-    await user.click(screen.getByRole('button', { name: 'Mostrar opciones de Área' }));
-    await user.click(screen.getByRole('option', { name: 'Control de Calidad' }));
-    expect(screen.getByRole('combobox', { name: 'Área' })).toHaveValue('Control de Calidad');
+    expect(screen.queryByRole('button', { name: 'Mostrar opciones de Área' })).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Área' }), 'CALIDAD');
+    expect(screen.getByRole('combobox', { name: 'Área' })).toHaveValue('CALIDAD');
     expect(screen.getByText('CALIDAD')).toBeInTheDocument();
+  });
+
+  it('usa autocomplete para una lista local grande y no guarda texto arbitrario en BUSQUEDA', async () => {
+    apiMocks.searchFormOptions.mockResolvedValue(people);
+    const largeOptions = Array.from({ length: 13 }, (_, index) => ({
+      id_opcion: `o${index}`, valor: `V${index}`, etiqueta: `Opción ${index}`, orden: index,
+    }));
+    const definition: FormDefinition = {
+      id_formulario: 'form-2', nombre: 'Formulario mixto', descripcion: null, responsable: null,
+      estado: 'PUBLICADO', fecha_publicacion: null, fecha_actualizacion: null, actualizado_por: null,
+      permite_multiples_respuestas: false, version_publicada: 1, version: 1, activo: true,
+      eliminado: false, destinos: ['GENERAL'], total_preguntas: 3, total_respuestas: 0,
+      secciones: [], reglas: [], preguntas: [{
+        id_pregunta: 'catalogo', id_seccion: null, etiqueta: 'Catálogo', descripcion: null,
+        tipo: 'LISTA_DESPLEGABLE', obligatoria: false, orden: 0, texto_ayuda: null,
+        valor_predeterminado: null, visible: true, solo_lectura: false, longitud_maxima: null,
+        validacion: {}, configuracion: {}, fuente_datos: null, mapping: {}, opciones: largeOptions,
+      }, {
+        id_pregunta: 'responsable', id_seccion: null, etiqueta: 'Responsable', descripcion: null,
+        tipo: 'BUSQUEDA', obligatoria: false, orden: 1, texto_ayuda: null,
+        valor_predeterminado: null, visible: true, solo_lectura: false, longitud_maxima: null,
+        validacion: {}, configuracion: {}, fuente_datos: 'RESPONSABLES', mapping: { nombre: 'nombre' }, opciones: [],
+      }, {
+        id_pregunta: 'nombre', id_seccion: null, etiqueta: 'Nombre', descripcion: null,
+        tipo: 'TEXTO_CORTO', obligatoria: false, orden: 2, texto_ayuda: null,
+        valor_predeterminado: null, visible: true, solo_lectura: false, longitud_maxima: null,
+        validacion: {}, configuracion: {}, fuente_datos: null, mapping: {}, opciones: [],
+      }],
+    };
+    function Harness() {
+      const [values, setValues] = useState<FormValues>({});
+      return <><DynamicFormRenderer definition={definition} values={values} onChange={setValues} />
+        <output data-testid="values">{JSON.stringify(values)}</output></>;
+    }
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    expect(screen.getByRole('button', { name: 'Mostrar opciones de Catálogo' })).toBeInTheDocument();
+    const responsible = screen.getByRole('combobox', { name: 'Responsable' });
+    await user.type(responsible, 'jen');
+    expect(screen.getByTestId('values')).toHaveTextContent('{}');
+    await user.click(await screen.findByRole('option', { name: people[0].label }));
+    expect(screen.getByTestId('values')).toHaveTextContent('"responsable":"person-1"');
+    expect(screen.getByTestId('values')).toHaveTextContent(`"nombre":"${people[0].label}"`);
+    await user.clear(responsible);
+    expect(screen.getByTestId('values')).toHaveTextContent('"responsable":""');
+    expect(screen.getByTestId('values')).toHaveTextContent('"nombre":""');
   });
 });

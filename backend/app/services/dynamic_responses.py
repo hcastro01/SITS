@@ -14,6 +14,7 @@ from app.core.time import utc_now_iso
 from app.models import EnvioFormulario, Formulario, FormularioDestino, FormularioVersion, Persona, RespuestaFormulario
 from app.services.audit import log_change
 from app.services.form_builder import ensure_published_version, get_definition
+from app.services.form_search import search_options
 from app.services.records import apply_soft_delete, check_expected_version, creation_metadata, get_active, mark_updated
 from app.services.response_codes import assign_response_code
 from app.services.response_contexts import (
@@ -99,7 +100,8 @@ def _validate_context(session: Session, user: AuthenticatedUser, form_id: str,
     return normalized, context_id
 
 
-def _validate_answers(definition: dict, answers: list[dict], *, draft: bool) -> dict[str, list]:
+def _validate_answers(session: Session, user: AuthenticatedUser, definition: dict,
+                      answers: list[dict], *, draft: bool) -> dict[str, list]:
     questions = {q["id_pregunta"]: q for q in definition["preguntas"]}
     values: dict[str, list] = defaultdict(list)
     for answer in answers:
@@ -108,6 +110,23 @@ def _validate_answers(definition: dict, answers: list[dict], *, draft: bool) -> 
             raise AppError("INVALID_ANSWER", "La respuesta contiene una pregunta o campo no permitido.", 422)
         values[answer["id_pregunta"]].append(_answer_value(answer))
     visible, required, _ = dynamic_state(definition, values)
+    for question_id, question in questions.items():
+        if (question.get("tipo") or "").upper() != "BUSQUEDA":
+            continue
+        source = question.get("fuente_datos") or "PERSONAS"
+        catalog_type = (question.get("configuracion") or {}).get("catalog_type")
+        for value in (item for item in values.get(question_id, []) if item not in (None, "", [])):
+            selected_id = str(value)
+            matches = search_options(
+                session, user, source, "", limit=1, catalog_type=catalog_type,
+                selected_id=selected_id,
+            )
+            if not matches or str(matches[0]["id"]) != selected_id:
+                raise AppError(
+                    "INVALID_SEARCH_OPTION",
+                    f"Seleccione una opción válida para «{question['etiqueta']}».",
+                    422,
+                )
     if draft:
         return values
     for question_id, question in questions.items():
@@ -267,7 +286,7 @@ def save_dynamic_response(session: Session, user: AuthenticatedUser, form_id: st
         raise AppError("FORBIDDEN", "No puede continuar el borrador de otro usuario.", 403)
     definition = _version_definition(session, response) if response is not None else None
     definition = definition or get_definition(session, form_id)
-    _validate_answers(definition, answers, draft=draft)
+    _validate_answers(session, user, definition, answers, draft=draft)
     version = (session.get(FormularioVersion, response.id_version_formulario)
                if response is not None and response.id_version_formulario else None)
     version = version or ensure_published_version(session, form, user)

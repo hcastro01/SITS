@@ -1,3 +1,4 @@
+import json
 import unittest
 from tempfile import TemporaryDirectory
 
@@ -10,8 +11,9 @@ import app.db.session as db_session
 from app.core.errors import AppError
 from app.core.permissions import AuthenticatedUser, resolve_current_user
 from app.db.session import build_engine
-from app.models import Auditoria, Caso, Catalogo, EnvioFormulario, Persona, User
+from app.models import Auditoria, Caso, Catalogo, EnvioFormulario, FormularioVersion, Persona, User
 from app.services.dynamic_responses import soft_delete_dynamic_response
+from app.services.form_builder import duplicate_form, get_definition, save_definition
 from app.services.form_integrations import (
     list_available_forms, list_module_responses, person_records, response_by_code,
 )
@@ -214,8 +216,89 @@ class FormModuleIntegrationTests(unittest.TestCase):
             self.assertEqual(set(centers[0]["data"]), {"centro"})
 
             self.assertEqual(search_options(session, admin, "PERSONAS", ""), [])
+            self.assertEqual(search_options(session, admin, "PERSONAS", "a"), [])
+            self.assertEqual(search_options(session, admin, "PERSONAS", "%%"), [])
+            self.assertEqual(search_options(session, admin, "PERSONAS", "' OR 1=1 --"), [])
             browsed = search_options(session, admin, "PERSONAS", "", limit=1, browse=True)
             self.assertEqual(len(browsed), 1)
+            selected = search_options(session, admin, "RESPONSABLES", "", selected_id="ana")
+            self.assertEqual([(item["id"], item["label"]) for item in selected], [("ana", "Ana López García")])
+            self.assertEqual(search_options(session, admin, "RESPONSABLES", "", selected_id="missing"), [])
+
+            session.add_all([
+                Catalogo(id_catalogo=f"limit-{index}", tipo="AUDIT_LIMIT", codigo=f"L-{index:02}",
+                         valor=f"Elemento {index:02}", orden=index)
+                for index in range(25)
+            ])
+            limited = search_options(
+                session, admin, "CATALOGOS", "", catalog_type="AUDIT_LIMIT", limit=999, browse=True,
+            )
+            self.assertEqual(len(limited), 20)
+
+    def test_search_configuration_survives_save_publish_duplicate_and_validates_selected_id(self):
+        with Session(self.engine) as session, session.begin():
+            admin = resolve_current_user(session, "admin@example.com")
+            form = create_formulario(
+                session, admin, motivo_auditoria="Autocomplete", correlation_id="autocomplete",
+                nombre="Autocomplete", destinos=["GENERAL"],
+            )
+            search_id, target_id = "search-person", "target-name"
+            saved = save_definition(session, admin, form.id_formulario, {
+                "expected_version": form.version,
+                "nombre": form.nombre,
+                "destinos": ["GENERAL"],
+                "secciones": [],
+                "preguntas": [{
+                    "id_pregunta": search_id, "etiqueta": "Responsable", "tipo": "BUSQUEDA",
+                    "obligatoria": True, "fuente_datos": "RESPONSABLES",
+                    "configuracion": {"placeholder": "Busque una persona"},
+                    "mapping": {"nombre": target_id}, "opciones": [],
+                }, {
+                    "id_pregunta": target_id, "etiqueta": "Nombre", "tipo": "TEXTO_CORTO",
+                    "obligatoria": False, "configuracion": {}, "mapping": {}, "opciones": [],
+                }],
+                "reglas": [],
+            }, correlation_id="autocomplete-save")
+            reloaded = get_definition(session, form.id_formulario)
+            search = next(question for question in reloaded["preguntas"] if question["id_pregunta"] == search_id)
+            self.assertEqual(search["fuente_datos"], "RESPONSABLES")
+            self.assertEqual(search["configuracion"], {"placeholder": "Busque una persona"})
+            self.assertEqual(search["mapping"], {"nombre": target_id})
+
+            change_status(session, admin, form.id_formulario, "PUBLICADO",
+                          expected_version=saved["version"], correlation_id="autocomplete-publish")
+            version = session.scalar(select(FormularioVersion).where(
+                FormularioVersion.id_formulario == form.id_formulario,
+            ))
+            version_definition = json.loads(version.definicion_json)
+            version_search = next(question for question in version_definition["preguntas"]
+                                  if question["id_pregunta"] == search_id)
+            self.assertEqual(version_search["fuente_datos"], "RESPONSABLES")
+            self.assertEqual(version_search["mapping"], {"nombre": target_id})
+
+            with self.assertRaisesRegex(AppError, "Seleccione una opción válida"):
+                save_response(
+                    session, admin, form.id_formulario, draft=True,
+                    respuestas=[{"id_pregunta": search_id, "valor_opcion": "texto-arbitrario"}],
+                    correlation_id="invalid-search",
+                )
+            response = save_response(
+                session, admin, form.id_formulario, draft=False,
+                respuestas=[{"id_pregunta": search_id, "valor_opcion": "ana"}],
+                correlation_id="valid-search",
+            )
+            self.assertEqual(response.estado, "REGISTRADO")
+
+            copy = duplicate_form(session, admin, form.id_formulario, correlation_id="autocomplete-copy")
+            copied_definition = get_definition(session, copy.id_formulario)
+            copied_search = next(question for question in copied_definition["preguntas"]
+                                 if question["etiqueta"] == "Responsable")
+            copied_target = next(question for question in copied_definition["preguntas"]
+                                 if question["etiqueta"] == "Nombre")
+            self.assertEqual(copied_search["fuente_datos"], "RESPONSABLES")
+            self.assertEqual(copied_search["configuracion"], {"placeholder": "Busque una persona"})
+            self.assertEqual(copied_search["mapping"], {"nombre": copied_target["id_pregunta"]})
+            self.assertNotEqual(copied_target["id_pregunta"], target_id)
 
     def test_permissions_sensitive_visibility_delete_and_audit_and_no_code_reuse(self):
         """Cubre 16 y 26-30: RBAC granular, sensibilidad y eliminación lógica auditada."""

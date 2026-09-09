@@ -43,9 +43,13 @@ def fuentes_busqueda(user: AuthenticatedUser = Depends(get_current_user)):
 def buscar_opciones(
     source: str, q: str = Query("", max_length=100), limit: int = Query(15, ge=1, le=20),
     tipo_catalogo: str | None = None, browse: bool = False,
+    selected_id: str | None = Query(None, max_length=100),
     db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user),
 ):
-    return search_options(db, user, source, q, limit=limit, catalog_type=tipo_catalogo, browse=browse)
+    return search_options(
+        db, user, source, q, limit=limit, catalog_type=tipo_catalogo,
+        browse=browse, selected_id=selected_id,
+    )
 
 
 @router.get("/contexto/{contexto_tipo}/{contexto_id}")
