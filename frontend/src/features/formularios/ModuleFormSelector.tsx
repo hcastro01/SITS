@@ -66,7 +66,7 @@ export function ModuleFormSelector({ module, moduleLabel, fixedPersonId, onClose
           {!fixedPersonId && (
             <label className="person-selector-field">
               <span>Persona asociada {personRequired ? <strong aria-label="obligatorio">*</strong> : <small>(opcional)</small>}</span>
-              <SearchAutocompleteField source="PERSONAS" value={personText} placeholder="Buscar Persona por nombre…"
+              <SearchAutocompleteField source="PERSONAS" value={personText} ariaLabel="Persona asociada" placeholder="Buscar Persona por nombre…"
                 onSelect={(result, text) => { setSelectedPerson(result); setPersonText(text); }} />
               <small>Escriba al menos dos caracteres y seleccione una coincidencia.</small>
             </label>

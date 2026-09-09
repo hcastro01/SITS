@@ -15,7 +15,7 @@ from app.services.dynamic_responses import soft_delete_dynamic_response
 from app.services.form_integrations import (
     list_available_forms, list_module_responses, person_records, response_by_code,
 )
-from app.services.form_search import search_options
+from app.services.form_search import list_sources, search_options
 from app.services.formularios import change_status, create_formulario, soft_delete_formulario
 from app.services.preguntas import preguntas
 from app.services.respuestas_formulario import save_response
@@ -34,8 +34,10 @@ class FormModuleIntegrationTests(unittest.TestCase):
             session.add_all([
                 User(id_usuario="admin", correo="admin@example.com", nombre="Admin", rol_id="ROLE_ADMIN", estado="ACTIVO"),
                 User(id_usuario="ts", correo="ts@example.com", nombre="TS", rol_id="ROLE_TRABAJADOR_SOCIAL", estado="ACTIVO"),
-                Persona(id_persona="ana", nombre="Ana López García", cedula="0101"),
-                Persona(id_persona="beto", nombre="Beto Pérez", cedula="0202"),
+                Persona(id_persona="ana", nombre="Ana López García", cedula="0101",
+                        codigo_empleado="EMP-01", area="CONTROL DE CALIDAD", centro="CC-01 PLANTA"),
+                Persona(id_persona="beto", nombre="Beto Pérez", cedula="0202",
+                        codigo_empleado="EMP-02", area="GESTIÓN DE CALIDAD", centro="CC-02 OFICINAS"),
             ])
 
     def tearDown(self):
@@ -192,6 +194,28 @@ class FormModuleIntegrationTests(unittest.TestCase):
             self.assertEqual(response_by_code(session, admin, created[0].codigo_respuesta)["id_respuesta"], created[0].id_respuesta)
             beto = person_records(session, admin, "beto", module=None, state=None, page=1, page_size=20)
             self.assertEqual(beto["total"], 1)
+
+    def test_search_sources_are_separated_browsable_limited_and_accent_insensitive(self):
+        with Session(self.engine) as session, session.begin():
+            admin = resolve_current_user(session, "admin@example.com")
+            source_codes = {source["codigo"] for source in list_sources(admin)}
+            self.assertTrue({"PERSONAS", "RESPONSABLES", "AREAS", "CENTROS_COSTO"} <= source_codes)
+
+            responsible = search_options(session, admin, "RESPONSABLES", "lopez")
+            self.assertEqual([(item["id"], item["label"]) for item in responsible], [("ana", "Ana López García")])
+            self.assertEqual(responsible[0]["data"]["codigo_empleado"], "EMP-01")
+
+            areas = search_options(session, admin, "AREAS", "gestion")
+            self.assertEqual([item["label"] for item in areas], ["GESTIÓN DE CALIDAD"])
+            self.assertTrue(all(set(item["data"]) == {"area"} for item in areas))
+
+            centers = search_options(session, admin, "CENTROS_COSTO", "cc-0", limit=1)
+            self.assertEqual(len(centers), 1)
+            self.assertEqual(set(centers[0]["data"]), {"centro"})
+
+            self.assertEqual(search_options(session, admin, "PERSONAS", ""), [])
+            browsed = search_options(session, admin, "PERSONAS", "", limit=1, browse=True)
+            self.assertEqual(len(browsed), 1)
 
     def test_permissions_sensitive_visibility_delete_and_audit_and_no_code_reuse(self):
         """Cubre 16 y 26-30: RBAC granular, sensibilidad y eliminación lógica auditada."""

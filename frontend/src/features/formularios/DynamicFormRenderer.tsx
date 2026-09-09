@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import type { FormDefinition, FormQuestion, FormRule, SearchResult } from '../../api/formBuilder';
 import { SearchAutocompleteField } from './SearchAutocompleteField';
 
@@ -53,20 +53,6 @@ export function computeDynamicState(definition: FormDefinition, values: FormValu
   return { visibleQuestions, requiredQuestions, visibleSections };
 }
 
-function SearchableSelect({ question, value, disabled, onChange }: {
-  question: FormQuestion; value: string; disabled: boolean; onChange: (value: string) => void;
-}) {
-  const [filter, setFilter] = useState('');
-  const options = question.opciones.filter((option) => option.etiqueta.toLowerCase().includes(filter.toLowerCase()));
-  return <div className="searchable-select">
-    {question.opciones.length > 12 && <input aria-label={`Buscar opciones de ${question.etiqueta}`} placeholder="Buscar opción…" value={filter} onChange={(e) => setFilter(e.target.value)} />}
-    <select value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
-      <option value="">Seleccione…</option>
-      {options.map((option) => <option key={option.id_opcion} value={option.valor}>{option.etiqueta}</option>)}
-    </select>
-  </div>;
-}
-
 function DynamicField({ question, value, required, disabled, onChange, onAutocomplete }: {
   question: FormQuestion; value: FieldValue | undefined; required: boolean; disabled: boolean;
   onChange: (value: FieldValue) => void; onAutocomplete: (result: SearchResult | null, label: string) => void;
@@ -96,7 +82,11 @@ function DynamicField({ question, value, required, disabled, onChange, onAutocom
       value={option.valor} checked={text(value) === option.valor} required={required} disabled={disabled}
       onChange={() => onChange(option.valor)} /> {option.etiqueta}</label>)}
   </div>;
-  if (question.tipo === 'LISTA_DESPLEGABLE') return <SearchableSelect question={question} value={text(value)} disabled={disabled} onChange={onChange} />;
+  if (question.tipo === 'LISTA_DESPLEGABLE') return <SearchAutocompleteField
+    id={question.id_pregunta} ariaLabel={question.etiqueta} value={text(value)} required={required} disabled={disabled}
+    placeholder={String(config.placeholder ?? 'Escriba para buscar…')}
+    options={question.opciones.map((option) => ({ id: option.valor, label: option.etiqueta, data: {} }))}
+    selectionOnly onSelect={(result, label) => { if (result) onChange(result.id); else if (!label) onChange(''); }} />;
   if (['SELECCION_MULTIPLE', 'CASILLAS'].includes(question.tipo)) {
     const selected = Array.isArray(value) ? value as string[] : [];
     return <div className="choice-group">{question.opciones.map((option) => <label key={option.id_opcion}>
@@ -110,8 +100,11 @@ function DynamicField({ question, value, required, disabled, onChange, onAutocom
       <label key={number}><input type="radio" name={question.id_pregunta} value={number} checked={text(value) === String(number)}
         required={required} disabled={disabled} onChange={() => onChange(String(number))} /><span>{number}</span></label>)}</div>;
   }
-  if (question.tipo === 'BUSQUEDA') return <SearchAutocompleteField source={question.fuente_datos ?? 'PERSONAS'} value={text(value)}
-    placeholder={String(config.placeholder ?? 'Escriba para buscar…')} disabled={disabled} onSelect={onAutocomplete} />;
+  if (question.tipo === 'BUSQUEDA') return <SearchAutocompleteField
+    id={question.id_pregunta} ariaLabel={question.etiqueta} source={question.fuente_datos ?? 'PERSONAS'}
+    catalogType={typeof config.catalog_type === 'string' ? config.catalog_type : undefined}
+    value={text(value)} placeholder={String(config.placeholder ?? 'Escriba para buscar…')}
+    required={required} disabled={disabled} onSelect={onAutocomplete} />;
   if (['ARCHIVO', 'FOTOGRAFIA'].includes(question.tipo)) {
     const rawItems = Array.isArray(value) ? value : [];
     const files = rawItems.filter((item): item is File => item instanceof File);

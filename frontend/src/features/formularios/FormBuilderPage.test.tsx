@@ -41,9 +41,11 @@ function formDefinition(questions: FormQuestion[], sections = defaultSections): 
   };
 }
 
-async function renderBuilder(questions: FormQuestion[], sections = defaultSections) {
+async function renderBuilder(questions: FormQuestion[], sections = defaultSections, sources: Array<{
+  codigo: string; label: string; search_fields: string[]; mapping_fields: string[];
+}> = []) {
   apiMocks.getFormDefinition.mockResolvedValue(formDefinition(questions, sections));
-  apiMocks.listSearchSources.mockResolvedValue([]);
+  apiMocks.listSearchSources.mockResolvedValue(sources);
   const user = userEvent.setup();
   const router = createMemoryRouter([
     { path: '/formularios/:id/editar', element: <FormBuilderPage /> },
@@ -142,5 +144,23 @@ describe('FormBuilderPage: eliminación local de preguntas', () => {
     await user.click(screen.getByRole('button', { name: '+ Agregar pregunta' }));
     expect(screen.getByDisplayValue('Nueva pregunta').closest('.question-editor')).toHaveAttribute('data-selected', 'true');
     expect(document.body.style.overflow).toBe('');
+  });
+
+  it('permite configurar fuentes separadas para una pregunta de búsqueda', async () => {
+    const searchQuestion = { ...question('q1', 'Responsable', 0), tipo: 'BUSQUEDA', fuente_datos: 'PERSONAS' };
+    const { user } = await renderBuilder([searchQuestion], defaultSections, [
+      { codigo: 'PERSONAS', label: 'Personas', search_fields: ['Nombre'], mapping_fields: ['nombre'] },
+      { codigo: 'RESPONSABLES', label: 'Responsables', search_fields: ['Nombre'], mapping_fields: ['nombre'] },
+      { codigo: 'AREAS', label: 'Áreas', search_fields: ['Área'], mapping_fields: ['area'] },
+      { codigo: 'CENTROS_COSTO', label: 'Centros de costo', search_fields: ['Centro'], mapping_fields: ['centro'] },
+    ]);
+    const source = screen.getByLabelText('Fuente segura');
+
+    expect(source).toHaveValue('PERSONAS');
+    expect(within(source).getByRole('option', { name: 'Responsables' })).toBeInTheDocument();
+    expect(within(source).getByRole('option', { name: 'Áreas' })).toBeInTheDocument();
+    expect(within(source).getByRole('option', { name: 'Centros de costo' })).toBeInTheDocument();
+    await user.selectOptions(source, 'AREAS');
+    expect(source).toHaveValue('AREAS');
   });
 });

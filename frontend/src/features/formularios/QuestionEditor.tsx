@@ -50,11 +50,12 @@ export function QuestionEditor({ question, index, total, sections, allQuestions,
         <input value={question.etiqueta} onChange={(e) => onChange({ ...question, etiqueta: e.target.value })} />
       </label>
       <label className="builder-field">Tipo
-        <select value={question.tipo} onChange={(e) => onChange({ ...question, tipo: e.target.value,
-          opciones: OPTION_TYPES.has(e.target.value) && question.opciones.length === 0 ? [
+        <select value={question.tipo} onChange={(e) => { const nextType = e.target.value; onChange({ ...question, tipo: nextType,
+          fuente_datos: nextType === 'BUSQUEDA' ? question.fuente_datos ?? 'PERSONAS' : question.fuente_datos,
+          opciones: OPTION_TYPES.has(nextType) && question.opciones.length === 0 ? [
             { id_opcion: uid(), valor: 'Opción 1', etiqueta: 'Opción 1', orden: 0 },
             { id_opcion: uid(), valor: 'Opción 2', etiqueta: 'Opción 2', orden: 1 },
-          ] : question.opciones })}>
+          ] : question.opciones }); }}>
           {QUESTION_TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>
       </label>
@@ -89,6 +90,10 @@ export function QuestionEditor({ question, index, total, sections, allQuestions,
             {sources.map((source) => <option key={source.codigo} value={source.codigo}>{source.label}</option>)}
           </select>
         </label>
+        {(question.fuente_datos ?? 'PERSONAS') === 'CATALOGOS' && <label className="builder-field">Tipo de catálogo
+          <input value={String(question.configuracion.catalog_type ?? '')} placeholder="Ej. ESTADO_CASO"
+            onChange={(e) => updateConfig('catalog_type', e.target.value.trimStart().toUpperCase())} />
+        </label>}
         <div className="builder-field builder-field--wide mapping-editor"><strong>Autocompletar otros campos</strong>
           <p>Asigne únicamente los datos que desea copiar al seleccionar un resultado.</p>
           <div className="mapping-grid">{selectedSource?.mapping_fields.map((field) => <label key={field}>{field}

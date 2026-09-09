@@ -65,7 +65,7 @@ export function BusquedaPage() {
 
   return <div className="person-search-page">
     <section className="panel search-hero"><p className="eyebrow">Consulta consolidada</p><h2>Buscar Persona o código</h2><p>Seleccione una Persona por nombre o ingrese un código TTHH_RRLL completo.</p>
-      <form onSubmit={submit} className="consolidated-search-form"><label><span>Nombre de Persona o código de registro</span><SearchAutocompleteField source="PERSONAS" value={query} placeholder="Ej. Ana López o TTHH_RRLL_00000000045" onSelect={(result, text) => { setSelectedPerson(result); setQuery(text); setCodeResult(null); if (result) { setPage(1); void loadPerson(result, 1); } }} /></label><button type="submit" disabled={loading}>{loading ? 'Buscando…' : 'Buscar'}</button></form>
+      <form onSubmit={submit} className="consolidated-search-form"><label><span>Nombre de Persona o código de registro</span><SearchAutocompleteField source="PERSONAS" value={query} ariaLabel="Nombre de Persona o código de registro" placeholder="Ej. Ana López o TTHH_RRLL_00000000045" onSelect={(result, text) => { setSelectedPerson(result); setQuery(text); setCodeResult(null); if (result) { setPage(1); void loadPerson(result, 1); } }} /></label><button type="submit" disabled={loading}>{loading ? 'Buscando…' : 'Buscar'}</button></form>
       {error && <p className="form-error" role="alert">{error}</p>}
     </section>
     {codeResult && <section className="panel search-results-panel"><div className="section-heading"><div><p className="eyebrow">Resultado exacto</p><h2>{codeResult.codigo_respuesta}</h2></div></div><RecordCard item={codeResult} /></section>}

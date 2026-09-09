@@ -183,8 +183,12 @@ export const deleteFormDefinition = (id: string, expectedVersion: number) =>
     motivo: 'Eliminación de formulario desde administración',
   });
 export const listSearchSources = () => get<SearchSource[]>('/formularios/fuentes-busqueda');
-export const searchFormOptions = (source: string, query: string, catalogType?: string) =>
-  get<SearchResult[]>(`/formularios/search-options?source=${encodeURIComponent(source)}&q=${encodeURIComponent(query)}&limit=15${catalogType ? `&tipo_catalogo=${encodeURIComponent(catalogType)}` : ''}`);
+export const searchFormOptions = (source: string, query: string, catalogType?: string, browse = false) => {
+  const params = new URLSearchParams({ source, q: query, limit: '15' });
+  if (catalogType) params.set('tipo_catalogo', catalogType);
+  if (browse) params.set('browse', 'true');
+  return get<SearchResult[]>(`/formularios/search-options?${params}`);
+};
 export const listContextForms = (type: string, id: string) =>
   get<ContextForm[]>(`/formularios/contexto/${encodeURIComponent(type)}/${encodeURIComponent(id)}`);
 export const listFormResponses = (id: string, query = '') => get<FormResponse[]>(`/formularios/${id}/respuestas${query ? `?q=${encodeURIComponent(query)}` : ''}`);

@@ -165,7 +165,7 @@ class FormulariosServiceTests(unittest.TestCase):
                     motivo="No permitido", correlation_id="c4",
                 )
             self.assertEqual(ctx.exception.code, "PUBLISHED_FORM_DELETE_FORBIDDEN")
-            self.assertEqual(ctx.exception.message, "Debe despublicar el formulario antes de eliminarlo.")
+            self.assertEqual(ctx.exception.detail, "Debe despublicar el formulario antes de eliminarlo.")
 
             unpublished = change_status(session, admin, published.id_formulario, "INACTIVO",
                                         expected_version=published.version, correlation_id="c5")
@@ -192,7 +192,7 @@ class FormulariosServiceTests(unittest.TestCase):
                 )
             self.assertEqual(ctx.exception.code, "FORM_HAS_RESPONSES")
             self.assertEqual(
-                ctx.exception.message,
+                ctx.exception.detail,
                 "Este formulario no puede eliminarse porque contiene respuestas registradas. "
                 "Puede archivarlo para conservar su historial.",
             )
