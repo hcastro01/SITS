@@ -1,8 +1,11 @@
 from functools import lru_cache
+from pathlib import Path, PureWindowsPath
 from typing import Literal
+from urllib.parse import urlsplit
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import make_url
 
 SQLiteJournalMode = Literal["wal", "delete"]
 
@@ -30,8 +33,10 @@ class Settings(BaseSettings):
     # despliegue real por HTTPS; False aquí solo sirve para http://localhost en desarrollo.
     cookie_secure: bool = False
     cookie_samesite: Literal["lax", "strict", "none"] = "lax"
-    session_ttl_hours: int = 12
+    session_ttl_hours: int = Field(default=12, ge=1, le=168)
     auth_mode: Literal["password", "development_email"] = "development_email"
+    login_max_attempts: int = Field(default=5, ge=3, le=100)
+    login_window_seconds: int = Field(default=300, ge=60, le=3600)
 
     @model_validator(mode="after")
     def validate_production(self):
@@ -48,6 +53,45 @@ class Settings(BaseSettings):
                 raise ValueError("SameSite=None exige una cookie Secure.")
             if any("localhost" in origin or "127.0.0.1" in origin for origin in self.cors_origins):
                 raise ValueError("CORS_ORIGINS de producción no puede contener localhost.")
+            origins = [urlsplit(origin) for origin in self.cors_origins]
+            if not origins or any(
+                origin.scheme != "https"
+                or not origin.netloc
+                or origin.username is not None
+                or origin.password is not None
+                or origin.path not in {"", "/"}
+                or origin.query
+                or origin.fragment
+                for origin in origins
+            ):
+                raise ValueError(
+                    "CORS_ORIGINS de producción debe contener orígenes HTTPS exactos y sin rutas."
+                )
+            if not self.trusted_hosts or any(
+                "*" in host
+                or "://" in host
+                or "/" in host
+                or "localhost" in host
+                or "127.0.0.1" in host
+                for host in self.trusted_hosts
+            ):
+                raise ValueError(
+                    "TRUSTED_HOSTS de producción debe contener únicamente hosts públicos exactos."
+                )
+
+            database = make_url(self.database_url)
+            database_path = database.database
+            is_absolute = bool(
+                database_path
+                and (
+                    Path(database_path).is_absolute()
+                    or PureWindowsPath(database_path).is_absolute()
+                )
+            )
+            if database.get_backend_name() != "sqlite" or database_path == ":memory:" or not is_absolute:
+                raise ValueError(
+                    "DATABASE_URL de producción debe apuntar a un archivo SQLite absoluto y persistente."
+                )
         return self
 
 

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../app/AuthContext';
+import { canAccess } from '../../api/auth';
 import { listarCasos, type Caso } from '../../api/casos';
 import { HttpError } from '../../api/client';
 import { humanizeCode } from '../../utils/dates';
@@ -7,10 +9,21 @@ import { ModuleFormRecordsPanel } from '../formularios/ModuleFormRecordsPanel';
 import { ModuleFormSelector } from '../formularios/ModuleFormSelector';
 
 export function CasosListPage() {
+  const { usuario } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [casos, setCasos] = useState<Caso[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
   const [selectorAbierto, setSelectorAbierto] = useState(false);
+  const canCreate = canAccess(usuario, 'CASOS', 'create') && canAccess(usuario, 'RESPUESTAS', 'create');
+
+  useEffect(() => {
+    if ((location.state as { newRecord?: boolean } | null)?.newRecord && canCreate) {
+      setSelectorAbierto(true);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [canCreate, location.pathname, location.state, navigate]);
 
   useEffect(() => {
     let activo = true;
@@ -25,7 +38,7 @@ export function CasosListPage() {
     <section className="panel wide-panel">
       <div className="panel-header">
         <h2>Casos</h2>
-        <button type="button" className="button-link as-button" onClick={() => setSelectorAbierto(true)}>Nuevo registro</button>
+        {canCreate && <button type="button" className="button-link as-button" onClick={() => setSelectorAbierto(true)}>Nuevo registro</button>}
       </div>
       {error && <p className="form-error" role="alert">{error}</p>}
       {cargando ? (

@@ -14,7 +14,7 @@ from app.api.deps import get_db
 import app.db.session as db_session
 from app.db.session import build_engine
 from app.main import app
-from app.models import Auditoria, User
+from app.models import Auditoria, Caso, Catalogo, User
 from app.services.passwords import verify_password
 from app.services.security_seed import seed_security
 
@@ -56,6 +56,10 @@ class ApiIntegrationTests(unittest.TestCase):
         login = self.client.post("/api/v1/auth/login", json={"correo": "admin@example.com", "password": "ClaveSegura123"})
         self.assertEqual(login.status_code, 200)
         self.assertIn("HttpOnly", login.headers["set-cookie"])
+        self.assertEqual(
+            login.headers["permissions-policy"],
+            "camera=(), microphone=(), geolocation=()",
+        )
 
         created = self.client.post("/api/v1/casos", json={
             "responsable": "Ana", "estado_caso": "PENDIENTE", "prioridad": "ALTA",
@@ -201,6 +205,80 @@ class ApiIntegrationTests(unittest.TestCase):
                 response = self.client.post("/api/v1/admin/usuarios", json=payload)
                 self.assertEqual(response.status_code, status_code)
                 self.assertEqual(response.json()["code"], code)
+
+    def test_sensitive_cases_are_not_exposed_in_lists_or_autocomplete(self):
+        with Session(self.engine) as session, session.begin():
+            session.add(Catalogo(
+                id_catalogo="sensitive-high", tipo="NIVEL_SENSIBILIDAD", codigo="ALTA",
+                valor="Alta", es_sensible=True,
+            ))
+            session.add(Caso(
+                id_caso="sensitive-case", codigo_caso="CAS-SECRET-1", colaborador="Persona reservada",
+                nivel_sensibilidad="ALTA", estado_caso="ABIERTO",
+            ))
+            session.add(Caso(
+                id_caso="standard-case", codigo_caso="CAS-PUBLIC-1", colaborador="Persona visible",
+                nivel_sensibilidad="NORMAL", estado_caso="ABIERTO",
+            ))
+
+        self.assertEqual(self.client.post(
+            "/api/v1/auth/login", json={"correo": "consulta@example.com", "password": "irrelevante"},
+        ).status_code, 200)
+        listed = self.client.get("/api/v1/casos")
+        self.assertEqual(listed.status_code, 200)
+        self.assertEqual({item["id_caso"] for item in listed.json()}, {"standard-case"})
+
+        autocomplete = self.client.get(
+            "/api/v1/formularios/search-options",
+            params={"source": "CASOS", "q": "CAS-", "browse": "true"},
+        )
+        self.assertEqual(autocomplete.status_code, 200)
+        self.assertEqual({item["id"] for item in autocomplete.json()}, {"standard-case"})
+        self.assertEqual(self.client.get("/api/v1/casos/sensitive-case").status_code, 403)
+
+    def test_listing_deleted_records_requires_delete_permission(self):
+        with Session(self.engine) as session, session.begin():
+            session.add(Caso(
+                id_caso="deleted-case", codigo_caso="CAS-DELETED-1", eliminado=True,
+                activo=False, motivo_eliminacion="Registro descartado",
+            ))
+        self.assertEqual(self.client.post(
+            "/api/v1/auth/login", json={"correo": "consulta@example.com", "password": "irrelevante"},
+        ).status_code, 200)
+        response = self.client.get("/api/v1/casos?incluir_eliminados=true")
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["code"], "FORBIDDEN")
+
+    def test_admin_payloads_reject_ambiguous_permission_values_and_missing_fields(self):
+        self.assertEqual(self.client.post(
+            "/api/v1/auth/login", json={"correo": "admin@example.com", "password": "irrelevante"},
+        ).status_code, 200)
+        administration = self.client.get("/api/v1/admin/usuarios").json()
+        permission = next(item for item in administration["permisos"]
+                          if item["rol_id"] == "ROLE_CONSULTA" and item["modulo"] == "CASOS")
+
+        invalid_permission = self.client.put(
+            "/api/v1/admin/roles/ROLE_CONSULTA/permisos/CASOS",
+            json={"derechos": {"read": "false"}, "expected_version": permission["version"]},
+        )
+        self.assertEqual(invalid_permission.status_code, 422)
+        self.assertEqual(invalid_permission.json()["code"], "INVALID_INPUT")
+
+        missing_role = self.client.patch("/api/v1/admin/usuarios/consulta", json={
+            "estado": "ACTIVO", "expected_version": 1,
+        })
+        self.assertEqual(missing_role.status_code, 422)
+        self.assertEqual(missing_role.json()["code"], "INVALID_INPUT")
+
+        ambiguous_draft = self.client.post("/api/v1/formularios/missing/respuestas", json={
+            "borrador": "false", "respuestas": [],
+        })
+        self.assertEqual(ambiguous_draft.status_code, 422)
+        self.assertEqual(ambiguous_draft.json()["code"], "INVALID_INPUT")
+
+        invalid_page_size = self.client.get("/api/v1/busqueda?tamano_pagina=0")
+        self.assertEqual(invalid_page_size.status_code, 422)
+        self.assertEqual(invalid_page_size.json()["code"], "INVALID_INPUT")
 
 
 if __name__ == "__main__":

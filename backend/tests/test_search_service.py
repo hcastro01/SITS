@@ -48,6 +48,36 @@ class SearchServiceTests(unittest.TestCase):
             self.assertEqual(resultado["total"], 1)
             self.assertEqual(resultado["items"][0]["id"], self.id_caso)
 
+    def test_search_is_accent_insensitive_and_treats_wildcards_as_text(self):
+        with Session(self.engine) as session, session.begin():
+            ts = resolve_current_user(session, "ts@example.com")
+            special = create_caso(
+                session, ts, motivo_auditoria="Alta", correlation_id="special",
+                responsable="Ángela_100%", estado_caso="ABIERTO",
+            )
+            special_id = special.id_caso
+        with Session(self.engine) as session:
+            ts = resolve_current_user(session, "ts@example.com")
+            by_name = search(session, ts, tablas=["casos"], q="angela_100%")
+            self.assertEqual([item["id"] for item in by_name["items"]], [special_id])
+            by_percent = search(session, ts, tablas=["casos"], q="%")
+            self.assertEqual([item["id"] for item in by_percent["items"]], [special_id])
+
+    def test_search_keeps_an_exact_total_while_paginating_candidates(self):
+        with Session(self.engine) as session, session.begin():
+            ts = resolve_current_user(session, "ts@example.com")
+            for index in range(5):
+                create_caso(
+                    session, ts, motivo_auditoria="Alta", correlation_id=f"page-{index}",
+                    responsable=f"Persona {index}", estado_caso="ABIERTO",
+                )
+        with Session(self.engine) as session:
+            ts = resolve_current_user(session, "ts@example.com")
+            result = search(session, ts, tablas=["casos"], pagina=2, tamano_pagina=2)
+            self.assertEqual(result["total"], 6)
+            self.assertEqual(result["total_paginas"], 3)
+            self.assertEqual(len(result["items"]), 2)
+
     def test_search_skips_tables_without_read_permission(self):
         with Session(self.engine) as session:
             consulta = resolve_current_user(session, "consulta@example.com")

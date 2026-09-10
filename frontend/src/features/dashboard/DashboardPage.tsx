@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../app/AuthContext';
+import { canAccess } from '../../api/auth';
 import { obtenerDashboard, type DatosDashboard } from '../../api/dashboard';
 import { HttpError } from '../../api/client';
 import { formatDate, humanizeCode } from '../../utils/dates';
@@ -31,6 +32,10 @@ export function DashboardPage() {
   }, []);
 
   const tarjetasVisibles = datos ? TARJETAS.filter((tarjeta) => datos[tarjeta.clave] !== undefined) : [];
+  const canReadCases = canAccess(usuario, 'CASOS', 'read');
+  const canCreateCases = canReadCases
+    && canAccess(usuario, 'CASOS', 'create')
+    && canAccess(usuario, 'RESPUESTAS', 'create');
 
   const bloques = datos ? [
     { title: 'Pendientes', subtitle: 'Casos que requieren gestión', items: datos.pendingCases ?? [], danger: false },
@@ -45,7 +50,9 @@ export function DashboardPage() {
           <p className="eyebrow">Resumen operativo</p>
           <h2>Hola, {usuario?.nombre}. Esto requiere atención.</h2>
         </div>
-        <Link className="button-link" to="/casos">+ Nuevo caso</Link>
+        {canCreateCases
+          ? <Link className="button-link" to="/casos" state={{ newRecord: true }}>+ Nuevo caso</Link>
+          : canReadCases ? <Link className="button-link secondary-link" to="/casos">Ver casos</Link> : null}
       </div>
       <p className="footnote">Rol: {usuario?.rol_nombre} · Indicadores según sus permisos, sin detalle sensible.</p>
 

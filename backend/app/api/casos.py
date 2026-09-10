@@ -1,17 +1,17 @@
 """Router de Casos y sus hijos. Espejo de app/services/casos.py."""
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
-from app.core.permissions import AuthenticatedUser, authorize
+from app.core.permissions import AuthenticatedUser, authorize, can
 from app.models import Caso
 from app.services.casos import (
     CAMPOS_CASO, CAMPOS_CIERRE, CAMPOS_COMPROMISO, CAMPOS_DERIVACION, CAMPOS_SEGUIMIENTO,
     add_compromiso, add_derivacion, add_seguimiento, close_caso, create_caso, is_sensitive_caso,
     list_compromisos as get_compromisos, list_seguimientos as get_seguimientos,
-    soft_delete_caso, update_caso,
+    sensitive_case_values, soft_delete_caso, update_caso,
 )
 from app.services.records import get_active, get_history
 from app.services.response_contexts import dynamic_context_ids
@@ -19,13 +19,13 @@ from app.services.response_contexts import dynamic_context_ids
 router = APIRouter(prefix="/api/v1/casos", tags=["Casos"])
 
 
-def _serialize_caso(session: Session, record: Caso) -> dict:
+def _serialize_caso(session: Session, record: Caso, *, sensitive_values: set[str] | None = None) -> dict:
     return {
         "id_caso": record.id_caso,
         "codigo_caso": record.codigo_caso,
         **{campo: getattr(record, campo) for campo in CAMPOS_CASO},
         "version": record.version, "activo": record.activo, "eliminado": record.eliminado,
-        "sensible": is_sensitive_caso(session, record.nivel_sensibilidad),
+        "sensible": is_sensitive_caso(session, record.nivel_sensibilidad, sensitive_values=sensitive_values),
     }
 
 
@@ -37,15 +37,24 @@ def _serialize_hijo(record, campos: tuple[str, ...], id_field: str) -> dict:
 @router.get("")
 def listar(
     db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user),
-    incluir_eliminados: bool = False, limite: int = Query(50, le=200), offset: int = Query(0, ge=0),
+    incluir_eliminados: bool = False, limite: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),
 ):
     authorize(user, "CASOS", "read")
+    if incluir_eliminados:
+        authorize(user, "CASOS", "delete")
     stmt = select(Caso)
     if not incluir_eliminados:
         stmt = stmt.where(
             Caso.eliminado.is_(False), Caso.id_caso.not_in(dynamic_context_ids("CASOS")),
         )
-    return [_serialize_caso(db, r) for r in db.scalars(stmt.offset(offset).limit(limite)).all()]
+    sensitive_values = sensitive_case_values(db)
+    if sensitive_values and not can(user, "CASOS", "sensitive"):
+        normalized_level = func.upper(func.trim(Caso.nivel_sensibilidad))
+        stmt = stmt.where(or_(Caso.nivel_sensibilidad.is_(None), normalized_level.not_in(sensitive_values)))
+    return [
+        _serialize_caso(db, record, sensitive_values=sensitive_values)
+        for record in db.scalars(stmt.offset(offset).limit(limite)).all()
+    ]
 
 
 @router.post("", status_code=201)

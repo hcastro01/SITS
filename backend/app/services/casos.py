@@ -59,7 +59,26 @@ def _generar_codigo_caso() -> str:
     return f"CAS-{year}-{uuid4().hex[:10].upper()}"
 
 
-def is_sensitive_caso(session: Session, nivel_sensibilidad: str | None) -> bool:
+def sensitive_case_values(session: Session) -> set[str]:
+    """Carga una sola vez los códigos/valores marcados como sensibles."""
+    rows = session.scalars(
+        select(Catalogo).where(
+            Catalogo.tipo == "NIVEL_SENSIBILIDAD",
+            Catalogo.es_sensible.is_(True),
+            Catalogo.eliminado.is_(False),
+        )
+    )
+    return {
+        str(value).strip().upper()
+        for row in rows
+        for value in (row.codigo, row.valor)
+        if value and str(value).strip()
+    }
+
+
+def is_sensitive_caso(
+    session: Session, nivel_sensibilidad: str | None, *, sensitive_values: set[str] | None = None,
+) -> bool:
     """Equivalente a TSAuth.isSensitiveCase (AuthService.gs:60-71).
 
     Devuelve False mientras NIVEL_SENSIBILIDAD no tenga valores sembrados (hallazgo H2):
@@ -69,11 +88,8 @@ def is_sensitive_caso(session: Session, nivel_sensibilidad: str | None) -> bool:
     if not nivel_sensibilidad:
         return False
     normalizado = nivel_sensibilidad.strip().upper()
-    stmt = select(Catalogo).where(Catalogo.tipo == "NIVEL_SENSIBILIDAD", Catalogo.eliminado.is_(False))
-    for fila in session.scalars(stmt):
-        if normalizado in {(fila.codigo or "").strip().upper(), (fila.valor or "").strip().upper()}:
-            return fila.es_sensible
-    return False
+    values = sensitive_values if sensitive_values is not None else sensitive_case_values(session)
+    return normalizado in values
 
 
 def _snapshot(record, campos) -> dict:

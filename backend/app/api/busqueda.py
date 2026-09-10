@@ -16,7 +16,8 @@ router = APIRouter(prefix="/api/v1", tags=["Búsqueda"])
 @router.get("/busqueda")
 def buscar(
     db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user),
-    q: str = "", tablas: str | None = None, pagina: int = Query(1, ge=1), tamano_pagina: int = Query(20, le=100),
+    q: str = "", tablas: str | None = None, pagina: int = Query(1, ge=1),
+    tamano_pagina: int = Query(20, ge=1, le=100),
 ):
     lista_tablas = tablas.split(",") if tablas else None
     return search(db, user, tablas=lista_tablas, q=q, pagina=pagina, tamano_pagina=tamano_pagina)

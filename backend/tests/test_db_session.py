@@ -63,6 +63,47 @@ class SQLiteJournalModeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "debe ser 'wal' o 'delete'"):
             build_engine("sqlite:///:memory:", "truncate")
 
+    def production_settings(self, **overrides):
+        values = {
+            "environment": "production",
+            "auth_mode": "password",
+            "cookie_secure": True,
+            "cookie_samesite": "none",
+            "database_url": "sqlite:////var/lib/sits/trabajo_social.db",
+            "cors_origins": ["https://sits.example.com"],
+            "trusted_hosts": ["api.sits.example.com"],
+        }
+        values.update(overrides)
+        return Settings(_env_file=None, **values)
+
+    def test_production_accepts_an_absolute_persistent_sqlite_path(self):
+        settings = self.production_settings()
+
+        self.assertEqual(settings.environment, "production")
+        self.assertEqual(settings.database_url, "sqlite:////var/lib/sits/trabajo_social.db")
+
+    def test_production_rejects_relative_or_in_memory_sqlite(self):
+        for database_url in ("sqlite:///./data/sits.db", "sqlite:///:memory:"):
+            with self.subTest(database_url=database_url), self.assertRaisesRegex(
+                ValidationError, "SQLite absoluto y persistente"
+            ):
+                self.production_settings(database_url=database_url)
+
+    def test_production_rejects_insecure_origins_and_hosts(self):
+        with self.assertRaisesRegex(ValidationError, "orígenes HTTPS exactos"):
+            self.production_settings(cors_origins=["http://sits.example.com"])
+        with self.assertRaisesRegex(ValidationError, "orígenes HTTPS exactos"):
+            self.production_settings(cors_origins=["https://sits.example.com/login"])
+        with self.assertRaisesRegex(ValidationError, "hosts públicos exactos"):
+            self.production_settings(trusted_hosts=["*"])
+        with self.assertRaisesRegex(ValidationError, "hosts públicos exactos"):
+            self.production_settings(trusted_hosts=["https://api.sits.example.com"])
+
+    def test_session_ttl_is_bounded(self):
+        for hours in (0, 169):
+            with self.subTest(hours=hours), self.assertRaises(ValidationError):
+                Settings(_env_file=None, session_ttl_hours=hours)
+
 
 if __name__ == "__main__":
     unittest.main()

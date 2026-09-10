@@ -1,7 +1,7 @@
 """Router de Documentos: carga/descarga de adjuntos guardados como BLOB comprimido
 en SQLite (decisión explícita del usuario, ver app/services/documentos.py)."""
 
-from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from fastapi.responses import Response
 from urllib.parse import quote
 from sqlalchemy.orm import Session
@@ -9,7 +9,9 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_db
 from app.core.permissions import AuthenticatedUser
 from app.models import Documento
-from app.services.documentos import download_documento, list_documentos, soft_delete_documento, upload_documento
+from app.services.documentos import (
+    MAX_FILE_BYTES, download_documento, list_documentos, soft_delete_documento, upload_documento,
+)
 
 router = APIRouter(prefix="/api/v1/documentos", tags=["Documentos"])
 
@@ -36,16 +38,18 @@ def listar(
 
 @router.post("", status_code=201)
 async def cargar(
+    request: Request,
     tipo_registro: str = Form(...), id_registro: str = Form(...),
-    categoria_documento: str | None = Form(None), correlation_id: str = Form(""),
+    categoria_documento: str | None = Form(None),
     archivo: UploadFile = File(...),
     db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user),
 ):
-    contenido = await archivo.read()
+    contenido = await archivo.read(MAX_FILE_BYTES + 1)
     registro = upload_documento(
         db, user, tipo_registro=tipo_registro, id_registro=id_registro,
         nombre_archivo=archivo.filename or "archivo", mime_type=archivo.content_type or "",
-        contenido=contenido, categoria_documento=categoria_documento, correlation_id=correlation_id,
+        contenido=contenido, categoria_documento=categoria_documento,
+        correlation_id=getattr(request.state, "correlation_id", ""),
     )
     return _serialize(registro)
 

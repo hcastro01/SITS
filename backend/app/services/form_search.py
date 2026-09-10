@@ -1,13 +1,13 @@
 """Fuentes allowlist para preguntas de búsqueda/autocompletado."""
 
-import unicodedata
-
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
-from app.core.permissions import AuthenticatedUser, authorize
+from app.core.permissions import AuthenticatedUser, authorize, can
 from app.models import Atencion, Caso, Catalogo, Persona
+from app.services.casos import sensitive_case_values
+from app.services.text_search import matches
 
 SOURCES = {
     "PERSONAS": {"label": "Personas", "module": "PERSONAS", "search_fields": ["Código", "Cédula", "Nombre"],
@@ -25,35 +25,6 @@ SOURCES = {
     "CATALOGOS": {"label": "Catálogos", "module": "CATALOGOS", "search_fields": ["Código", "Valor"],
                    "mapping_fields": ["codigo", "valor", "descripcion"]},
 }
-
-_ACCENT_REPLACEMENTS = (
-    ("Á", "A"), ("À", "A"), ("Ä", "A"), ("Â", "A"), ("á", "a"), ("à", "a"), ("ä", "a"), ("â", "a"),
-    ("É", "E"), ("È", "E"), ("Ë", "E"), ("Ê", "E"), ("é", "e"), ("è", "e"), ("ë", "e"), ("ê", "e"),
-    ("Í", "I"), ("Ì", "I"), ("Ï", "I"), ("Î", "I"), ("í", "i"), ("ì", "i"), ("ï", "i"), ("î", "i"),
-    ("Ó", "O"), ("Ò", "O"), ("Ö", "O"), ("Ô", "O"), ("ó", "o"), ("ò", "o"), ("ö", "o"), ("ô", "o"),
-    ("Ú", "U"), ("Ù", "U"), ("Ü", "U"), ("Û", "U"), ("ú", "u"), ("ù", "u"), ("ü", "u"), ("û", "u"),
-    ("Ñ", "N"), ("ñ", "n"),
-)
-
-
-def _normalize_term(value: str) -> str:
-    return "".join(
-        character for character in unicodedata.normalize("NFKD", value.strip().casefold())
-        if not unicodedata.combining(character)
-    )
-
-
-def _normalized_column(column):
-    expression = func.coalesce(column, "")
-    for source, replacement in _ACCENT_REPLACEMENTS:
-        expression = func.replace(expression, source, replacement)
-    return func.lower(expression)
-
-
-def _matches(term: str, *columns):
-    normalized = _normalize_term(term).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-    pattern = f"%{normalized}%"
-    return or_(*(_normalized_column(column).like(pattern, escape="\\") for column in columns))
 
 
 def list_sources(user: AuthenticatedUser) -> list[dict]:
@@ -85,7 +56,7 @@ def search_options(session: Session, user: AuthenticatedUser, source: str, query
         if exact_id:
             conditions.append(Persona.id_persona == exact_id)
         elif term:
-            conditions.append(_matches(term, Persona.codigo_empleado, Persona.cedula, Persona.nombre))
+            conditions.append(matches(term, Persona.codigo_empleado, Persona.cedula, Persona.nombre))
         rows = session.scalars(select(Persona).where(*conditions).order_by(Persona.nombre).limit(capped)).all()
         return [{"id": r.id_persona,
                  "label": r.nombre if code == "RESPONSABLES" else " — ".join(v for v in (r.cedula, r.nombre) if v),
@@ -100,17 +71,22 @@ def search_options(session: Session, user: AuthenticatedUser, source: str, query
         if exact_id:
             conditions.append(field == exact_id)
         elif term:
-            conditions.append(_matches(term, field))
+            conditions.append(matches(term, field))
         values = session.scalars(
             select(field).where(*conditions).distinct().order_by(field).limit(capped)
         ).all()
         return [{"id": value, "label": value, "data": {field_name: value}} for value in values]
     if code == "CASOS":
         conditions = [Caso.eliminado.is_(False), Caso.activo.is_(True)]
+        if not can(user, "CASOS", "sensitive"):
+            sensitive_values = sensitive_case_values(session)
+            if sensitive_values:
+                normalized_level = func.upper(func.trim(Caso.nivel_sensibilidad))
+                conditions.append(or_(Caso.nivel_sensibilidad.is_(None), normalized_level.not_in(sensitive_values)))
         if exact_id:
             conditions.append(Caso.id_caso == exact_id)
         elif term:
-            conditions.append(_matches(term, Caso.codigo_caso, Caso.colaborador))
+            conditions.append(matches(term, Caso.codigo_caso, Caso.colaborador))
         rows = session.scalars(select(Caso).where(
             *conditions,
         ).order_by(Caso.codigo_caso.desc()).limit(capped)).all()
@@ -121,7 +97,7 @@ def search_options(session: Session, user: AuthenticatedUser, source: str, query
         if exact_id:
             conditions.append(Atencion.id_atencion == exact_id)
         elif term:
-            conditions.append(_matches(term, Atencion.colaborador, Atencion.motivo))
+            conditions.append(matches(term, Atencion.colaborador, Atencion.motivo))
         rows = session.scalars(select(Atencion).where(
             *conditions,
         ).order_by(Atencion.fecha.desc()).limit(capped)).all()
@@ -131,7 +107,7 @@ def search_options(session: Session, user: AuthenticatedUser, source: str, query
     if exact_id:
         conditions.append(Catalogo.id_catalogo == exact_id)
     elif term:
-        conditions.append(_matches(term, Catalogo.codigo, Catalogo.valor))
+        conditions.append(matches(term, Catalogo.codigo, Catalogo.valor))
     stmt = select(Catalogo).where(*conditions)
     if catalog_type:
         stmt = stmt.where(Catalogo.tipo == catalog_type.strip().upper())

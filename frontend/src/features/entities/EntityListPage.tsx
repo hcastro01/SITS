@@ -7,15 +7,20 @@ import type { EntityPageConfig } from './EntityConfig';
 import { useFeedback } from '../../components/FeedbackProvider';
 import { ModuleFormRecordsPanel } from '../formularios/ModuleFormRecordsPanel';
 import { ModuleFormSelector } from '../formularios/ModuleFormSelector';
+import { useAuth } from '../../app/AuthContext';
+import { canAccess } from '../../api/auth';
 
 export function EntityListPage({ config }: { config: EntityPageConfig }) {
   const { notify } = useFeedback();
+  const { usuario } = useAuth();
   const [registros, setRegistros] = useState<EntityRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
   const [modalAbierto, setModalAbierto] = useState(false);
   const [selectorAbierto, setSelectorAbierto] = useState(false);
   const isPeople = config.tipoRegistro === 'PERSONAS';
+  const canCreateBase = canAccess(usuario, config.tipoRegistro, 'create');
+  const canCreateFromForm = canCreateBase && canAccess(usuario, 'RESPUESTAS', 'create');
 
   useEffect(() => {
     let activo = true;
@@ -35,8 +40,8 @@ export function EntityListPage({ config }: { config: EntityPageConfig }) {
       <div className="panel-header">
         <h2>{config.titulo}</h2>
         <div className="panel-header-actions">
-          {isPeople && <button type="button" className="secondary" onClick={() => setModalAbierto(true)}>Nueva persona</button>}
-          <button type="button" className="button-link as-button" onClick={() => setSelectorAbierto(true)}>Nuevo registro</button>
+          {isPeople && canCreateBase && <button type="button" className="secondary" onClick={() => setModalAbierto(true)}>Nueva persona</button>}
+          {canCreateFromForm && <button type="button" className="button-link as-button" onClick={() => setSelectorAbierto(true)}>Nuevo registro</button>}
         </div>
       </div>
       {error && <p className="form-error" role="alert">{error}</p>}

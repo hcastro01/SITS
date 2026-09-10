@@ -6,6 +6,8 @@ import {
 import { Modal } from '../../components/Modal';
 import { useFeedback } from '../../components/FeedbackProvider';
 import { formatDateTime } from '../../utils/dates';
+import { useAuth } from '../../app/AuthContext';
+import { canAccess } from '../../api/auth';
 
 const CATEGORIAS = [
   { valor: '', etiqueta: 'Sin categoría' },
@@ -23,6 +25,11 @@ function formatoTamano(bytes: number): string {
 
 export function DocumentosPanel({ tipoRegistro, idRegistro }: { tipoRegistro: string; idRegistro: string }) {
   const { notify, confirm } = useFeedback();
+  const { usuario } = useAuth();
+  const parentModule = tipoRegistro === 'RESPUESTAS_FORMULARIO' ? 'RESPUESTAS'
+    : tipoRegistro === 'HALLAZGOS_RECORRIDO' ? 'RECORRIDOS' : tipoRegistro;
+  const canUpload = canAccess(usuario, parentModule, 'edit') && canAccess(usuario, 'DOCUMENTOS', 'create');
+  const canDelete = canAccess(usuario, parentModule, 'edit') && canAccess(usuario, 'DOCUMENTOS', 'delete');
   const [documentos, setDocumentos] = useState<Documento[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -96,7 +103,7 @@ export function DocumentosPanel({ tipoRegistro, idRegistro }: { tipoRegistro: st
       <h2>Documentos</h2>
       {error && <p className="form-error" role="alert">{error}</p>}
 
-      <form onSubmit={handleSubir} className="upload-form">
+      {canUpload && <form onSubmit={handleSubir} className="upload-form">
         <label htmlFor="documento-archivo">Archivo (JPG, PNG, PDF, DOC, DOCX, XLS, XLSX — máx. 10&nbsp;MB)</label>
         <input id="documento-archivo" ref={inputArchivoRef} type="file" required
                accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx" />
@@ -107,7 +114,7 @@ export function DocumentosPanel({ tipoRegistro, idRegistro }: { tipoRegistro: st
           ))}
         </select>
         <button type="submit" disabled={subiendo}>{subiendo ? 'Subiendo…' : 'Subir documento'}</button>
-      </form>
+      </form>}
 
       {cargando ? (
         <p className="footnote">Cargando documentos…</p>
@@ -129,7 +136,7 @@ export function DocumentosPanel({ tipoRegistro, idRegistro }: { tipoRegistro: st
                   <a className="button-link" href={urlDescargaDocumento(documento.id_archivo)} download={documento.nombre_archivo}>
                     Descargar
                   </a>
-                  <button type="button" className="danger" onClick={() => setDocumentoEliminar(documento)}>Eliminar</button>
+                  {canDelete && <button type="button" className="danger" onClick={() => setDocumentoEliminar(documento)}>Eliminar</button>}
                 </td>
               </tr>
             ))}

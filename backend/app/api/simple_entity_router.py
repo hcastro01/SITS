@@ -22,9 +22,11 @@ def build_router(entidad: EntityService, prefix: str, tag: str) -> APIRouter:
     @router.get("")
     def listar(
         db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user),
-        incluir_eliminados: bool = False, limite: int = Query(50, le=200), offset: int = Query(0, ge=0),
+        incluir_eliminados: bool = False, limite: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),
     ):
         authorize(user, entidad.modulo, "read")
+        if incluir_eliminados:
+            authorize(user, entidad.modulo, "delete")
         stmt = select(entidad.model)
         if not incluir_eliminados:
             stmt = stmt.where(entidad.model.eliminado.is_(False))

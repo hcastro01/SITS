@@ -20,3 +20,6 @@ autenticación por contraseña y la cookie segura.
 
 La guía completa para Vercel, PythonAnywhere, variables, migraciones, respaldo,
 verificación y rollback está en [PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md).
+La configuración aprobada usa un archivo SQLite persistente en una sola instancia de
+backend; los comandos `app.cli.backup_sqlite` y `app.cli.production_check` automatizan
+el respaldo consistente y la validación previa a publicar.

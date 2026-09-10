@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { get, HttpError, post } from './client';
+import { get, HttpError, post, SESSION_EXPIRED_EVENT } from './client';
 
 function mockFetchOnce(status: number, body: unknown, ok = status >= 200 && status < 300) {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
@@ -44,5 +44,14 @@ describe('cliente HTTP', () => {
       expect(error).toBeInstanceOf(HttpError);
       expect((error as HttpError).status).toBe(500);
     }
+  });
+
+  it('notifica al contexto de autenticación cuando la sesión expiró', async () => {
+    mockFetchOnce(401, { ok: false, code: 'SESSION_REQUIRED', message: 'Sesión expirada.', correlationId: 'c1' });
+    const listener = vi.fn();
+    window.addEventListener(SESSION_EXPIRED_EVENT, listener);
+    await expect(get('/privado')).rejects.toBeInstanceOf(HttpError);
+    expect(listener).toHaveBeenCalledOnce();
+    window.removeEventListener(SESSION_EXPIRED_EVENT, listener);
   });
 });

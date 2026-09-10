@@ -13,7 +13,7 @@ Base Sistema/SearchService.gs, con dos correcciones deliberadas frente al legacy
 
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import false, func, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
@@ -22,7 +22,8 @@ from app.models import (
     Atencion, Caso, Cierre, Compromiso, Derivacion, HallazgoRecorrido, Novedad, Persona,
     Recorrido, Seguimiento,
 )
-from app.services.sensitivity import is_sensitive_record
+from app.services.casos import is_sensitive_caso, sensitive_case_values
+from app.services.text_search import matches
 
 PROVENANCE_FIELDS = frozenset(
     {"archivo_fuente", "hoja_fuente", "registro_fuente", "fecha_importacion", "usuario_importacion"}
@@ -119,6 +120,41 @@ def _project(registro, model: type, campos_publicos: tuple[str, ...], *, full: b
     return {campo: getattr(registro, campo) for campo in campos_publicos}
 
 
+def _search_conditions(
+    config: SearchableTable, *, q: str, filtros: dict, include_deleted: bool,
+) -> list:
+    model = config.model
+    conditions = []
+    if not include_deleted:
+        conditions.append(model.eliminado.is_(False))
+    if q:
+        conditions.append(matches(q, *(getattr(model, field) for field in config.campos_texto)))
+    for field in ("responsable", "area"):
+        value = filtros.get(field)
+        if not value:
+            continue
+        column = getattr(model, field, None)
+        conditions.append(column == value if column is not None else false())
+    return conditions
+
+
+def _sensitive_case_ids(
+    session: Session, candidates: list[tuple[SearchableTable, object]], values: set[str],
+) -> set[str]:
+    ids = {
+        str(id_caso) for _config, record in candidates
+        if not isinstance(record, Caso) and (id_caso := getattr(record, "id_caso", None))
+    }
+    if not ids:
+        return set()
+    return {
+        id_caso for id_caso, level in session.execute(
+            select(Caso.id_caso, Caso.nivel_sensibilidad).where(Caso.id_caso.in_(ids))
+        )
+        if is_sensitive_caso(session, level, sensitive_values=values)
+    }
+
+
 def search(
     session: Session, user: AuthenticatedUser, *,
     tablas: list[str] | None = None, q: str = "", filtros: dict | None = None,
@@ -132,8 +168,10 @@ def search(
     if desconocidas:
         raise AppError("INVALID_ENTITY", f"Tablas no reconocidas: {', '.join(sorted(desconocidas))}.", 400)
 
-    q_normalizado = q.strip().lower()
-    items = []
+    q_normalizado = q.strip()
+    candidate_limit = MAX_EXPORT_ROWS if modo_exportacion else max(1, pagina) * max(1, tamano_pagina)
+    candidates: list[tuple[SearchableTable, object]] = []
+    total = 0
     for tabla in tablas:
         config = REGISTRY[tabla]
         if not can(user, config.modulo, "read"):
@@ -141,38 +179,47 @@ def search(
         puede_ver_eliminados = incluir_eliminados and (
             can(user, "ADMINISTRACION", "read") or can(user, config.modulo, "delete")
         )
-        stmt = select(config.model)
-        if not puede_ver_eliminados:
-            stmt = stmt.where(config.model.eliminado.is_(False))
-        for registro in session.scalars(stmt).all():
-            if q_normalizado:
-                valores = " ".join(str(getattr(registro, campo) or "") for campo in config.campos_texto).lower()
-                if q_normalizado not in valores:
-                    continue
-            if filtros.get("responsable") and getattr(registro, "responsable", None) != filtros["responsable"]:
-                continue
-            if filtros.get("area") and getattr(registro, "area", None) != filtros["area"]:
-                continue
-            sensible = is_sensitive_record(session, registro)
-            puede_ver = _puede_ver_sensible(user, config.modulo, sensible)
-            items.append({
-                "tabla": tabla,
-                "id": getattr(registro, config.id_field),
-                "fecha": getattr(registro, config.campo_fecha) if config.campo_fecha else None,
-                "sensible": sensible,
-                "restringido": sensible and not puede_ver,
-                "registro": _project(registro, config.model, config.campos_publicos, full=puede_ver),
-                "acciones": {
-                    "ver": can(user, config.modulo, "read") and puede_ver,
-                    "editar": can(user, config.modulo, "edit") and puede_ver,
-                    "eliminar": can(user, config.modulo, "delete") and puede_ver,
-                    "historial": can(user, config.modulo, "read") and puede_ver,
-                },
-            })
+        conditions = _search_conditions(
+            config, q=q_normalizado, filtros=filtros, include_deleted=puede_ver_eliminados,
+        )
+        total += session.scalar(
+            select(func.count()).select_from(config.model).where(*conditions)
+        ) or 0
+        id_column = getattr(config.model, config.id_field)
+        stmt = select(config.model).where(*conditions)
+        if config.campo_fecha:
+            stmt = stmt.order_by(getattr(config.model, config.campo_fecha).desc(), id_column)
+        else:
+            stmt = stmt.order_by(id_column)
+        candidates.extend((config, record) for record in session.scalars(stmt.limit(candidate_limit)).all())
+
+    sensitive_values = sensitive_case_values(session)
+    sensitive_children = _sensitive_case_ids(session, candidates, sensitive_values)
+    items = []
+    for config, registro in candidates:
+        if isinstance(registro, Caso):
+            sensible = is_sensitive_caso(
+                session, registro.nivel_sensibilidad, sensitive_values=sensitive_values,
+            )
+        else:
+            sensible = getattr(registro, "id_caso", None) in sensitive_children
+        puede_ver = _puede_ver_sensible(user, config.modulo, sensible)
+        items.append({
+            "tabla": config.tabla,
+            "id": getattr(registro, config.id_field),
+            "fecha": getattr(registro, config.campo_fecha) if config.campo_fecha else None,
+            "sensible": sensible,
+            "restringido": sensible and not puede_ver,
+            "registro": _project(registro, config.model, config.campos_publicos, full=puede_ver),
+            "acciones": {
+                "ver": can(user, config.modulo, "read") and puede_ver,
+                "editar": can(user, config.modulo, "edit") and puede_ver,
+                "eliminar": can(user, config.modulo, "delete") and puede_ver,
+                "historial": can(user, config.modulo, "read") and puede_ver,
+            },
+        })
 
     items.sort(key=lambda item: item["fecha"] or "", reverse=True)
-    total = len(items)
-
     if modo_exportacion:
         exportados = items[:MAX_EXPORT_ROWS]
         return {"items": exportados, "total": total, "truncado": total > MAX_EXPORT_ROWS}

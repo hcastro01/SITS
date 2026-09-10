@@ -1,19 +1,24 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { SongaBrand } from '../components/SongaBrand';
+import { useFeedback } from '../components/FeedbackProvider';
+import { canAccess } from '../api/auth';
 import { useAuth } from './AuthContext';
 
 const gestion = [
-  ['/', 'Inicio', '⌂'], ['/casos', 'Casos', '◇'], ['/atenciones', 'Atenciones', '+'],
-  ['/novedades', 'Novedades', '!'], ['/recorridos', 'Recorridos', '↗'],
-  ['/personas', 'Personas', '♙'], ['/formularios', 'Formularios', '▤'], ['/busqueda', 'Búsqueda', '⌕'],
+  ['/', 'Inicio', '⌂', 'DASHBOARD'], ['/casos', 'Casos', '◇', 'CASOS'], ['/atenciones', 'Atenciones', '+', 'ATENCIONES'],
+  ['/novedades', 'Novedades', '!', 'NOVEDADES'], ['/recorridos', 'Recorridos', '↗', 'RECORRIDOS'],
+  ['/personas', 'Personas', '♙', 'PERSONAS'], ['/formularios', 'Formularios', '▤', 'FORMULARIOS'],
+  ['/busqueda', 'Búsqueda', '⌕', 'BUSQUEDA'],
 ] as const;
 
 export function Layout() {
   const { usuario, logout } = useAuth();
+  const { notify } = useFeedback();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
@@ -25,17 +30,30 @@ export function Layout() {
     );
   }
 
+  async function handleLogout() {
+    setLoggingOut(true);
+    try {
+      await logout();
+    } catch {
+      notify('No fue posible cerrar la sesión. Intente nuevamente.', 'error');
+    } finally {
+      setLoggingOut(false);
+    }
+  }
+
   return (
     <div className={`page app-shell${collapsed ? ' sidebar-collapsed' : ''}${mobileOpen ? ' mobile-nav-open' : ''}`}>
       <header className="topbar">
-        <button type="button" className="mobile-menu-button" aria-label="Abrir menú" aria-expanded={mobileOpen}
+        <button type="button" className="mobile-menu-button" aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'} aria-expanded={mobileOpen}
                 aria-controls="sidebar-navigation" onClick={() => setMobileOpen((open) => !open)}>☰</button>
         <Link to="/" className="brand">
           <SongaBrand compact />
         </Link>
         <div className="header-user">
           <span><strong>{usuario?.nombre}</strong><small>{usuario?.rol_nombre}</small></span>
-          <button className="logout-button" onClick={() => logout()} title="Cerrar sesión">Salir</button>
+          <button className="logout-button" onClick={() => void handleLogout()} disabled={loggingOut} title="Cerrar sesión">
+            {loggingOut ? 'Saliendo…' : 'Salir'}
+          </button>
         </div>
       </header>
       <button className="sidebar-backdrop" type="button" aria-label="Cerrar menú" onClick={() => setMobileOpen(false)} />
@@ -46,8 +64,8 @@ export function Layout() {
         </button>
         <nav>
           <p className="nav-group-title">Gestión</p>
-          {gestion.map(navItem)}
-          {usuario?.rol_id === 'ROLE_ADMIN' && (
+          {gestion.filter(([, , , module]) => canAccess(usuario, module, 'read')).map(([to, label, icon]) => navItem([to, label, icon]))}
+          {canAccess(usuario, 'ADMINISTRACION', 'read') && (
             <>
               <p className="nav-group-title">Administración</p>
               {navItem(['/admin/usuarios', 'Usuarios', '♙'])}

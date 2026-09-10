@@ -1,4 +1,5 @@
 const baseUrl = (import.meta.env.VITE_API_URL || '/api/v1').replace(/\/$/, '');
+export const SESSION_EXPIRED_EVENT = 'sits:session-expired';
 
 export interface ApiErrorBody {
   ok: false;
@@ -21,6 +22,10 @@ export class HttpError extends Error {
   }
 }
 
+function notifySessionExpired(status: number): void {
+  if (status === 401) window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${baseUrl}${path}`, {
     ...options,
@@ -28,6 +33,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers: { 'Content-Type': 'application/json', ...options.headers },
   });
   if (!response.ok) {
+    notifySessionExpired(response.status);
     let body: ApiErrorBody;
     try {
       body = await response.json();
@@ -60,6 +66,7 @@ export function put<T>(path: string, body?: unknown): Promise<T> {
 export async function postForm<T>(path: string, formData: FormData): Promise<T> {
   const response = await fetch(`${baseUrl}${path}`, { method: 'POST', credentials: 'include', body: formData });
   if (!response.ok) {
+    notifySessionExpired(response.status);
     let body: ApiErrorBody;
     try {
       body = await response.json();
@@ -85,6 +92,7 @@ export async function postForBlob(path: string, body?: unknown): Promise<Blob> {
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   if (!response.ok) {
+    notifySessionExpired(response.status);
     let apiError: ApiErrorBody;
     try {
       apiError = await response.json();

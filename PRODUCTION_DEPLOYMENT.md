@@ -23,6 +23,8 @@ plazo, use dominios propios del mismo sitio, por ejemplo `app.institucion.gob.ec
 3. En producción cree las credenciales únicamente en el panel del proveedor o en
    un `.env` con permisos restringidos.
 4. Antes de toda migración, descargue o copie un respaldo verificable de SQLite.
+5. No aloje SQLite en almacenamiento efímero ni conecte el mismo archivo desde
+   servidores distintos. Esta arquitectura usa una sola instancia de backend.
 
 ## 3. Backend en PythonAnywhere
 
@@ -39,6 +41,7 @@ source ~/.virtualenvs/sits/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 mkdir -p data backups
+chmod 700 data backups
 ```
 
 ### 3.2 Variables de entorno
@@ -56,8 +59,19 @@ AUTH_MODE=password
 COOKIE_SECURE=true
 COOKIE_SAMESITE=none
 SESSION_TTL_HOURS=12
+LOGIN_MAX_ATTEMPTS=5
+LOGIN_WINDOW_SECONDS=300
 LOG_LEVEL=INFO
 ```
+
+Puede partir de `backend/.env.production.example`, sustituyendo todos los marcadores.
+La ruta SQLite debe ser absoluta: así se evita crear por error otra base vacía cuando
+cambia el directorio de trabajo. `SQLITE_JOURNAL_MODE=wal` mejora la concurrencia entre
+lecturas y escrituras dentro del mismo servidor.
+
+`LOGIN_MAX_ATTEMPTS` limita los fallos consecutivos por cuenta durante la ventana
+indicada. Mantenga además un límite por IP en el proxy público; la configuración
+Docker incluida ya lo aplica en NGINX.
 
 Restrinja el archivo:
 
@@ -76,7 +90,7 @@ consistente:
 ```bash
 cd ~/SITS/backend
 source ~/.virtualenvs/sits/bin/activate
-python -m sqlite3 data/trabajo_social.db ".backup 'backups/trabajo_social-predeploy-$(date +%Y%m%d-%H%M%S).db'"
+python -m app.cli.backup_sqlite --output-dir backups
 python -m alembic current
 python -m app.cli.initialize
 python -m alembic current
@@ -98,6 +112,18 @@ Para asignar o rotar la contraseña de un usuario ya existente:
 ```bash
 python -m app.cli.set_password --correo usuario@institucion.gob.ec
 ```
+
+Cuando exista al menos un administrador activo con contraseña, ejecute el chequeo
+de predespliegue. Es de solo lectura y termina con código distinto de cero si encuentra
+una configuración insegura, migraciones pendientes, corrupción, claves foráneas rotas o
+ausencia de un administrador utilizable:
+
+```bash
+python -m app.cli.production_check
+```
+
+Los usuarios activos que aún no tengan contraseña aparecen como aviso; así se pueden
+regularizar con `set_password` antes de abrir el sistema a operación.
 
 ### 3.4 Configurar la aplicación web
 
@@ -145,6 +171,9 @@ Debe responder HTTP 200. `/docs` debe responder 404 en producción.
 VITE_API_URL=https://<usuario>.pythonanywhere.com/api/v1
 ```
 
+Puede copiar `frontend/.env.production.example` como referencia. La URL se integra
+durante el build, por lo que cambiarla requiere un nuevo despliegue del frontend.
+
 8. Despliegue. `frontend/vercel.json` mantiene las rutas de React Router al recargar
    y agrega cabeceras defensivas.
 9. Copie la URL definitiva de Vercel en `CORS_ORIGINS` del backend y recargue la app
@@ -161,8 +190,9 @@ git pull --ff-only
 source ~/.virtualenvs/sits/bin/activate
 python -m pip install -r backend/requirements.txt
 cd backend
-python -m sqlite3 data/trabajo_social.db ".backup 'backups/trabajo_social-preupdate-$(date +%Y%m%d-%H%M%S).db'"
+python -m app.cli.backup_sqlite --output-dir backups
 python -m app.cli.initialize
+python -m app.cli.production_check
 ```
 
 Después pulse **Reload**. Vercel puede desplegar automáticamente la misma revisión
@@ -182,12 +212,19 @@ al recibir el cambio en la rama configurada.
 - Revisar `/api/v1/health/ready`, logs de PythonAnywhere y consola del navegador.
 - Confirmar la fecha local ecuatoriana cerca de medianoche UTC.
 - Descargar un respaldo y abrirlo con `PRAGMA integrity_check;`.
+- Confirmar que el respaldo también existe fuera de la cuenta de alojamiento.
 
 ## 7. Backup y rollback
 
 Conserve respaldos diarios fuera del servidor y aplique retención institucional.
-Antes de copiar la base, detenga escrituras o use el comando `.backup` de SQLite;
-no copie únicamente el archivo principal mientras WAL está activo.
+`app.cli.backup_sqlite` usa la API de respaldo en línea y valida la copia con
+`PRAGMA quick_check`; no copie únicamente el archivo principal mientras WAL está activo.
+
+SQLite es apropiado para esta instalación de una sola instancia y carga moderada. Vigile
+el crecimiento del archivo, la duración de escrituras y los errores `database is locked`.
+Si en el futuro se requieren varias instancias de API, alta concurrencia de escritura o
+alta disponibilidad, planifique una migración no destructiva a un motor cliente-servidor;
+no comparta el archivo SQLite por red.
 
 Si falla el frontend, promueva en Vercel el despliegue anterior. Si falla el backend:
 

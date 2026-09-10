@@ -1,6 +1,9 @@
 """Router de Formularios, Preguntas, Opciones, Reglas y Respuestas."""
 
-from fastapi import APIRouter, Depends, Query
+from typing import Literal
+
+from fastapi import APIRouter, Depends, Query, Request
+from pydantic import BaseModel, ConfigDict, Field, StrictBool
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -24,6 +27,33 @@ from app.services.respuestas_formulario import save_response
 from app.services.response_contexts import response_action_allowed
 
 router = APIRouter(prefix="/api/v1/formularios", tags=["Formularios"])
+
+
+class CambiarEstadoRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    estado: Literal["BORRADOR", "PUBLICADO", "INACTIVO", "ARCHIVADO"]
+    expected_version: int
+
+
+class ResponderFormularioRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    borrador: StrictBool = False
+    respuestas: list[dict] = Field(default_factory=list)
+    id_envio_cliente: str | None = None
+    id_registro_proceso: str | None = None
+    contexto_tipo: str | None = None
+    contexto_id: str | None = None
+    id_respuesta: str | None = None
+    expected_version: int | None = None
+    crear_contexto: StrictBool = False
+    id_persona: str | None = None
+    editar_registrado: StrictBool = False
+    # Backward-compatible input: these server-owned values are accepted but
+    # intentionally never forwarded to save_response.
+    codigo_respuesta: str | None = None
+    numero_secuencial: int | None = None
 
 
 def _with_actions(data: dict, user: AuthenticatedUser) -> dict:
@@ -121,10 +151,11 @@ def listar_respuestas(
 @router.get("")
 def listar(
     db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user),
-    incluir_eliminados: bool = False, limite: int = Query(50, le=200), offset: int = Query(0, ge=0),
+    incluir_eliminados: bool = False, limite: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),
 ):
     authorize(user, FORMULARIOS_MODULE, "read")
     if incluir_eliminados:
+        authorize(user, FORMULARIOS_MODULE, "delete")
         stmt = select(Formulario).offset(offset).limit(limite)
         return [_serialize_formulario(r, user) for r in db.scalars(stmt)]
     return [_with_actions(item, user) for item in list_forms(db)[offset:offset + limite]]
@@ -185,12 +216,13 @@ def actualizar(
 
 @router.patch("/{id_formulario}/estado")
 def cambiar_estado(
-    id_formulario: str, payload: dict, db: Session = Depends(get_db),
+    id_formulario: str, payload: CambiarEstadoRequest, request: Request, db: Session = Depends(get_db),
     user: AuthenticatedUser = Depends(get_current_user),
 ):
     registro = change_status(
-        db, user, id_formulario, payload["estado"],
-        expected_version=payload.get("expected_version"), correlation_id=payload.get("correlation_id", ""),
+        db, user, id_formulario, payload.estado,
+        expected_version=payload.expected_version,
+        correlation_id=getattr(request.state, "correlation_id", ""),
     )
     return _serialize_formulario(registro, user)
 
@@ -263,19 +295,25 @@ def crear_regla(
 
 @router.post("/{id_formulario}/respuestas", status_code=201)
 def responder(
-    id_formulario: str, payload: dict, db: Session = Depends(get_db),
+    id_formulario: str, payload: ResponderFormularioRequest,
+    db: Session = Depends(get_db),
     user: AuthenticatedUser = Depends(get_current_user),
+    request: Request = None,
 ):
+    # Preserve the callable API used by services/tests while FastAPI validates
+    # HTTP payloads against ResponderFormularioRequest.
+    if isinstance(payload, dict):
+        payload = ResponderFormularioRequest.model_validate(payload)
     envio = save_response(
         db, user, id_formulario,
-        draft=bool(payload.get("borrador", False)),
-        respuestas=payload.get("respuestas", []),
-        id_envio_cliente=payload.get("id_envio_cliente"),
-        id_registro_proceso=payload.get("id_registro_proceso"),
-        contexto_tipo=payload.get("contexto_tipo"), contexto_id=payload.get("contexto_id"),
-        id_respuesta=payload.get("id_respuesta"), expected_version=payload.get("expected_version"),
-        crear_contexto=bool(payload.get("crear_contexto", False)), id_persona=payload.get("id_persona"),
-        editar_registrado=bool(payload.get("editar_registrado", False)),
-        correlation_id=payload.get("correlation_id", ""),
+        draft=payload.borrador,
+        respuestas=payload.respuestas,
+        id_envio_cliente=payload.id_envio_cliente,
+        id_registro_proceso=payload.id_registro_proceso,
+        contexto_tipo=payload.contexto_tipo, contexto_id=payload.contexto_id,
+        id_respuesta=payload.id_respuesta, expected_version=payload.expected_version,
+        crear_contexto=payload.crear_contexto, id_persona=payload.id_persona,
+        editar_registrado=payload.editar_registrado,
+        correlation_id=getattr(request.state, "correlation_id", "") if request else "",
     )
     return serialize_response(db, envio, user=user)

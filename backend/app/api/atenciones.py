@@ -26,9 +26,11 @@ def _serialize(record: Atencion) -> dict:
 @router.get("")
 def listar(
     db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user),
-    incluir_eliminados: bool = False, limite: int = Query(50, le=200), offset: int = Query(0, ge=0),
+    incluir_eliminados: bool = False, limite: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),
 ):
     authorize(user, "ATENCIONES", "read")
+    if incluir_eliminados:
+        authorize(user, "ATENCIONES", "delete")
     stmt = select(Atencion)
     if not incluir_eliminados:
         stmt = stmt.where(

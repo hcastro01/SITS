@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { fetchCurrentUser, login as loginRequest, logout as logoutRequest, type UsuarioActual } from '../api/auth';
-import { HttpError } from '../api/client';
+import { HttpError, SESSION_EXPIRED_EVENT } from '../api/client';
 
 interface AuthState {
   usuario: UsuarioActual | null;
@@ -17,6 +17,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let activo = true;
+    const clearExpiredSession = () => { if (activo) setUsuario(null); };
+    window.addEventListener(SESSION_EXPIRED_EVENT, clearExpiredSession);
     fetchCurrentUser()
       .then((perfil) => { if (activo) setUsuario(perfil); })
       .catch((error: unknown) => {
@@ -24,7 +26,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!(error instanceof HttpError && error.status === 401)) console.error(error);
       })
       .finally(() => { if (activo) setCargando(false); });
-    return () => { activo = false; };
+    return () => {
+      activo = false;
+      window.removeEventListener(SESSION_EXPIRED_EVENT, clearExpiredSession);
+    };
   }, []);
 
   async function login(correo: string, password?: string) {
