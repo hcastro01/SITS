@@ -157,3 +157,20 @@ Pendientes reales dentro de Bloque 4A: ninguno. Siguiente bloque previsto: front
 - Pruebas específicas de Ausentismos frontend: 12/12 aprobadas. Suite frontend completa: 54/54 aprobadas en 11 archivos con un worker. `npm run build` y `git diff --check`: aprobados.
 
 Pendientes reales dentro de Bloque 4B: ninguno. Siguiente bloque previsto: Bloque 5 — integración y cierre de Ausentismos; requiere autorización explícita. No se inició Bloque 5.
+
+## Fase 3 — Bloque 5: integración y cierre de Ausentismos
+
+**FASE 3 — AUSENTISMOS COMPLETADA.** Se cerró la integración de los bloques 1 a 4B sin iniciar módulos nuevos ni modificar la matriz global de permisos.
+
+- Bloque 1: análisis y reglas canónicas de importación de Ausentismos.
+- Bloque 2: importación XLSX persistente, lotes, incidencias, confirmación transaccional y historial.
+- Bloque 3: frontend de análisis, confirmación e historial de cargas.
+- Bloque 4A: API de registros individuales, filtros, detalle y trazabilidad lote/autor/origen.
+- Bloque 4B: tabla frontend de registros individuales, filtros server-side, paginación y detalle operativo.
+- Integración validada en SQLite temporal: XLSX válido crea Ausentismos vinculados al lote y a su autor; errores y duplicados bloquean confirmación sin inserciones parciales; la doble confirmación es rechazada. Registros y detalle exponen lote, autor y origen verificables; los históricos sin procedencia permanecen en `null` y la UI muestra “Sin información”.
+- Migraciones verificadas: `0015_ausentismos` → `0016_lotes_importacion_ausentismo` → `0017_registros_operativos_ausentismos` → head, con tablas, FK e índice `ix_ausentismos_lote_id`; downgrade a 0016 y upgrade final aprobados en SQLite temporal.
+- Pruebas específicas de integración backend existentes: 22/22 aprobadas (`test_importaciones_ausentismos` y `test_ausentismos_operativos`). Suite backend completa: 238/238 aprobadas.
+- Frontend: 54/54 pruebas aprobadas en 11 archivos con un worker; `npm run build` aprobado. La regresión de navegación y sidebar está cubierta por la suite existente.
+- `git diff --check`: aprobado.
+
+Pendientes reales de Ausentismos en Fase 3: ninguno. No se inició Fase 4.
