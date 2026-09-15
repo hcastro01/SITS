@@ -35,3 +35,30 @@ class AusentismoTablaEntrada(BaseModel):
 
     encabezados: list[Any]
     filas: list[list[Any]]
+
+
+class LoteImportacionAusentismoRespuesta(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    id_lote: str
+    nombre_archivo: str
+    usuario_id: str
+    estado: str
+    total_filas: int
+    filas_validas: int
+    filas_con_error: int
+    filas_duplicadas: int
+    filas_importadas: int
+    fecha_creacion: str | None
+    fecha_actualizacion: str | None
+    version: int
+
+
+class ErrorImportacionAusentismoRespuesta(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    id_error: str
+    numero_fila: int
+    codigo: str
+    mensaje: str
+    datos_fila: str | None

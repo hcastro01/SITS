@@ -90,7 +90,8 @@ def analizar_importacion_ausentismos(
     for row_number, source_row in enumerate(filas, start=2):
         values = {header: source_row[position] if position < len(source_row) else None for header, position in index.items()}
         errors: list[str] = []
-        cedula = _texto(values["cedula"])
+        raw_cedula = values["cedula"]
+        cedula = _texto(raw_cedula)
         tipo = _texto(values["tipo_ausentismo"])
         motivo = _texto(values["motivo"])
         observacion = _texto(values.get("observacion"))
@@ -100,6 +101,8 @@ def analizar_importacion_ausentismos(
 
         if cedula is None:
             errors.append("La cédula es obligatoria.")
+        elif not isinstance(raw_cedula, str):
+            errors.append("La cédula debe estar almacenada como texto para conservar ceros iniciales.")
         else:
             people = session.scalars(
                 select(Persona).where(Persona.cedula == cedula, Persona.activo.is_(True), Persona.eliminado.is_(False))

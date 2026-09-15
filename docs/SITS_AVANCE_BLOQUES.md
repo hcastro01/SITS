@@ -111,3 +111,13 @@ Las rutas históricas `/`, `/atenciones`, `/recorridos`, `/novedades`, `/casos`,
 - `npm run build`: aprobado.
 - `git diff --check` y `git diff --cached --check`: aprobados; sólo quedaron advertencias de normalización LF/CRLF.
 - La prueba backend sigue sin ejecutarse: Python no está disponible localmente y el daemon Docker no estaba activo. No se reintentó ni se ejecutó una migración.
+
+## Fase 3 — Bloque 2: importación de Ausentismos
+
+**BLOQUE 2 FASE 3 VALIDADO.** Se implementó la importación XLSX de Ausentismos con lotes e incidencias persistentes, análisis/previsualización sin inserciones y confirmación transaccional TODO-O-NADA. El historial, detalle y errores paginados están disponibles bajo `/api/v1/importaciones/ausentismos`.
+
+- Migración `0016_lotes_importacion_ausentismo` validada en SQLite temporal mediante upgrade, downgrade a `0015_ausentismos` y upgrade final.
+- Pruebas específicas de importación: 18/18 aprobadas.
+- Suite backend: 234/234 aprobadas.
+
+Próximo bloque previsto: frontend del flujo de importación de Ausentismos.
