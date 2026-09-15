@@ -121,3 +121,13 @@ Las rutas históricas `/`, `/atenciones`, `/recorridos`, `/novedades`, `/casos`,
 - Suite backend: 234/234 aprobadas.
 
 Próximo bloque previsto: frontend del flujo de importación de Ausentismos.
+
+## Fase 3 — Bloque 3: frontend de importación de Ausentismos
+
+**BLOQUE 3 FASE 3 VALIDADO.** La ruta de Ausentismos ahora consume los endpoints reales de importación para analizar XLSX, consultar incidencias paginadas, confirmar mediante el identificador del lote e inspeccionar historial/detalle. No se modificó el backend, migraciones ni permisos globales.
+
+- Pruebas específicas de Ausentismos frontend: 7/7 aprobadas.
+- Suite frontend completa: 49/49 aprobadas en 11 archivos, ejecutados secuencialmente con un worker para evitar el OOM conocido de la ejecución paralela.
+- Build frontend y `git diff --check`: aprobados.
+
+Pendientes reales dentro de Fase 3: ninguno para este bloque. Siguiente bloque previsto: tabla operativa de registros de Ausentismos; requiere autorización explícita.
