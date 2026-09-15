@@ -49,7 +49,7 @@ class AdminServiceTests(unittest.TestCase):
             admin = resolve_current_user(session, "admin1@example.com")
             datos = list_administration(session, admin)
             self.assertEqual(len(datos["roles"]), 5)
-            self.assertEqual(len(datos["permisos"]), 90)
+            self.assertEqual(len(datos["permisos"]), 125)
             self.assertEqual(len(datos["usuarios"]), 3)
 
     def test_admin_can_create_an_active_user_with_a_hashed_password_and_audit(self):

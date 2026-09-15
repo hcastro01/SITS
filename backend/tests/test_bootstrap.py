@@ -48,7 +48,7 @@ class BootstrapTests(unittest.TestCase):
             seed_security(session)
         with Session(self.engine) as session:
             self.assertEqual(session.scalar(select(func.count()).select_from(Role)), 5)
-            self.assertEqual(session.scalar(select(func.count()).select_from(Permission)), 90)
+            self.assertEqual(session.scalar(select(func.count()).select_from(Permission)), 125)
             self.assertEqual(session.scalar(select(func.count()).select_from(User)), 0)
             self.assertFalse(session.get(Permission, "ROLE_ADMIN:CASOS").puede_eliminar)
             sensitive = session.scalars(select(Permission).where(Permission.puede_sensible)).all()
