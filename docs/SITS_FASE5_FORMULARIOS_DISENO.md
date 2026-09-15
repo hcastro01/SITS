@@ -1,6 +1,6 @@
 # SITS — Fase 5: diseño de Formularios
 
-**Alcance.** Análisis basado exclusivamente en el código actual del repositorio. No crea migraciones ni clasifica datos históricos.
+**ESTADO FINAL: IMPLEMENTADO Y VALIDADO.** Fase 5 completada y validada. Este documento conserva el diseño y registra el cierre; no se reclasifican datos históricos.
 
 ## 1. Estado actual
 
@@ -193,6 +193,14 @@ El filtro Todos es la unión sin duplicados por formulario de los subprocesos de
 `DynamicResponsePage` y el cliente existente envían `id_destino_respuesta` al contrato ya disponible de respuestas. Una plantilla con un único subproceso activo lo preselecciona y muestra la ruta legible completa. Una plantilla multidestino abierta desde una vista contextual recibe el ID real del subproceso; desde Todos requiere una selección explícita y ofrece solo destinos activos, asignados y compatibles con la rama contextual.
 
 El destino real se conserva al editar una respuesta existente; no sustituye Persona, contexto, versión, códigos, correlativos ni auditoría. Los formularios históricos sin asignaciones jerárquicas siguen enviando `null`, sin inferencia. `ContextualFormsPage` consulta el endpoint existente de respuestas por destino solamente cuando se selecciona un subproceso, por lo que no incorpora respuestas históricas sin destino ni respuestas de otros subprocesos.
+
+## 21. Estado final de implementación y validación
+
+La Fase 5 quedó cerrada sin crear repositorios por Actividades, Departamento Médico, Producción u Oficina: sus rutas reutilizan el único Repositorio central y aplican asignaciones jerárquicas explícitas, sin herencia ni inferencia. La prueba integrada existente valida la plantilla multidestino Recorridos + Novedades de planta, el aislamiento de `id_destino_respuesta`, el retiro lógico y la preservación de la respuesta histórica.
+
+La migración `0019_destinos_jerarquicos_formularios` se verificó desde `0018_accidentes` hasta `head` en SQLite temporal: catálogo de 16 destinos, FK autorreferente `padre_id_destino`, FKs de `formulario_destinos.id_destino_catalogo` y `envios_formulario.id_destino_respuesta`, índice de respuesta y siembra idempotente. Backend: 52/52 pruebas específicas de Formularios y 247/247 en la suite completa. Frontend: 52/52 específicas de Fase 5, 101/101 totales y build aprobado. Se preservan permisos, Persona, versiones, códigos, auditoría e históricos sin destino jerárquico.
+
+Pendientes reales dentro de la Fase 5: ninguno. Las fases o módulos posteriores permanecen fuera de este alcance.
 
 ## Mapa de reutilización
 

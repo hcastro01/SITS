@@ -253,7 +253,31 @@ Fase 5 no está completada: el siguiente bloque previsto es Bloque 5 — destino
 - La vista contextual consulta las respuestas solo por el endpoint existente del subproceso seleccionado; no mezcla respuestas de otros destinos ni históricos sin destino.
 - Validación frontend específica: 24/24 aprobadas. Regresión frontend completa: 101/101 aprobadas en 15 archivos. Build y `git diff --check` aprobados. No hubo cambios backend; las pruebas backend específicas no se ejecutaron porque el entorno Python local no tiene `pytest` disponible.
 
-Fase 5 no está completada: el siguiente bloque previsto es Bloque 6 — integración, regresión y cierre de Fase 5; no se inició en este bloque.
+### Bloque 6 — Integración, regresión y cierre
+
+**Estado: VALIDADO Y COMPLETADO.**
+
+- Se confirmó que el Repositorio central sigue siendo único: las vistas de Actividades, Departamento Médico, Producción y Oficina son filtros contextuales de las mismas plantillas, sin repositorios ni duplicación física por rama.
+- La integración existente cubre una plantilla asignada a Recorridos y Novedades de planta: una respuesta enviada a Recorridos persiste `id_destino_respuesta` de Recorridos, se lista allí y no bajo Novedades; tras el retiro lógico, el histórico se conserva y nuevos envíos a Recorridos se rechazan. La misma validación de asignación, aislamiento y retiro se aplica a los demás subprocesos explícitos.
+- Se verificaron catálogo real, códigos únicos, relación padre-hijo, 16 destinos activos e idempotencia. En SQLite temporal y desechable: `0018_accidentes → 0019_destinos_jerarquicos_formularios → head`, tabla `destinos_formulario`, FK autorreferente `padre_id_destino`, FKs de asignación/respuesta, índice `ix_envios_formulario_id_destino_respuesta` y segunda siembra sin duplicados.
+- Históricos con destinos textuales o respuestas sin destino jerárquico permanecen sin clasificación nueva. Persona, contexto, versiones/snapshots, códigos/correlativos, idempotencia y auditoría se preservan por las pruebas de integración de Formularios.
+- Seguridad: las pruebas reutilizan los permisos de `FORMULARIOS`, `RESPUESTAS` y el módulo contextual; la autorización de administración de destinos rechaza al usuario sin `FORMULARIOS:edit`. La regresión API conserva cobertura de autenticación, 401 y 403.
+- Validación backend: 52/52 pruebas específicas de Formularios y 247/247 en la suite completa mediante `python -m unittest discover -s tests` dentro de Docker.
+- Validación frontend: 52/52 específicas de Fase 5, 101/101 en la suite completa con un worker y build de producción aprobado.
+- Regresión de navegación, Actividades, Ausentismos y Accidentes incluida en las suites completas. `git diff --check` aprobado.
+
+### Cierre formal de Fase 5
+
+**FASE 5 — REPOSITORIO CENTRAL Y ASIGNACIÓN DE FORMULARIOS COMPLETADA.**
+
+- Bloque 1: auditoría y diseño técnico.
+- Bloque 2: backend y migración 0019 de destinos jerárquicos.
+- Bloque 3: Repositorio central y administración visual de destinos.
+- Bloque 4: vistas contextuales sin duplicación ni herencia implícita.
+- Bloque 5: respuestas con destino real contextualizado.
+- Bloque 6: integración, regresión y cierre.
+
+Pendientes reales de Fase 5: ninguno. No se inició Fase 6, Producción funcional completa ni Oficina funcional completa.
 
 ## ROADMAP VIGENTE A PARTIR DE `5491b66`
 
