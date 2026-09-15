@@ -1,5 +1,6 @@
 from app.models.auditoria import Auditoria
 from app.models.actividades import Actividad
+from app.models.ausentismos import Ausentismo
 from app.models.catalogos import Catalogo
 from app.models.casos import Caso, Cierre, Compromiso, Derivacion, DetalleCasoSensible, Seguimiento
 from app.models.configuracion import Configuracion
@@ -16,7 +17,7 @@ from app.models.security import ModuloSistema
 from app.models.sesiones import Sesion
 
 __all__ = [
-    "Actividad", "Atencion", "Auditoria", "Base", "Catalogo", "Caso", "Cierre", "Compromiso",
+    "Actividad", "Atencion", "Auditoria", "Ausentismo", "Base", "Catalogo", "Caso", "Cierre", "Compromiso",
     "Configuracion", "Derivacion", "DetalleCasoSensible", "Documento", "EnvioFormulario",
     "ModuloSistema",
     "Formulario", "FormularioDestino", "FormularioVersion", "HallazgoRecorrido", "Novedad",
