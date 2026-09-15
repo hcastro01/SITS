@@ -189,6 +189,21 @@ Pendientes reales de Ausentismos en Fase 3: ninguno. No se inició Fase 4.
 - Suite backend global: 231/240 aprobadas y 1 error de teardown. Los 9 fallos y el error también ocurren en el baseline `3a79689bb05af52fbda4d80b105554fee8ac9e6f` (229/238 y 1 error), por lo que son preexistentes y no atribuibles a Accidentes.
 - `git diff --check`: aprobado.
 
+## Fase 5 — Repositorio central y asignación de Formularios
+
+### Bloque 1 — Auditoría y diseño técnico
+
+**Estado: VALIDADO.**
+
+- Documento técnico: `docs/SITS_FASE5_FORMULARIOS_DISENO.md`.
+- Arquitectura reutilizable verificada: Formulario, FormularioDestino, FormularioVersion, EnvioFormulario, RespuestaFormulario, constructor visual, renderizador dinámico, integraciones por módulo/contexto, códigos, auditoría y permisos existentes.
+- Gaps identificados: destinos planos por módulo, ausencia de catálogo Macroproceso → Proceso → Subproceso y ausencia de un destino real persistido por respuesta.
+- Modelo objetivo acordado: catálogo jerárquico de destinos, asignaciones permitidas por plantilla sin duplicarla y destino real nullable por envío, separado del contexto existente.
+- Compatibilidad: los formularios, envíos, IDs, versiones, códigos, Personas, auditoría y contextos históricos permanecen sin reclasificación automática; los ambiguos quedan sin clasificación nueva.
+- Siguiente bloque: implementación backend/modelo de destinos de formularios, incluida nueva migración posterior a `0018_accidentes`, sin iniciar todavía frontend jerárquico.
+
+Fase 5 no está completada: este registro cierra únicamente su Bloque 1.
+
 ## ROADMAP VIGENTE A PARTIR DE `5491b66`
 
 Esta sección es la única fuente de verdad para el orden de trabajo futuro de SITS. El histórico anterior se conserva como evidencia de su ejecución; `docs/SITS_EXPANSION_SPEC.md` no se usa como roadmap vigente.
