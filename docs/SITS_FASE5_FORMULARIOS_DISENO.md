@@ -182,6 +182,12 @@ El frontend extiende el Repositorio único ya existente. `FormulariosAdminPage` 
 - Nombres de módulos como ATENCIONES ya existen y pueden colisionar semánticamente con etiquetas nuevas.
 - Las asignaciones se eliminan lógicamente; los filtros deben diferenciar vigencia de historia.
 
+## 19. Bloque 4: mapeo aprobado para vistas contextuales
+
+Las rutas existentes de Formularios de Actividades, Departamento Médico, Producción y Oficina son vistas contextuales del Repositorio central; no son destinos, subprocesos ni repositorios nuevos. El árbol real del backend resuelve los IDs mediante códigos estables y las vistas solo incluyen asignaciones jerárquicas explícitas a subprocesos: `ACTIVIDADES/GENERAL`; `DEPARTAMENTO_MEDICO/{RIESGOS_TRABAJO,AUSENTISMOS,ACCIDENTES}`; `PRODUCCION/{ATENCIONES,RECORRIDOS,NOVEDADES_PLANTA}`; y `OFICINA/{BENEFICIOS,ATENCIONES,PRESTAMOS,SEGURO}`.
+
+El filtro Todos es la unión sin duplicados por formulario de los subprocesos de la rama. No hay herencia desde los nodos de proceso, ni inferencia desde destinos textuales históricos, rutas antiguas, nombres o semántica. Los formularios sin asignación jerárquica permanecen exclusivamente en el Repositorio central. El destino real de la respuesta sigue fuera de este bloque y solo puede ser un subproceso válido.
+
 ## Mapa de reutilización
 
 | Funcionalidad actual | Archivo/modelo/servicio | Acción | Cambio necesario |

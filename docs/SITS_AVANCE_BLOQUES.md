@@ -231,6 +231,18 @@ Fase 5 no está completada: el siguiente bloque será el frontend jerárquico, f
 
 Fase 5 no está completada: el siguiente bloque previsto es la vista contextual por rama; no se inició en este bloque.
 
+### Bloque 4 — Vistas contextuales de Formularios por rama
+
+**Estado: VALIDADO.**
+
+- Las rutas existentes de Formularios de Actividades, Departamento Médico, Producción y Oficina reutilizan una única vista contextual configurable; no se crearon rutas paralelas, plantillas nuevas ni repositorios por módulo.
+- El catálogo real resuelve cada rama por código estable y filtra exclusivamente asignaciones jerárquicas explícitas a sus subprocesos autorizados. No hay herencia desde procesos ni inferencia desde nombres, rutas, destinos textuales históricos o formularios sin destino.
+- El filtro Todos realiza la unión sin duplicados por formulario; los filtros específicos preservan el comportamiento multidestino. Las asignaciones de otras ramas no se muestran.
+- La vista conserva loading, estados vacíos, errores HTTP incluidos 401/403, acceso al Repositorio central y administración solo con `FORMULARIOS:edit`. El destino real de la respuesta no se modificó.
+- Validación frontend específica: 5/5 aprobadas. Regresión frontend completa: 82/82 aprobadas en 14 archivos. Build y `git diff --check` aprobados.
+
+Fase 5 no está completada: el siguiente bloque previsto es Bloque 5 — destino real de respuesta y respuestas contextualizadas; no se inició en este bloque.
+
 ## ROADMAP VIGENTE A PARTIR DE `5491b66`
 
 Esta sección es la única fuente de verdad para el orden de trabajo futuro de SITS. El histórico anterior se conserva como evidencia de su ejecución; `docs/SITS_EXPANSION_SPEC.md` no se usa como roadmap vigente.
