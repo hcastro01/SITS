@@ -144,3 +144,16 @@ Pendientes reales dentro de Fase 3: ninguno para este bloque. Siguiente bloque p
 - Suite backend completa: 238/238 aprobadas. `git diff --check`: aprobado.
 
 Pendientes reales dentro de Bloque 4A: ninguno. Siguiente bloque previsto: frontend de registros operativos de Ausentismos; requiere autorización explícita. No se inició Bloque 4B.
+
+## Fase 3 — Bloque 4B: frontend de registros operativos de Ausentismos
+
+**BLOQUE 4B FASE 3 VALIDADO.** La pestaña Registros consulta Ausentismos individuales; ya no presenta lotes confirmados como si fueran registros operativos. Importar XLSX y el Historial de cargas conservan sus flujos separados.
+
+- Cliente nuevo `frontend/src/api/ausentismos.ts` conectado a `GET /api/v1/ausentismos` y `GET /api/v1/ausentismos/{ausentismo_id}`.
+- Tabla responsive con Persona, cédula textual, área actual, tipo, fechas, motivo, registrado por, origen y acción de detalle. Los datos no verificables se presentan como “Sin información”, sin inventar autor, origen ni área histórica.
+- Filtros server-side combinables: nombre, cédula, área, tipo, fecha desde/hasta, origen y lote; incluye limpiar filtros y reinicia el offset al aplicarlos.
+- Paginación compatible con `items`, `total`, `limite` y `offset`, con rango actual, anterior/siguiente y conservación de filtros.
+- El detalle usa el Modal accesible existente y muestra observación, lote y metadatos reales. Al confirmar una importación, la consulta de Registros se refresca.
+- Pruebas específicas de Ausentismos frontend: 12/12 aprobadas. Suite frontend completa: 54/54 aprobadas en 11 archivos con un worker. `npm run build` y `git diff --check`: aprobados.
+
+Pendientes reales dentro de Bloque 4B: ninguno. Siguiente bloque previsto: Bloque 5 — integración y cierre de Ausentismos; requiere autorización explícita. No se inició Bloque 5.
