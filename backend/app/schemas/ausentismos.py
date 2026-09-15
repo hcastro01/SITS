@@ -62,3 +62,35 @@ class ErrorImportacionAusentismoRespuesta(BaseModel):
     codigo: str
     mensaje: str
     datos_fila: str | None
+
+
+class AusentismoOperativoRespuesta(BaseModel):
+    """Contrato mínimo para la consulta operativa; no expone datos médicos adicionales."""
+
+    model_config = ConfigDict(frozen=True)
+
+    id_ausentismo: str
+    persona_id: str
+    persona: str
+    cedula: str | None
+    area: str | None
+    fecha_inicio: str
+    fecha_fin: str
+    tipo_ausentismo: str
+    motivo: str
+    observacion: str | None
+    fecha_registro: str | None
+    registrado_por_id: str | None
+    registrado_por: str | None
+    origen: str | None
+    lote_id: str | None
+    lote_nombre_archivo: str | None
+
+
+class AusentismoOperativoPaginado(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    items: tuple[AusentismoOperativoRespuesta, ...]
+    total: int
+    limite: int
+    offset: int

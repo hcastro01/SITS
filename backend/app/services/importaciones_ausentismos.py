@@ -123,7 +123,7 @@ def confirmar_lote_ausentismos(session: Session, user: AuthenticatedUser, lote_i
         with session.begin_nested():
             for row in analysis.filas:
                 session.add(Ausentismo(
-                    id_ausentismo=str(uuid4()), persona_id=row.persona_id, fecha_inicio=row.fecha_inicio,
+                    id_ausentismo=str(uuid4()), persona_id=row.persona_id, lote_id=lote.id_lote, fecha_inicio=row.fecha_inicio,
                     fecha_fin=row.fecha_fin, tipo_ausentismo=row.tipo_ausentismo, motivo=row.motivo,
                     observacion=row.observacion, archivo_fuente=lote.nombre_archivo, registro_fuente=str(row.fila),
                     fecha_importacion=lote.fecha_creacion, usuario_importacion=user.correo,

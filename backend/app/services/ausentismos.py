@@ -8,12 +8,12 @@ reglas del contrato sean verificables de forma independiente al lector de archiv
 from datetime import date, datetime
 from typing import Any, Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
 from app.core.permissions import AuthenticatedUser, authorize
-from app.models import Ausentismo, Persona
+from app.models import Ausentismo, LoteImportacionAusentismo, Persona, User
 from app.schemas.ausentismos import AusentismoAnalisis, AusentismoFilaAnalizada
 
 IMPORT_MODULE = "IMPORTACION"
@@ -21,6 +21,7 @@ AUSENTISMO_MODULE = "AUSENTISMO"
 REQUIRED_HEADERS = ("cedula", "fecha_inicio", "fecha_fin", "tipo_ausentismo", "motivo")
 OPTIONAL_HEADERS = ("observacion",)
 ALLOWED_HEADERS = frozenset((*REQUIRED_HEADERS, *OPTIONAL_HEADERS))
+ORIGEN_IMPORTACION_XLSX = "IMPORTACION_XLSX"
 
 
 def _normalizar_encabezados(encabezados: Sequence[Any]) -> tuple[str, ...]:
@@ -145,3 +146,66 @@ def analizar_importacion_ausentismos(
         filas_duplicadas=duplicates, filas_con_error=invalid,
         puede_confirmarse=not invalid and not duplicates, filas=tuple(result),
     )
+
+
+def listar_ausentismos_operativos(
+    session: Session,
+    user: AuthenticatedUser,
+    *,
+    nombre: str | None,
+    cedula: str | None,
+    area: str | None,
+    tipo_ausentismo: str | None,
+    desde: str | None,
+    hasta: str | None,
+    origen: str | None,
+    lote_id: str | None,
+    limit: int,
+    offset: int,
+):
+    """Lista Ausentismos individuales con relaciones presentes, sin inferir históricos."""
+    authorize(user, AUSENTISMO_MODULE, "read")
+    if origen and origen != ORIGEN_IMPORTACION_XLSX:
+        raise AppError("INVALID_ORIGIN", "El origen solicitado no está disponible.", 422)
+    stmt = (
+        select(Ausentismo, Persona, LoteImportacionAusentismo, User)
+        .join(Persona, Ausentismo.persona_id == Persona.id_persona)
+        .outerjoin(LoteImportacionAusentismo, Ausentismo.lote_id == LoteImportacionAusentismo.id_lote)
+        .outerjoin(User, LoteImportacionAusentismo.usuario_id == User.id_usuario)
+        .where(Ausentismo.eliminado.is_(False))
+    )
+    if nombre and nombre.strip():
+        stmt = stmt.where(Persona.nombre.ilike(f"%{nombre.strip()}%"))
+    if cedula and cedula.strip():
+        stmt = stmt.where(Persona.cedula == cedula.strip())
+    if area and area.strip():
+        stmt = stmt.where(Persona.area == area.strip())
+    if tipo_ausentismo and tipo_ausentismo.strip():
+        stmt = stmt.where(Ausentismo.tipo_ausentismo == tipo_ausentismo.strip())
+    if desde:
+        stmt = stmt.where(Ausentismo.fecha_inicio >= desde)
+    if hasta:
+        stmt = stmt.where(Ausentismo.fecha_inicio <= hasta)
+    if origen:
+        stmt = stmt.where(Ausentismo.lote_id.is_not(None))
+    if lote_id:
+        stmt = stmt.where(Ausentismo.lote_id == lote_id)
+    total = session.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    rows = session.execute(
+        stmt.order_by(Ausentismo.fecha_inicio.desc(), Ausentismo.id_ausentismo.desc()).offset(offset).limit(limit)
+    ).all()
+    return rows, total
+
+
+def obtener_ausentismo_operativo(session: Session, user: AuthenticatedUser, ausentismo_id: str):
+    authorize(user, AUSENTISMO_MODULE, "read")
+    row = session.execute(
+        select(Ausentismo, Persona, LoteImportacionAusentismo, User)
+        .join(Persona, Ausentismo.persona_id == Persona.id_persona)
+        .outerjoin(LoteImportacionAusentismo, Ausentismo.lote_id == LoteImportacionAusentismo.id_lote)
+        .outerjoin(User, LoteImportacionAusentismo.usuario_id == User.id_usuario)
+        .where(Ausentismo.id_ausentismo == ausentismo_id, Ausentismo.eliminado.is_(False))
+    ).first()
+    if row is None:
+        raise AppError("NOT_FOUND", "Registro no encontrado.", 404)
+    return row

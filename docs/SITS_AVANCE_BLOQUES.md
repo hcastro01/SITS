@@ -131,3 +131,16 @@ Próximo bloque previsto: frontend del flujo de importación de Ausentismos.
 - Build frontend y `git diff --check`: aprobados.
 
 Pendientes reales dentro de Fase 3: ninguno para este bloque. Siguiente bloque previsto: tabla operativa de registros de Ausentismos; requiere autorización explícita.
+
+## Fase 3 — Bloque 4A: backend de registros operativos de Ausentismos
+
+**BLOQUE 4A FASE 3 VALIDADO.** Se agregó la consulta operativa individual sin implementar frontend. Los Ausentismos confirmados desde XLSX conservan en adelante un vínculo verificable con su lote; los históricos no se reclasifican y devuelven autor, lote y origen como `null` cuando no existen.
+
+- Endpoints protegidos por `AUSENTISMO:read`: `GET /api/v1/ausentismos` y `GET /api/v1/ausentismos/{ausentismo_id}`.
+- Listado paginado por `limite` y `offset`, con total; ordena por `fecha_inicio` descendente e `id_ausentismo` descendente. Filtros combinables: nombre, cédula textual, área actual de Persona, tipo, fecha desde/hasta, `lote_id` y origen verificable `IMPORTACION_XLSX`.
+- El contrato devuelve solo datos operativos: Persona, cédula, área, fechas, tipo, motivo, observación, fecha de registro, lote y autor del lote cuando la relación real existe. No devuelve BLOB ni información médica adicional.
+- Migración `0017_registros_operativos_ausentismos`: agrega `ausentismos.lote_id` opcional con FK e índice, posterior a `0016`; validada en SQLite temporal mediante upgrade, downgrade a `0016` y upgrade final.
+- Pruebas HTTP específicas nuevas: 4/4 aprobadas; cubren listado, paginación, total, detalle, no encontrado, Persona/cédula/área, filtros combinables, lote, origen, autor y permisos. Regresión de importación: 18/18 aprobadas, incluida la asignación de `lote_id` al confirmar.
+- Suite backend completa: 238/238 aprobadas. `git diff --check`: aprobado.
+
+Pendientes reales dentro de Bloque 4A: ninguno. Siguiente bloque previsto: frontend de registros operativos de Ausentismos; requiere autorización explícita. No se inició Bloque 4B.

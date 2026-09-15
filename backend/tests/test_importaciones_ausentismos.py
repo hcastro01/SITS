@@ -138,7 +138,9 @@ class ImportacionesAusentismosTests(unittest.TestCase):
                 ["0098765432", "2026-09-03", "2026-09-03", "PERSONAL", "Permiso", "Breve"],
             ])
             confirmed = confirmar_lote_ausentismos(session, self.user(session), lote.id_lote, correlation_id="test")
-            self.assertEqual((confirmed.estado, confirmed.filas_importadas, len(session.scalars(select(Ausentismo)).all())), ("CONFIRMADO", 2, 2))
+            ausentismos = session.scalars(select(Ausentismo)).all()
+            self.assertEqual((confirmed.estado, confirmed.filas_importadas, len(ausentismos)), ("CONFIRMADO", 2, 2))
+            self.assertTrue(all(row.lote_id == lote.id_lote for row in ausentismos))
 
     def test_persistence_failure_rolls_back_every_absence(self):
         with Session(self.engine) as session, session.begin():

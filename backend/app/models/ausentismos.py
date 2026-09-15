@@ -21,6 +21,9 @@ class Ausentismo(MetadatosComunes, Base):
 
     id_ausentismo: Mapped[str] = mapped_column(String, primary_key=True)
     persona_id: Mapped[str] = mapped_column(ForeignKey("personas.id_persona"), nullable=False)
+    lote_id: Mapped[str | None] = mapped_column(
+        ForeignKey("lotes_importacion_ausentismo.id_lote"), index=True
+    )
     fecha_inicio: Mapped[str] = mapped_column(String, nullable=False)
     fecha_fin: Mapped[str] = mapped_column(String, nullable=False)
     tipo_ausentismo: Mapped[str] = mapped_column(String, nullable=False)
