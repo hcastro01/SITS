@@ -177,7 +177,7 @@ Pendientes reales de Ausentismos en Fase 3: ninguno. No se inició Fase 4.
 
 ## Módulo actual posterior a Fase 3 — Accidentes
 
-**ACCIDENTES VALIDADO Y LISTO PARA COMMIT.** Se implementó el módulo de Accidentes del Departamento Médico sin renumerar el histórico previo. Esta denominación identifica el siguiente bloque funcional tras el cierre de Fase 3; la numeración futura deberá continuar desde este punto de forma explícita.
+**ACCIDENTES COMPLETADA Y COMMITTEADA EN `5491b66`.** Se implementó el módulo de Accidentes del Departamento Médico sin renumerar el histórico previo. Esta denominación identifica el siguiente bloque funcional tras el cierre de Fase 3; la numeración futura deberá continuar desde este punto de forma explícita.
 
 - Backend: registro manual, listado paginado, detalle, edición, filtros combinables, vínculo con Persona, estados, clasificación y autorización por módulo.
 - Importación XLSX: análisis previo sin crear Accidentes, validación de columnas y archivo, incidencias persistentes, duplicados dentro del archivo y contra la base, confirmación atómica, bloqueo de doble confirmación e historial de lotes.
@@ -188,3 +188,37 @@ Pendientes reales de Ausentismos en Fase 3: ninguno. No se inició Fase 4.
 - Frontend: 54/54 pruebas aprobadas; build de producción aprobado.
 - Suite backend global: 231/240 aprobadas y 1 error de teardown. Los 9 fallos y el error también ocurren en el baseline `3a79689bb05af52fbda4d80b105554fee8ac9e6f` (229/238 y 1 error), por lo que son preexistentes y no atribuibles a Accidentes.
 - `git diff --check`: aprobado.
+
+## ROADMAP VIGENTE A PARTIR DE `5491b66`
+
+Esta sección es la única fuente de verdad para el orden de trabajo futuro de SITS. El histórico anterior se conserva como evidencia de su ejecución; `docs/SITS_EXPANSION_SPEC.md` no se usa como roadmap vigente.
+
+| Módulo | Estado | Commit de cierre | Siguiente acción |
+|---|---|---|---|
+| Navegación y estructura | COMPLETADA | `98e512d` | Ninguna; conservar y validar en regresiones. |
+| Actividades | COMPLETADA | `98e512d` | Ninguna; conservar y validar en regresiones. |
+| Ausentismos | COMPLETADA | `3a79689` | Ninguna; conservar y validar en regresiones. |
+| Accidentes | COMPLETADA | `5491b66` | Ninguna; conservar y validar en regresiones. |
+| Repositorio central y asignación de Formularios | SIGUIENTE | — | Definir y ejecutar el bloque transversal de Formularios. |
+| Riesgos de trabajo | PENDIENTE | — | Iniciar después de Formularios. |
+| Producción | PENDIENTE | — | Implementar Atenciones, Recorridos, Novedades de planta y Formularios. |
+| Oficina | PENDIENTE | — | Implementar Beneficios, Atenciones, Préstamos, Seguro y Formularios. |
+| Imágenes y adjuntos BLOB | PENDIENTE | — | Definir integración reutilizable para módulos que lo requieran. |
+| Administración | PENDIENTE | — | Revisar Usuarios y Roles y permisos. |
+| Dashboard | PENDIENTE | — | Definir indicadores soportados por datos implementados. |
+| Integración final, regresión y cierre | PENDIENTE | — | Ejecutar al completar los módulos anteriores. |
+
+Orden funcional de ejecución:
+
+1. Navegación y estructura — COMPLETADA.
+2. Actividades — COMPLETADA.
+3. Ausentismos — COMPLETADA.
+4. Accidentes — COMPLETADA.
+5. Repositorio central y asignación de Formularios — SIGUIENTE.
+6. Riesgos de trabajo.
+7. Producción: Atenciones, Recorridos, Novedades de planta y Formularios.
+8. Oficina: Beneficios, Atenciones, Préstamos, Seguro y Formularios.
+9. Imágenes y adjuntos BLOB.
+10. Administración: Usuarios; Roles y permisos.
+11. Dashboard.
+12. Integración final, regresión y cierre.
