@@ -204,6 +204,20 @@ Pendientes reales de Ausentismos en Fase 3: ninguno. No se inició Fase 4.
 
 Fase 5 no está completada: este registro cierra únicamente su Bloque 1.
 
+### Bloque 2 — Backend/modelo de destinos jerárquicos
+
+**Estado: VALIDADO.**
+
+- Se creó `DestinoFormulario` / `destinos_formulario`, catálogo autorreferente con macroproceso, procesos y subprocesos funcionales; no incluye elementos de interfaz.
+- La migración `0019_destinos_jerarquicos_formularios`, posterior a `0018_accidentes`, agregó el catálogo, FKs e índices, una referencia nullable desde `formulario_destinos` y `id_destino_respuesta` nullable en `envios_formulario`.
+- `formulario_destinos` conserva el campo textual histórico y ahora admite varias asignaciones jerárquicas sin duplicar la plantilla; el retiro es lógico y no afecta respuestas previas.
+- Las respuestas nuevas validan destino existente, activo, subproceso de Trabajo Social y asignado a la plantilla; el destino real se devuelve y una respuesta no se consulta bajo otro destino.
+- La semilla de 16 destinos es aditiva e idempotente. No se realizó backfill ni reclasificación histórica.
+- Endpoints backend añadidos bajo `/api/v1/formularios` para árbol, destinos activos, asignaciones por plantilla y respuestas por destino.
+- Validación: pruebas relacionadas 46/46, suite backend completa 247/247, `alembic check` sobre SQLite temporal sin operaciones nuevas, ciclo SQLite 0018 → 0019 → 0018 → 0019 aprobado y `git diff --check` pendiente de la comprobación final del bloque.
+
+Fase 5 no está completada: el siguiente bloque será el frontend jerárquico, filtros/vistas por rama y regresión integral.
+
 ## ROADMAP VIGENTE A PARTIR DE `5491b66`
 
 Esta sección es la única fuente de verdad para el orden de trabajo futuro de SITS. El histórico anterior se conserva como evidencia de su ejecución; `docs/SITS_EXPANSION_SPEC.md` no se usa como roadmap vigente.

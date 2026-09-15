@@ -5,6 +5,7 @@ from alembic.config import Config
 from app.db.session import SessionLocal
 from app.services.matrix_seed import seed_institutional_matrix
 from app.services.security_seed import seed_module_catalog, seed_security
+from app.services.form_destinations import seed_form_destinations
 
 
 def initialize():
@@ -12,6 +13,7 @@ def initialize():
     with SessionLocal.begin() as session:
         seed_module_catalog(session)
         seed_security(session)
+        seed_form_destinations(session)
         seed_institutional_matrix(session)
 
 

@@ -115,8 +115,14 @@ def get_definition(session: Session, id_formulario: str) -> dict:
         raise AppError("FORM_NOT_FOUND", "Formulario no encontrado.", 404)
     destinations = list(session.scalars(select(FormularioDestino.modulo).where(
         FormularioDestino.id_formulario == id_formulario,
+        FormularioDestino.id_destino_catalogo.is_(None),
         FormularioDestino.eliminado.is_(False), FormularioDestino.activo.is_(True),
     ).order_by(FormularioDestino.modulo)))
+    hierarchical_destinations = list(session.scalars(select(FormularioDestino.id_destino_catalogo).where(
+        FormularioDestino.id_formulario == id_formulario,
+        FormularioDestino.id_destino_catalogo.is_not(None),
+        FormularioDestino.eliminado.is_(False), FormularioDestino.activo.is_(True),
+    )))
     sections = list(session.scalars(select(SeccionFormulario).where(
         SeccionFormulario.id_formulario == id_formulario,
         SeccionFormulario.eliminado.is_(False),
@@ -144,6 +150,7 @@ def get_definition(session: Session, id_formulario: str) -> dict:
         "secciones": [serialize_section(s) for s in sections],
         "preguntas": [serialize_question(q, options_by_question[q.id_pregunta]) for q in questions],
         "reglas": [serialize_rule(r) for r in rules],
+        "destinos_jerarquicos": hierarchical_destinations,
     }
 
 
@@ -161,6 +168,7 @@ def sync_destinations(session: Session, id_formulario: str, destinations: list[s
         raise AppError("INVALID_FORM_DESTINATION", f"Destino no permitido: {', '.join(sorted(invalid))}.", 422)
     existing = {row.modulo: row for row in session.scalars(select(FormularioDestino).where(
         FormularioDestino.id_formulario == id_formulario,
+        FormularioDestino.id_destino_catalogo.is_(None),
     ))}
     for module, row in existing.items():
         should_be_active = module in normalized

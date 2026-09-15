@@ -141,31 +141,26 @@ No clasificar automáticamente formularios ni respuestas existentes. Se preserva
 
 Se reutiliza permisos por rol/módulo y las acciones create, read, edit, delete, sensitive, export. FORMULARIOS protege plantillas y RESPUESTAS la captura/consulta; las integraciones además exigen permisos del módulo contextual y, si corresponde, sensibilidad. El catálogo podría administrarse inicialmente con FORMULARIOS; el código no implementa aún un permiso jerárquico propio.
 
-## 15. Migración propuesta (no implementada)
+## 15. Migración implementada
 
-La cabeza declarada por la cadena de revisiones del repositorio es 0018_accidentes. El Bloque 2 requerirá una migración nueva posterior a esa revisión; no modifica 0018_accidentes ni revisiones anteriores.
+La cabeza previa era 0018_accidentes. El Bloque 2 agregó 0019_destinos_jerarquicos_formularios, sin modificar 0015, 0016, 0017 ni 0018. La nueva cabeza es 0019_destinos_jerarquicos_formularios.
 
-La migración deberá:
+La migración creó destinos_formulario, con FK autorreferente, código único, nivel validado, índices por padre y vigencia/orden. Agregó id_destino_catalogo nullable a formulario_destinos e id_destino_respuesta nullable a envios_formulario, ambos con FK e índices; mantiene modulo y los valores textuales históricos sin backfill.
 
-1. Crear el catálogo, FK autorreferente, índice por padre/orden y unicidad de código.
-2. Agregar la referencia de catálogo en las asignaciones e índices por formulario/destino; mantener temporalmente el texto existente.
-3. Agregar id_destino_respuesta nullable en envios_formulario, FK e índice.
-4. Sembrar de forma idempotente solo el árbol acordado.
+El downgrade retira primero los índices y columnas nuevas y luego el catálogo. El ciclo SQLite temporal 0018 → 0019 → 0018 → 0019 verificó estructura, FKs, índices, semilla y upgrade final. No se actualizan históricos por inferencia.
 
-No se actualizan históricos por inferencia. El downgrade debe retirar primero FKs, índices y columnas nuevas; debe preservarse o fallar explícitamente si hay dependencias que impedirían una reversión segura. Se validará contra el motor antes de implementarlo.
+## 16. Bloque 2 implementado: backend y modelo de destinos de formularios
 
-## 16. Bloque 2 propuesto: backend y modelo de destinos de formularios
-
-El siguiente bloque queda limitado al backend/modelo, sin cambiar las pantallas frontend ni iniciar otro módulo funcional.
+El bloque se limitó al backend/modelo, sin cambiar las pantallas frontend ni iniciar otro módulo funcional.
 
 - **Modelos reutilizados:** Formulario, FormularioDestino, EnvioFormulario, MetadatosComunes, Auditoria y Permission.
-- **Modelos a modificar:** FormularioDestino para enlazar una asignación con el catálogo; EnvioFormulario para persistir el destino real nullable.
-- **Estructura nueva estrictamente necesaria:** DestinoFormulario (tabla destinos_formulario) autorreferente, con código, nombre, nivel, padre, orden y metadatos comunes. No se crea una nueva plantilla por destino.
-- **Servicios:** ampliar form_builder.sync_destinations y la validación de dynamic_responses para que acepten identificadores de catálogo y comprueben la asignación permitida; conservar response_contexts como relación separada.
-- **Endpoints y schemas:** ajustar los contratos de creación/edición/definición de formulario y de guardado/lectura de respuesta para destinos por ID; crear endpoints de lectura del catálogo y, si se requiere administración en este bloque, su CRUD protegido. Los schemas deben rechazar campos desconocidos y exponer código, nivel, padre y destino real de forma explícita.
-- **Permisos:** reutilizar FORMULARIOS para catálogo/asignaciones y RESPUESTAS más el módulo contextual para el envío; no introducir permisos jerárquicos sin requerimiento adicional.
-- **Migración:** nueva revisión posterior a 0018_accidentes con catálogo, FKs, índices, columnas nullable y semilla idempotente; sin reclasificación automática.
-- **Pruebas necesarias:** migración upgrade/downgrade en base temporal; jerarquía y unicidad; una plantilla con varios destinos; rechazo de un destino no permitido; una respuesta visible solo en su destino real; históricos con destino nulo; permisos y conservación de versión, código, persona y auditoría.
+- **Modelos modificados:** FormularioDestino enlaza opcionalmente al catálogo; EnvioFormulario persiste id_destino_respuesta nullable.
+- **Estructura nueva:** DestinoFormulario / destinos_formulario es autorreferente, con código, nombre, nivel, padre, orden y metadatos comunes. No se crea una nueva plantilla por destino.
+- **Servicios:** form_destinations.py crea la semilla idempotente, árbol, asignaciones, retiro lógico y validación; form_builder conserva separadas las asignaciones textuales; dynamic_responses valida y conserva el destino real; response_contexts permanece separado.
+- **Endpoints y schemas:** GET /formularios/destinos, GET /formularios/destinos/activos, GET /formularios/destinos/{id_destino}/respuestas, GET y PUT /formularios/{id_formulario}/destinos; ResponderFormularioRequest acepta id_destino_respuesta y DestinosFormularioRequest prohíbe campos no declarados.
+- **Permisos:** se reutilizaron FORMULARIOS para catálogo/asignaciones y RESPUESTAS más el módulo contextual para el envío; no se añadió permiso global.
+- **Migración y semilla:** 0019_destinos_jerarquicos_formularios, posterior a 0018_accidentes, y 16 destinos iniciales idempotentes; sin reclasificación automática.
+- **Pruebas ejecutadas:** catálogo, jerarquía, unicidad, idempotencia, múltiples asignaciones, retiro lógico, auditoría, destino permitido/no permitido/inexistente/inactivo, aislamiento por destino, históricos, permisos, schema y ciclo SQLite. La suite backend completa aprobó 247/247.
 
 Los bloques posteriores al Bloque 2 cubrirán el frontend jerárquico, filtros/vistas por rama y regresión integral.
 

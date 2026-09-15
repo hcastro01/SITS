@@ -7,7 +7,7 @@ from app.models.casos import Caso, Cierre, Compromiso, Derivacion, DetalleCasoSe
 from app.models.configuracion import Configuracion
 from app.models.documentos import Documento
 from app.models.formularios import (
-    Formulario, FormularioDestino, FormularioVersion, OpcionPregunta, Pregunta,
+    DestinoFormulario, Formulario, FormularioDestino, FormularioVersion, OpcionPregunta, Pregunta,
     ReglaFormulario, SeccionFormulario,
 )
 from app.models.personas import Persona
@@ -21,7 +21,7 @@ __all__ = [
     "Accidente", "Actividad", "Atencion", "Auditoria", "Ausentismo", "Base", "Catalogo", "Caso", "Cierre", "Compromiso",
     "Configuracion", "Derivacion", "DetalleCasoSensible", "Documento", "EnvioFormulario", "ErrorImportacionAusentismo",
     "LoteImportacionAccidente", "LoteImportacionAusentismo", "ErrorImportacionAccidente", "ModuloSistema",
-    "Formulario", "FormularioDestino", "FormularioVersion", "HallazgoRecorrido", "Novedad",
+    "DestinoFormulario", "Formulario", "FormularioDestino", "FormularioVersion", "HallazgoRecorrido", "Novedad",
     "OpcionPregunta", "Permission", "Persona", "Pregunta", "Recorrido", "ReglaFormulario",
     "RespuestaFormulario", "Role", "SeccionFormulario", "Seguimiento", "SecuenciaRespuestaFormulario",
     "Sesion", "User",

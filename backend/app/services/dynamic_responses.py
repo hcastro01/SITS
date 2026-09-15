@@ -17,6 +17,7 @@ from app.services.form_builder import ensure_published_version, get_definition
 from app.services.form_search import search_options
 from app.services.records import apply_soft_delete, check_expected_version, creation_metadata, get_active, mark_updated
 from app.services.response_codes import assign_response_code
+from app.services.form_destinations import validate_response_destination
 from app.services.response_contexts import (
     CONTEXT_MODELS, authorize_response_action, create_dynamic_context,
     delete_generated_context_if_orphaned, resolve_person_id, response_actions,
@@ -241,13 +242,14 @@ def save_dynamic_response(session: Session, user: AuthenticatedUser, form_id: st
                           context_id: str | None = None, response_id: str | None = None,
                           expected_version: int | None = None, correlation_id: str = "",
                           create_context: bool = False, person_id: str | None = None,
-                          edit_registered: bool = False) -> EnvioFormulario:
+                          edit_registered: bool = False, response_destination_id: str | None = None) -> EnvioFormulario:
     authorize(user, "RESPUESTAS", "edit" if edit_registered else "create")
     form = session.get(Formulario, form_id)
     if form is None or form.eliminado or not form.activo:
         raise AppError("FORM_NOT_FOUND", "Formulario no encontrado.", 404)
     if not answers and not draft:
         raise AppError("EMPTY_RESPONSE", "El formulario no contiene respuestas para guardar.", 422)
+    response_destination = validate_response_destination(session, form_id, response_destination_id)
     response = _find_response_by_identity(
         session, user, form, response_id=response_id, client_key=client_key,
     )
@@ -299,6 +301,7 @@ def save_dynamic_response(session: Session, user: AuthenticatedUser, form_id: st
             estado=new_state, fecha_respuesta=utc_now_iso(),
             id_registro_proceso=normalized_id, contexto_tipo=normalized_type,
             contexto_id=normalized_id, contexto_creado_dinamicamente=context_created,
+            id_destino_respuesta=response_destination.id_destino if response_destination else None,
             **creation_metadata(user.correo),
         )
         session.add(response)
@@ -318,6 +321,8 @@ def save_dynamic_response(session: Session, user: AuthenticatedUser, form_id: st
             detail.motivo_eliminacion = "Nueva versión de respuesta"
         response.estado = new_state
         response.fecha_respuesta = utc_now_iso()
+        if response_destination is not None:
+            response.id_destino_respuesta = response_destination.id_destino
         if not response.id_version_formulario:
             response.id_version_formulario = version.id_version_formulario
         mark_updated(response, user.correo)
@@ -332,7 +337,8 @@ def save_dynamic_response(session: Session, user: AuthenticatedUser, form_id: st
     log_change(session, "envios_formulario", response.id_respuesta, audit_action, {},
                {"id_formulario": form_id, "estado": new_state, "contexto_tipo": normalized_type,
                 "contexto_id": normalized_id, "cantidad_respuestas": len(answers),
-                "codigo_respuesta": response.codigo_respuesta},
+                "codigo_respuesta": response.codigo_respuesta,
+                "id_destino_respuesta": response.id_destino_respuesta},
                user.correo, ("Edición de respuesta definitiva" if edit_registered else
                               "Guardado de borrador" if draft else "Envío final de formulario"),
                correlation_id, sensitive_record=True)
@@ -349,7 +355,8 @@ def serialize_response(
             "usuario_respuesta": response.usuario_respuesta, "contexto_tipo": response.contexto_tipo,
             "contexto_id": response.contexto_id, "version": response.version,
             "id_version_formulario": response.id_version_formulario,
-            "contexto_creado_dinamicamente": response.contexto_creado_dinamicamente}
+            "contexto_creado_dinamicamente": response.contexto_creado_dinamicamente,
+            "id_destino_respuesta": response.id_destino_respuesta}
     if user is not None:
         data["acciones"] = response_actions(session, user, response)
     if include_answers:

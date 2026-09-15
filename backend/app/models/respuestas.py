@@ -37,6 +37,9 @@ class EnvioFormulario(MetadatosComunes, Base):
     contexto_tipo: Mapped[str | None] = mapped_column(String, index=True)
     contexto_id: Mapped[str | None] = mapped_column(String, index=True)
     contexto_creado_dinamicamente: Mapped[bool] = mapped_column(Boolean, default=False)
+    id_destino_respuesta: Mapped[str | None] = mapped_column(
+        ForeignKey("destinos_formulario.id_destino"), index=True,
+    )
     numero_secuencial: Mapped[int | None] = mapped_column(Integer)
     codigo_respuesta: Mapped[str | None] = mapped_column(String(21))
 

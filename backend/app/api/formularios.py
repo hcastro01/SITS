@@ -14,6 +14,10 @@ from app.services.dynamic_responses import (
     context_forms, get_user_response, serialize_response, soft_delete_dynamic_response,
 )
 from app.services.form_integrations import list_available_forms, list_module_responses
+from app.services.form_destinations import (
+    list_active_destinations, list_destination_responses, list_destination_tree,
+    list_form_destinations, set_form_destinations,
+)
 from app.services.form_builder import duplicate_form, get_definition, list_forms, save_definition, serialize_form
 from app.services.form_search import list_sources, search_options
 from app.services.formularios import CAMPOS as CAMPOS_FORMULARIO
@@ -50,10 +54,18 @@ class ResponderFormularioRequest(BaseModel):
     crear_contexto: StrictBool = False
     id_persona: str | None = None
     editar_registrado: StrictBool = False
+    id_destino_respuesta: str | None = None
     # Backward-compatible input: these server-owned values are accepted but
     # intentionally never forwarded to save_response.
     codigo_respuesta: str | None = None
     numero_secuencial: int | None = None
+
+
+class DestinosFormularioRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    destino_ids: list[str] = Field(default_factory=list)
+    correlation_id: str = ""
 
 
 def _with_actions(data: dict, user: AuthenticatedUser) -> dict:
@@ -67,6 +79,26 @@ def _serialize_formulario(record: Formulario, user: AuthenticatedUser) -> dict:
 @router.get("/fuentes-busqueda")
 def fuentes_busqueda(user: AuthenticatedUser = Depends(get_current_user)):
     return list_sources(user)
+
+
+@router.get("/destinos")
+def destinos_arbol(
+    solo_activos: bool = True, db: Session = Depends(get_db),
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    return list_destination_tree(db, user, active_only=solo_activos)
+
+
+@router.get("/destinos/activos")
+def destinos_activos(db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
+    return list_active_destinations(db, user)
+
+
+@router.get("/destinos/{id_destino}/respuestas")
+def respuestas_destino(
+    id_destino: str, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user),
+):
+    return [serialize_response(db, response, user=user) for response in list_destination_responses(db, user, id_destino)]
 
 
 @router.get("/search-options")
@@ -165,6 +197,24 @@ def listar(
 def obtener(id_formulario: str, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
     authorize(user, FORMULARIOS_MODULE, "read")
     return _with_actions(get_definition(db, id_formulario), user)
+
+
+@router.get("/{id_formulario}/destinos")
+def destinos_formulario(
+    id_formulario: str, incluir_inactivos: bool = False, db: Session = Depends(get_db),
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    return list_form_destinations(db, user, id_formulario, include_inactive=incluir_inactivos)
+
+
+@router.put("/{id_formulario}/destinos")
+def guardar_destinos_formulario(
+    id_formulario: str, payload: DestinosFormularioRequest, db: Session = Depends(get_db),
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    return set_form_destinations(
+        db, user, id_formulario, payload.destino_ids, correlation_id=payload.correlation_id,
+    )
 
 
 @router.post("", status_code=201)
@@ -314,6 +364,7 @@ def responder(
         id_respuesta=payload.id_respuesta, expected_version=payload.expected_version,
         crear_contexto=payload.crear_contexto, id_persona=payload.id_persona,
         editar_registrado=payload.editar_registrado,
+        id_destino_respuesta=payload.id_destino_respuesta,
         correlation_id=getattr(request.state, "correlation_id", "") if request else "",
     )
     return serialize_response(db, envio, user=user)
