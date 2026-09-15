@@ -243,6 +243,18 @@ Fase 5 no está completada: el siguiente bloque previsto es la vista contextual 
 
 Fase 5 no está completada: el siguiente bloque previsto es Bloque 5 — destino real de respuesta y respuestas contextualizadas; no se inició en este bloque.
 
+### Bloque 5 — Destino real de respuesta y respuestas contextualizadas
+
+**Estado: VALIDADO.**
+
+- `DynamicResponsePage` reutiliza el motor y renderizador existentes y envía `id_destino_respuesta` con el request de respuesta cuando corresponde.
+- Un único destino jerárquico activo se selecciona automáticamente y se muestra con ruta legible. En vistas contextuales se conserva el subproceso ya determinado; desde Todos, un formulario multidestino exige elegir exactamente un destino permitido, activo y compatible con la rama.
+- Formularios y respuestas históricas sin clasificación jerárquica conservan `id_destino_respuesta = null`; no hay inferencia desde texto, contexto, Persona, URL ni nombres. La edición conserva el destino original.
+- La vista contextual consulta las respuestas solo por el endpoint existente del subproceso seleccionado; no mezcla respuestas de otros destinos ni históricos sin destino.
+- Validación frontend específica: 24/24 aprobadas. Regresión frontend completa: 101/101 aprobadas en 15 archivos. Build y `git diff --check` aprobados. No hubo cambios backend; las pruebas backend específicas no se ejecutaron porque el entorno Python local no tiene `pytest` disponible.
+
+Fase 5 no está completada: el siguiente bloque previsto es Bloque 6 — integración, regresión y cierre de Fase 5; no se inició en este bloque.
+
 ## ROADMAP VIGENTE A PARTIR DE `5491b66`
 
 Esta sección es la única fuente de verdad para el orden de trabajo futuro de SITS. El histórico anterior se conserva como evidencia de su ejecución; `docs/SITS_EXPANSION_SPEC.md` no se usa como roadmap vigente.

@@ -188,6 +188,12 @@ Las rutas existentes de Formularios de Actividades, Departamento Médico, Produc
 
 El filtro Todos es la unión sin duplicados por formulario de los subprocesos de la rama. No hay herencia desde los nodos de proceso, ni inferencia desde destinos textuales históricos, rutas antiguas, nombres o semántica. Los formularios sin asignación jerárquica permanecen exclusivamente en el Repositorio central. El destino real de la respuesta sigue fuera de este bloque y solo puede ser un subproceso válido.
 
+## 20. Bloque 5 implementado: destino real y respuestas contextualizadas
+
+`DynamicResponsePage` y el cliente existente envían `id_destino_respuesta` al contrato ya disponible de respuestas. Una plantilla con un único subproceso activo lo preselecciona y muestra la ruta legible completa. Una plantilla multidestino abierta desde una vista contextual recibe el ID real del subproceso; desde Todos requiere una selección explícita y ofrece solo destinos activos, asignados y compatibles con la rama contextual.
+
+El destino real se conserva al editar una respuesta existente; no sustituye Persona, contexto, versión, códigos, correlativos ni auditoría. Los formularios históricos sin asignaciones jerárquicas siguen enviando `null`, sin inferencia. `ContextualFormsPage` consulta el endpoint existente de respuestas por destino solamente cuando se selecciona un subproceso, por lo que no incorpora respuestas históricas sin destino ni respuestas de otros subprocesos.
+
 ## Mapa de reutilización
 
 | Funcionalidad actual | Archivo/modelo/servicio | Acción | Cambio necesario |
