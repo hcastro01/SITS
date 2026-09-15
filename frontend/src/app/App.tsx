@@ -19,6 +19,7 @@ import { AdminPermisosPage } from '../features/admin/AdminPermisosPage';
 import { StructureBasePage } from '../components/StructureBasePage';
 import { ActividadesPage } from '../features/actividades/ActividadesPage';
 import { AusentismosPage } from '../features/ausentismos/AusentismosPage';
+import { AccidentesPage } from '../features/accidentes/AccidentesPage';
 
 const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -34,7 +35,7 @@ const router = createBrowserRouter([
         { path: 'trabajo-social/actividades/formularios', element: <FormulariosAdminPage /> },
         { path: 'trabajo-social/departamento-medico/riesgos', element: <StructureBasePage title="Riesgos de trabajo" /> },
         { path: 'trabajo-social/departamento-medico/ausentismos', element: <AusentismosPage /> },
-        { path: 'trabajo-social/departamento-medico/accidentes', element: <StructureBasePage title="Accidentes" /> },
+        { path: 'trabajo-social/departamento-medico/accidentes', element: <AccidentesPage /> },
         { path: 'trabajo-social/departamento-medico/formularios', element: <FormulariosAdminPage /> },
         { path: 'casos', element: <CasosListPage /> },
         { path: 'casos/:id', element: <CasoDetailProductionPage /> },

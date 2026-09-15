@@ -10,6 +10,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.admin import router as admin_router
 from app.api.actividades import router as actividades_router
+from app.api.accidentes import router as accidentes_router
 from app.api.atenciones import router as atenciones_router
 from app.api.ausentismos import router as ausentismos_router
 from app.api.auth import router as auth_router
@@ -20,6 +21,7 @@ from app.api.dashboard import router as dashboard_router
 from app.api.documentos import router as documentos_router
 from app.api.formularios import router as formularios_router
 from app.api.importaciones_ausentismos import router as importaciones_ausentismos_router
+from app.api.importaciones_accidentes import router as importaciones_accidentes_router
 from app.api.routers_simples import (
     hallazgos_recorrido_router, novedades_router, personas_router, recorridos_router,
 )
@@ -104,8 +106,10 @@ app.include_router(router)
 app.include_router(auth_router)
 app.include_router(bootstrap_router)
 app.include_router(actividades_router)
+app.include_router(accidentes_router)
 app.include_router(ausentismos_router)
 app.include_router(importaciones_ausentismos_router)
+app.include_router(importaciones_accidentes_router)
 app.include_router(casos_router)
 app.include_router(atenciones_router)
 app.include_router(novedades_router)

@@ -174,3 +174,17 @@ Pendientes reales dentro de Bloque 4B: ninguno. Siguiente bloque previsto: Bloqu
 - `git diff --check`: aprobado.
 
 Pendientes reales de Ausentismos en Fase 3: ninguno. No se inició Fase 4.
+
+## Módulo actual posterior a Fase 3 — Accidentes
+
+**ACCIDENTES VALIDADO Y LISTO PARA COMMIT.** Se implementó el módulo de Accidentes del Departamento Médico sin renumerar el histórico previo. Esta denominación identifica el siguiente bloque funcional tras el cierre de Fase 3; la numeración futura deberá continuar desde este punto de forma explícita.
+
+- Backend: registro manual, listado paginado, detalle, edición, filtros combinables, vínculo con Persona, estados, clasificación y autorización por módulo.
+- Importación XLSX: análisis previo sin crear Accidentes, validación de columnas y archivo, incidencias persistentes, duplicados dentro del archivo y contra la base, confirmación atómica, bloqueo de doble confirmación e historial de lotes.
+- Frontend: pantalla integrada en Departamento Médico para registros, filtros, paginación, detalle, registro manual, análisis XLSX, confirmación e historial de importaciones.
+- Migración `0018_accidentes`: validada en SQLite temporal.
+- Permisos: validados en backend; usuario sin permiso recibe rechazo de autorización.
+- Pruebas específicas de Accidentes: 2/2 aprobadas. Validación funcional controlada: aprobada.
+- Frontend: 54/54 pruebas aprobadas; build de producción aprobado.
+- Suite backend global: 231/240 aprobadas y 1 error de teardown. Los 9 fallos y el error también ocurren en el baseline `3a79689bb05af52fbda4d80b105554fee8ac9e6f` (229/238 y 1 error), por lo que son preexistentes y no atribuibles a Accidentes.
+- `git diff --check`: aprobado.
