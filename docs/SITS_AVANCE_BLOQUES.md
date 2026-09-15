@@ -279,6 +279,22 @@ Fase 5 no está completada: el siguiente bloque previsto es Bloque 5 — destino
 
 Pendientes reales de Fase 5: ninguno. No se inició Fase 6, Producción funcional completa ni Oficina funcional completa.
 
+## Fase 6 — Riesgos de trabajo
+
+### Bloque 1 — Auditoría y diseño técnico
+
+**Estado: VALIDADO.**
+
+- Se auditó la arquitectura existente de Casos, Persona, seguimientos, compromisos, documentos, auditoría, permisos, Formularios, Accidentes y Ausentismos.
+- Decisión técnica: Riesgos de trabajo será una especialización explícita de `Caso` mediante `tipo_caso=RIESGOS_TRABAJO`, no una copia de Accidentes ni una nueva tabla de casos. No se reclasifican Casos históricos.
+- El modelo base ya conserva Persona, responsable, estados, seguimiento, compromisos, cierre, versionado, historial, documentos y auditoría. El Bloque 2 deberá incorporar scope de Riesgos y autorización contextual sin contaminar el listado de Casos.
+- El destino jerárquico de Formularios `RIESGOS_TRABAJO` ya existe; las respuestas futuras usarán el Caso como contexto real y el destino real de respuesta, sin repositorio paralelo.
+- No se encontró relación real que justifique una FK hacia Accidentes o Ausentismos. Cualquier vínculo futuro será opcional, explícito y no inferirá históricos.
+- Se verificó `0019_destinos_jerarquicos_formularios` como cabeza Alembic. No se requiere migración de tabla por el modelo elegido; un posible índice compuesto se evaluará con el query real del Bloque 2.
+- Documento técnico: `docs/SITS_FASE6_RIESGOS_TRABAJO_DISENO.md`.
+
+Fase 6 no está completada. El siguiente bloque autorizado será únicamente el Bloque 2 — backend/modelo operativo de Riesgos de trabajo.
+
 ## ROADMAP VIGENTE A PARTIR DE `5491b66`
 
 Esta sección es la única fuente de verdad para el orden de trabajo futuro de SITS. El histórico anterior se conserva como evidencia de su ejecución; `docs/SITS_EXPANSION_SPEC.md` no se usa como roadmap vigente.
