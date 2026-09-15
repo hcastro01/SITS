@@ -308,6 +308,17 @@ Fase 6 no está completada. El siguiente bloque autorizado será únicamente el 
 
 Fase 6 no está completada. El siguiente bloque autorizado será únicamente el Bloque 3 — frontend operativo de Riesgos de trabajo.
 
+### Bloque 3 — Frontend operativo de Riesgos de trabajo
+
+**Estado: VALIDADO.**
+
+- La ruta existente de Departamento Médico / Riesgos reemplaza su vista base por una tabla operativa que consume exclusivamente `/api/v1/riesgos-trabajo`; no consulta ni filtra Casos genéricos en el navegador.
+- Incluye registro con Persona del maestro mediante búsqueda, responsable seleccionado desde la infraestructura reutilizable, filtros server-side combinables, paginación, detalle básico, edición versionada y cierre. `tipo_caso` no se expone ni se edita en la interfaz.
+- La tabla no mezcla Accidentes ni Ausentismos. Mantiene estados de carga, vacío, error, 401/403 y protección ante doble envío. Seguimientos, compromisos, Formularios, Documentos e Historial visual quedan expresamente para el Bloque 4.
+- Validación frontend: Riesgos 7/7; suite frontend 108/108 ejecutada en grupos seriales (un worker, por límite del entorno); build y `git diff --check` aprobados.
+
+Fase 6 no está completada. El siguiente bloque autorizado será únicamente el Bloque 4 — integraciones operativas de Riesgos de trabajo.
+
 ## ROADMAP VIGENTE A PARTIR DE `5491b66`
 
 Esta sección es la única fuente de verdad para el orden de trabajo futuro de SITS. El histórico anterior se conserva como evidencia de su ejecución; `docs/SITS_EXPANSION_SPEC.md` no se usa como roadmap vigente.
