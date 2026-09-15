@@ -10,6 +10,7 @@ class Caso(MetadatosComunes, Base):
     __tablename__ = "casos"
     __table_args__ = (
         Index("ix_casos_estado_caso_fecha_apertura", "estado_caso", "fecha_apertura"),
+        Index("ix_casos_tipo_estado_fecha_apertura", "tipo_caso", "estado_caso", "fecha_apertura"),
         CheckConstraint("version >= 1", name="version_positive"),
     )
 

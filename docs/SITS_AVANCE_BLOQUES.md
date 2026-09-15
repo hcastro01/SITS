@@ -295,6 +295,19 @@ Pendientes reales de Fase 5: ninguno. No se inició Fase 6, Producción funciona
 
 Fase 6 no está completada. El siguiente bloque autorizado será únicamente el Bloque 2 — backend/modelo operativo de Riesgos de trabajo.
 
+### Bloque 2 — Backend operativo de Riesgos de trabajo
+
+**Estado: VALIDADO.**
+
+- Se reutilizó `Caso` sin tabla paralela: el endpoint `/api/v1/riesgos-trabajo` fuerza y valida `tipo_caso=RIESGOS_TRABAJO` en creación, listado, detalle, edición, seguimientos, compromisos, cierre e historial.
+- El listado tiene filtros server-side combinables por Persona/nombre, cédula textual, área, estado, responsable y rango de fecha, con paginación real. Casos de otro tipo reciben 404 mediante el scope de Riesgos y no aparecen en el listado.
+- `RIESGOS_TRABAJO` se usa como permiso contextual: un usuario con ese scope puede operar Riesgos sin adquirir acceso a la API genérica de Casos. Persona, seguimiento, compromisos, cierre, auditoría, Formularios y Documentos se reutilizan.
+- Migración `0020_indice_casos_riesgos`: índice compuesto `tipo_caso`, `estado_caso`, `fecha_apertura`, justificado por el patrón de consulta. Ciclo SQLite temporal `0019 → 0020 → 0019 → 0020` aprobado; no hay backfill ni nueva tabla.
+- Pruebas específicas Riesgos: 4/4 aprobadas. Regresión Casos/Formularios: 23/23. Suite backend completa: 251/251. `git diff --check` aprobado.
+- Accidentes y Ausentismos permanecen independientes; no se crearon FKs ni automatismos. No se implementó frontend ni Bloque 3.
+
+Fase 6 no está completada. El siguiente bloque autorizado será únicamente el Bloque 3 — frontend operativo de Riesgos de trabajo.
+
 ## ROADMAP VIGENTE A PARTIR DE `5491b66`
 
 Esta sección es la única fuente de verdad para el orden de trabajo futuro de SITS. El histórico anterior se conserva como evidencia de su ejecución; `docs/SITS_EXPANSION_SPEC.md` no se usa como roadmap vigente.

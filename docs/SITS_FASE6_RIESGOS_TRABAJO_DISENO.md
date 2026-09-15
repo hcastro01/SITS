@@ -125,3 +125,13 @@ No habrá backfill: los Casos históricos permanecen tal cual. No se crearán FK
 | Permisos | `permissions.py`, `security_seed.py` | MODIFICAR | Definir asignación aditiva de `RIESGOS_TRABAJO` y sensibilidad. |
 | Accidentes | `Accidente`, `services/accidentes.py` | REUTILIZAR | Solo futura referencia opcional si surge requisito comprobado. |
 | Ausentismos | `Ausentismo`, `services/ausentismos.py` | REUTILIZAR | Sin enlace automático; evaluar solo con requisito futuro. |
+
+## 19. Bloque 2 implementado: backend operativo
+
+La implementación reutiliza `Caso` de forma explícita: el servicio y router `riesgos-trabajo` fuerzan `tipo_caso="RIESGOS_TRABAJO"` al crear y verifican la misma clasificación antes de listar, consultar, editar, crear seguimientos, consultar compromisos, cerrar e inspeccionar historial. Un ID de Caso de otro tipo recibe 404 en las rutas de Riesgos y no puede ser reclasificado mediante el contrato de edición.
+
+El listado consulta servidor y devuelve paginación real, Persona, cédula textual, área, estado, responsable, resumen disponible (`resultado`), autor y metadatos existentes. Los filtros combinables son nombre, cédula, área, estado, responsable y rango de fecha. El índice `ix_casos_tipo_estado_fecha_apertura` fue añadido por la migración `0020_indice_casos_riesgos`, porque toda consulta del módulo fija el tipo y filtra/ordena por estado y fecha; no agrega columnas ni datos.
+
+La autorización reutiliza `RIESGOS_TRABAJO` como scope de las operaciones de Riesgos, sin conceder `CASOS` automáticamente. Los servicios compartidos de Casos aceptan ahora el módulo contextual para creación, edición, seguimiento, compromisos y cierre, conservando el comportamiento original para Casos. La semilla incorpora Riesgos al conjunto operativo sin ampliar permisos de otros módulos. Formularios conserva el destino jerárquico existente y Documentos continúa usando la relación `CASOS` del Caso especializado; no se construyó un motor paralelo ni se modificó BLOB.
+
+La migración temporal validó `0019 → 0020`, downgrade a `0019` y upgrade final. Pruebas específicas de Riesgos: 4/4 aprobadas; cubren autenticación, autorización aislada sin `CASOS`, Persona, creación forzada, históricos, filtro/paginación, detalle, edición, cierre, seguimientos, Formularios/Documentos existentes e índice. Regresión focalizada Casos/Formularios: 23/23. Suite backend completa: 251/251. No se modificaron Accidentes ni Ausentismos ni se inició frontend.
