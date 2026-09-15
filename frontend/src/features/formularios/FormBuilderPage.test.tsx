@@ -18,6 +18,10 @@ vi.mock('../../api/formBuilder', async () => ({
   ...apiMocks,
 }));
 
+vi.mock('../../app/AuthContext', () => ({
+  useAuth: () => ({ usuario: { permisos: { FORMULARIOS: { edit: true } } } }),
+}));
+
 function question(id: string, label: string, order: number, sectionId: string | null = null): FormQuestion {
   return {
     id_pregunta: id, id_seccion: sectionId, etiqueta: label, descripcion: null,

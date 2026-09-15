@@ -70,6 +70,8 @@ export interface FormDefinition {
   activo: boolean;
   eliminado: boolean;
   destinos: FormDestination[];
+  /** IDs del catálogo jerárquico; los textos de `destinos` son el legado compatible. */
+  destinos_jerarquicos?: string[];
   total_preguntas: number;
   total_respuestas: number;
   secciones: FormSection[];
@@ -78,6 +80,27 @@ export interface FormDefinition {
   acciones?: {
     eliminar: boolean;
   };
+}
+
+export interface FormDestinationNode {
+  id_destino: string;
+  codigo: string;
+  nombre: string;
+  nivel: 'MACROPROCESO' | 'PROCESO' | 'SUBPROCESO';
+  padre_id_destino: string | null;
+  activo: boolean;
+  orden: number;
+  hijos: FormDestinationNode[];
+}
+
+export interface FormDestinationAssignment {
+  id_asignacion: string;
+  id_formulario: string;
+  id_destino_catalogo: string;
+  activo: boolean;
+  eliminado: boolean;
+  version: number;
+  destino: FormDestinationNode;
 }
 
 export interface FormAnswer {
@@ -170,6 +193,11 @@ export interface SearchResult {
 }
 
 export const listFormDefinitions = () => get<FormDefinition[]>('/formularios');
+export const listDestinationTree = () => get<FormDestinationNode[]>('/formularios/destinos');
+export const listFormDestinations = (id: string, includeInactive = false) =>
+  get<FormDestinationAssignment[]>(`/formularios/${id}/destinos${includeInactive ? '?incluir_inactivos=true' : ''}`);
+export const syncFormDestinations = (id: string, destinationIds: string[]) =>
+  put<FormDestinationAssignment[]>(`/formularios/${id}/destinos`, { destino_ids: destinationIds });
 export const getFormDefinition = (id: string) => get<FormDefinition>(`/formularios/${id}`);
 export const createFormDefinition = (data: Record<string, unknown>) => post<FormDefinition>('/formularios', data);
 export const saveFormDefinition = (id: string, data: Record<string, unknown>) =>

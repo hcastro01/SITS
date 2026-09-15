@@ -11,12 +11,17 @@ const apiMocks = vi.hoisted(() => ({
   deleteFormDefinition: vi.fn(),
   duplicateFormDefinition: vi.fn(),
   listFormDefinitions: vi.fn(),
+  listDestinationTree: vi.fn(),
   setFormStatus: vi.fn(),
 }));
 
 vi.mock('../../api/formBuilder', async () => ({
   ...await vi.importActual<typeof import('../../api/formBuilder')>('../../api/formBuilder'),
   ...apiMocks,
+}));
+
+vi.mock('../../app/AuthContext', () => ({
+  useAuth: () => ({ usuario: { permisos: { FORMULARIOS: { create: true, edit: true } } } }),
 }));
 
 function form(overrides: Partial<FormDefinition> = {}): FormDefinition {
@@ -33,6 +38,7 @@ function form(overrides: Partial<FormDefinition> = {}): FormDefinition {
 
 async function renderPage(forms: FormDefinition[]) {
   apiMocks.listFormDefinitions.mockResolvedValue(forms);
+  apiMocks.listDestinationTree.mockResolvedValue([]);
   const user = userEvent.setup();
   const router = createMemoryRouter([
     { path: '/formularios', element: <FormulariosAdminPage /> },

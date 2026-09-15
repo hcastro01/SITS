@@ -164,7 +164,17 @@ El bloque se limitó al backend/modelo, sin cambiar las pantallas frontend ni in
 
 Los bloques posteriores al Bloque 2 cubrirán el frontend jerárquico, filtros/vistas por rama y regresión integral.
 
-## 17. Riesgos reales
+## 17. Bloque 3 implementado: Repositorio central y destinos jerárquicos
+
+El frontend extiende el Repositorio único ya existente. `FormulariosAdminPage` conserva el listado de plantillas y `FormBuilderPage` conserva el constructor, editor, vista previa y respuestas. No hay pantallas de Formularios específicas para Actividades, Departamento Médico, Producción u Oficina en este bloque.
+
+- **Cliente API:** `formBuilder.ts` usa el cliente HTTP existente para el árbol, asignaciones vigentes y sincronización (`GET /formularios/destinos`, `GET/PUT /formularios/{id_formulario}/destinos`). No se añadieron URLs absolutas ni endpoints nuevos.
+- **Repositorio:** muestra estado, versión, fecha, acciones disponibles y rutas legibles de los destinos. Los filtros jerárquicos usan `id_destino_catalogo`; nombre y estado siguen siendo filtros locales compatibles con el listado actual.
+- **Selector:** `HierarchicalDestinationPicker` obtiene el árbol del backend, permite marcar varios subprocesos, carga las asignaciones vigentes, evita doble envío y confirma éxito solo al completar el PUT. El retiro de una marca usa el retiro lógico del servicio backend.
+- **Históricos y permisos:** los destinos textuales se muestran explícitamente como sin clasificación jerárquica. La interfaz impide administrar asignaciones sin `FORMULARIOS:edit`, pero 401/403 continúan siendo decisiones del backend.
+- **Alcance excluido:** no se implementó selección de destino real al responder, filtrado de respuestas por destino ni vistas contextuales por proceso/subproceso.
+
+## 18. Riesgos reales
 
 - La equivalencia actual es textual (modulo, contexto_tipo); cambiarla sin transición puede romper disponibilidad y autorización.
 - El contexto es polimórfico y validado en servicio; destino de negocio y registro contextual no deben confundirse.

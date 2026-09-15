@@ -1,0 +1,25 @@
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
+import { FeedbackProvider } from '../../components/FeedbackProvider';
+import { FormulariosAdminPage } from './FormulariosAdminPage';
+
+const api = vi.hoisted(() => ({ listFormDefinitions: vi.fn(), listDestinationTree: vi.fn() }));
+const auth = vi.hoisted(() => ({ editable: true }));
+vi.mock('../../api/formBuilder', async () => ({ ...await vi.importActual<typeof import('../../api/formBuilder')>('../../api/formBuilder'), ...api }));
+vi.mock('../../app/AuthContext', () => ({ useAuth: () => ({ usuario: { permisos: { FORMULARIOS: { create: auth.editable, edit: auth.editable } } } }) }));
+const tree = [{ id_destino: 'root', codigo: 'TRABAJO_SOCIAL', nombre: 'Trabajo Social', nivel: 'MACROPROCESO' as const, padre_id_destino: null, activo: true, orden: 1, hijos: [{ id_destino: 'prod', codigo: 'PRODUCCION', nombre: 'Producción', nivel: 'PROCESO' as const, padre_id_destino: 'root', activo: true, orden: 2, hijos: [{ id_destino: 'rounds', codigo: 'RECORRIDOS', nombre: 'Recorridos', nivel: 'SUBPROCESO' as const, padre_id_destino: 'prod', activo: true, orden: 3, hijos: [] }] }] }];
+const form = (name = 'Control de planta', ids = ['rounds'], legacy: string[] = []) => ({ id_formulario: name, nombre: name, descripcion: null, responsable: null, estado: 'BORRADOR' as const, fecha_publicacion: null, fecha_actualizacion: null, actualizado_por: null, permite_multiples_respuestas: false, version_publicada: 0, version: 1, activo: true, eliminado: false, destinos: legacy as never[], destinos_jerarquicos: ids, total_preguntas: 1, total_respuestas: 0, secciones: [], preguntas: [], reglas: [], acciones: { eliminar: false } });
+async function renderPage(items = [form()]) { api.listDestinationTree.mockResolvedValue(tree); api.listFormDefinitions.mockResolvedValue(items); const router = createMemoryRouter([{ path: '/formularios', element: <FormulariosAdminPage /> }, { path: '/formularios/:id', element: <div /> }], { initialEntries: ['/formularios'] }); render(<FeedbackProvider><RouterProvider router={router} /></FeedbackProvider>); await screen.findByRole('heading', { name: 'Formularios' }); await screen.findByText(items[0].nombre); return userEvent.setup(); }
+describe('Repositorio central de Formularios', () => {
+  beforeEach(() => { vi.clearAllMocks(); auth.editable = true; });
+  it('muestra una plantilla única con su destino jerárquico', async () => { await renderPage(); expect(screen.getByText('Trabajo Social / Producción / Recorridos')).toBeInTheDocument(); });
+  it('identifica destino textual histórico sin clasificar', async () => { await renderPage([form('Histórico', [], ['GENERAL'])]); expect(screen.getByText(/Destino histórico sin clasificación jerárquica: General/)).toBeInTheDocument(); });
+  it('filtra por macroproceso usando su ID', async () => { const user = await renderPage(); await user.selectOptions(screen.getByLabelText('Filtrar por macroproceso'), 'root'); expect(screen.getByText('Control de planta')).toBeInTheDocument(); });
+  it('filtra por proceso usando su ID', async () => { const user = await renderPage(); await user.selectOptions(screen.getByLabelText('Filtrar por macroproceso'), 'root'); await user.selectOptions(screen.getByLabelText('Filtrar por proceso'), 'prod'); expect(screen.getByText('Control de planta')).toBeInTheDocument(); });
+  it('filtra por subproceso usando su ID', async () => { const user = await renderPage(); await user.selectOptions(screen.getByLabelText('Filtrar por macroproceso'), 'root'); await user.selectOptions(screen.getByLabelText('Filtrar por proceso'), 'prod'); await user.selectOptions(screen.getByLabelText('Filtrar por subproceso'), 'rounds'); expect(screen.getByText('Control de planta')).toBeInTheDocument(); });
+  it('combina filtros sin duplicar la plantilla', async () => { const user = await renderPage([form(), form('Sin coincidencia', [])]); await user.type(screen.getByLabelText('Buscar formulario'), 'control'); await user.selectOptions(screen.getByLabelText('Filtrar por macroproceso'), 'root'); expect(screen.queryByText('Sin coincidencia')).not.toBeInTheDocument(); expect(screen.getAllByText('Control de planta')).toHaveLength(1); });
+  it('limpia filtros jerárquicos', async () => { const user = await renderPage(); await user.selectOptions(screen.getByLabelText('Filtrar por macroproceso'), 'root'); await user.click(screen.getByRole('button', { name: 'Limpiar filtros' })); expect(screen.getByLabelText('Filtrar por macroproceso')).toHaveValue(''); });
+  it('oculta gestión para usuario sin permiso', async () => { auth.editable = false; await renderPage(); expect(screen.queryByRole('button', { name: /Editar y gestionar destinos/ })).not.toBeInTheDocument(); expect(screen.queryByRole('button', { name: /Crear formulario/ })).not.toBeInTheDocument(); });
+});

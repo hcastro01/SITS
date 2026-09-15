@@ -218,6 +218,19 @@ Fase 5 no está completada: este registro cierra únicamente su Bloque 1.
 
 Fase 5 no está completada: el siguiente bloque será el frontend jerárquico, filtros/vistas por rama y regresión integral.
 
+### Bloque 3 — Frontend del Repositorio central y gestión visual de destinos jerárquicos
+
+**Estado: VALIDADO.**
+
+- El único acceso sigue siendo el Repositorio central de Formularios; se reutilizan `FormulariosAdminPage` y `FormBuilderPage`, sin crear otro motor, constructor ni repositorios por módulo.
+- El repositorio carga el árbol real desde `/formularios/destinos`, presenta los destinos de cada plantilla con nombres legibles y filtra por macroproceso, proceso y subproceso mediante IDs del catálogo.
+- El constructor carga asignaciones desde `/formularios/{id_formulario}/destinos` y las sincroniza por PUT con IDs reales. Permite varios subprocesos en una plantilla, retiro lógico, loading, error, guardado sin doble envío y refresco tras éxito.
+- Los textos heredados siguen visibles como «Destino histórico sin clasificación jerárquica» y no se infieren ni reclasifican.
+- La gestión visual respeta `FORMULARIOS:edit`; lectura, errores 401/403 y estado vacío se comunican sin sustituir la autorización backend.
+- Validación frontend específica: 26/26 aprobadas. Regresión frontend completa: 77/77 aprobadas en 13 archivos con un worker; build y `git diff --check` aprobados.
+
+Fase 5 no está completada: el siguiente bloque previsto es la vista contextual por rama; no se inició en este bloque.
+
 ## ROADMAP VIGENTE A PARTIR DE `5491b66`
 
 Esta sección es la única fuente de verdad para el orden de trabajo futuro de SITS. El histórico anterior se conserva como evidencia de su ejecución; `docs/SITS_EXPANSION_SPEC.md` no se usa como roadmap vigente.
