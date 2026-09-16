@@ -14,10 +14,9 @@ import { ContextualFormsPage, CONTEXTUAL_FORM_BRANCHES } from '../features/formu
 import { BusquedaPage } from '../features/busqueda/BusquedaPage';
 import { EntityListPage } from '../features/entities/EntityListPage';
 import { EntityDetailPage } from '../features/entities/EntityDetailPage';
-import { atencionesConfig, novedadesConfig, personasConfig, produccionAtencionesConfig, produccionNovedadesConfig, produccionRecorridosConfig, recorridosConfig } from '../features/entities/EntityConfig';
+import { atencionesConfig, beneficiosConfig, novedadesConfig, oficinaAtencionesConfig, personasConfig, prestamosConfig, produccionAtencionesConfig, produccionNovedadesConfig, produccionRecorridosConfig, recorridosConfig, segurosConfig } from '../features/entities/EntityConfig';
 import { AdminUsuariosPage } from '../features/admin/AdminUsuariosPage';
 import { AdminPermisosPage } from '../features/admin/AdminPermisosPage';
-import { StructureBasePage } from '../components/StructureBasePage';
 import { ActividadesPage } from '../features/actividades/ActividadesPage';
 import { AusentismosPage } from '../features/ausentismos/AusentismosPage';
 import { AccidentesPage } from '../features/accidentes/AccidentesPage';
@@ -56,10 +55,14 @@ const router = createBrowserRouter([
         { path: 'trabajo-social/produccion/recorridos', element: <EntityListPage config={produccionRecorridosConfig} /> },
         { path: 'trabajo-social/produccion/recorridos/:id', element: <EntityDetailPage config={produccionRecorridosConfig} /> },
         { path: 'recorridos/:id', element: <EntityDetailPage config={recorridosConfig} /> },
-        { path: 'trabajo-social/oficina/beneficios', element: <StructureBasePage title="Beneficios" /> },
-        { path: 'trabajo-social/oficina/atenciones', element: <StructureBasePage title="Atenciones de Oficina" /> },
-        { path: 'trabajo-social/oficina/prestamos', element: <StructureBasePage title="Préstamos" /> },
-        { path: 'trabajo-social/oficina/seguro', element: <StructureBasePage title="Seguro" /> },
+        { path: 'trabajo-social/oficina/beneficios', element: <EntityListPage config={beneficiosConfig} /> },
+        { path: 'trabajo-social/oficina/beneficios/:id', element: <EntityDetailPage config={beneficiosConfig} /> },
+        { path: 'trabajo-social/oficina/atenciones', element: <EntityListPage config={oficinaAtencionesConfig} /> },
+        { path: 'trabajo-social/oficina/atenciones/:id', element: <EntityDetailPage config={oficinaAtencionesConfig} /> },
+        { path: 'trabajo-social/oficina/prestamos', element: <EntityListPage config={prestamosConfig} /> },
+        { path: 'trabajo-social/oficina/prestamos/:id', element: <EntityDetailPage config={prestamosConfig} /> },
+        { path: 'trabajo-social/oficina/seguro', element: <EntityListPage config={segurosConfig} /> },
+        { path: 'trabajo-social/oficina/seguro/:id', element: <EntityDetailPage config={segurosConfig} /> },
         { path: 'trabajo-social/oficina/formularios', element: <ContextualFormsPage config={CONTEXTUAL_FORM_BRANCHES.office} /> },
         { path: 'personas', element: <EntityListPage config={personasConfig} /> },
         { path: 'personas/:id', element: <EntityDetailPage config={personasConfig} /> },

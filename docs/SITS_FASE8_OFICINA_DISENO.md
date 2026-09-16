@@ -113,3 +113,14 @@ No se creó migración: `alembic heads` continúa en `0021_contexto_operativo_at
 - Los listados mantienen filtros server-side reales (Persona/nombre, cédula, área, responsable, fecha, tipo y tipo de gestión cuando aplica) y el contrato `items`, `total`, `limite`, `offset`. Formularios y Documentos permanecen sin wrappers ni integración profunda hasta el Bloque 4.
 
 Migración `0022_beneficios_prestamos_seguros`, posterior a `0021`: crea exclusivamente las tres tablas, FKs nullable hacia `personas`, constraints de tipos confirmados e índices de Persona y tipo/fecha. Su downgrade elimina únicamente esas tablas. No se modificó Atenciones Oficina ni se inició frontend o Bloque 3.
+
+## 16. Bloque 3 — Frontend de Oficina
+
+**IMPLEMENTADO Y VALIDADO.** Las cuatro rutas operativas reutilizan una sola familia configurable de vistas (`EntityListPage`, `EntityFormModal` y `EntityDetailPage`) y clientes contextuales. No se crearon `BeneficiosPage`, `PrestamosPage` ni `SeguroPage` paralelos.
+
+- Beneficios, Préstamos y Seguro consumen exclusivamente `/api/v1/oficina/beneficios`, `/prestamos` y `/seguro`; Atenciones usa exclusivamente `/api/v1/oficina/atenciones`. Ninguna vista Oficina llama las APIs transversales ni las de Producción.
+- Las configuraciones representan los tipos aprobados mediante selects, sin valores inventados. Persona usa `persona_id` nullable para las tres entidades nuevas, permite selección, sustitución, limpieza y guardado sin Persona. La Atención conserva el contrato existente y no expone `contexto_operativo`.
+- Tablas y detalles separan Persona, responsable y registrado por. Los filtros se envían al servidor según contrato, con paginación `items`, `total`, `limite`, `offset`, y conservan los estados de carga, vacío, error, 401 y 403.
+- Los detalles de Oficina no montan Formularios ni Documentos: la ruta Oficina/Formularios continúa usando el repositorio contextual existente. Integraciones profundas, documentos y BLOB quedan reservados para Bloque 4.
+
+Validación: pruebas focalizadas Oficina y regresión Producción 7/7; suite frontend serial 128/128 en 20 archivos; build y `git diff --check` aprobados. Validación visual manual APROBADA en las cinco rutas contextuales, en desktop (1440x900), tablet (768x1024) y móvil (390x844): navegación, sidebar, filtros, paginación, formularios/modales, tablas y responsive correctos, sin solapamientos, controles fuera de pantalla ni errores visuales bloqueantes. Fase 8 no está completa; el siguiente trabajo autorizado es Bloque 4 — Integraciones de Oficina.

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { HttpError } from '../../api/client';
 import type { EntityRecord, ContextualEntityClient, EntityClient } from '../../api/entities';
 import { EntityFormModal } from './EntityFormModal';
-import type { EntityPageConfig } from './EntityConfig';
+import type { EntityPageConfig, FiltroConfig } from './EntityConfig';
 import { useFeedback } from '../../components/FeedbackProvider';
 import { ModuleFormRecordsPanel } from '../formularios/ModuleFormRecordsPanel';
 import { ModuleFormSelector } from '../formularios/ModuleFormSelector';
@@ -18,7 +18,13 @@ export function EntityListPage({ config }: { config: EntityPageConfig }) {
   const [cargando, setCargando] = useState(true);
   const [modalAbierto, setModalAbierto] = useState(false);
   const [selectorAbierto, setSelectorAbierto] = useState(false);
-  const [filtros, setFiltros] = useState({ nombre: '', cedula: '', responsable: '', estado: '', desde: '', hasta: '' });
+  const filtrosDisponibles: readonly FiltroConfig[] = config.filtros ?? [
+    { nombre: 'nombre', etiqueta: 'Persona o nombre' }, { nombre: 'cedula', etiqueta: 'Cédula' },
+    { nombre: 'responsable', etiqueta: 'Responsable' }, { nombre: 'estado', etiqueta: 'Estado' },
+    { nombre: 'desde', etiqueta: 'Fecha desde', tipo: 'fecha' }, { nombre: 'hasta', etiqueta: 'Fecha hasta', tipo: 'fecha' },
+  ];
+  const initialFilters = () => Object.fromEntries(filtrosDisponibles.map((filtro) => [filtro.nombre, ''])) as Record<string, string>;
+  const [filtros, setFiltros] = useState<Record<string, string>>(initialFilters);
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
   const [requestEpoch, setRequestEpoch] = useState(0);
@@ -47,10 +53,10 @@ export function EntityListPage({ config }: { config: EntityPageConfig }) {
   }, [config, filtros, offset, requestEpoch]);
 
   function applyFilters(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setOffset(0); setRequestEpoch((current) => current + 1); }
-  function updateFilter(name: keyof typeof filtros, value: string) { setFiltros((current) => ({ ...current, [name]: value })); }
-  function clearFilters() { setFiltros({ nombre: '', cedula: '', responsable: '', estado: '', desde: '', hasta: '' }); setOffset(0); }
+  function updateFilter(name: string, value: string) { setFiltros((current) => ({ ...current, [name]: value })); }
+  function clearFilters() { setFiltros(initialFilters()); setOffset(0); }
 
-  const columnas = config.campos.filter((campo) => campo.enLista !== false).slice(0, config.contextual ? 8 : 5);
+  const columnas = config.campos.filter((campo) => campo.enLista !== false).slice(0, config.maxListColumns ?? (config.contextual ? 8 : 5));
 
   return (
     <section className="panel wide-panel">
@@ -62,12 +68,11 @@ export function EntityListPage({ config }: { config: EntityPageConfig }) {
         </div>
       </div>
       {config.contextual && <form className="form-grid" onSubmit={applyFilters}>
-        <label>Persona o nombre<input aria-label="Filtrar por nombre" value={filtros.nombre} onChange={(event) => updateFilter('nombre', event.target.value)} /></label>
-        <label>Cédula<input aria-label="Filtrar por cédula" value={filtros.cedula} onChange={(event) => updateFilter('cedula', event.target.value)} /></label>
-        <label>Responsable<input aria-label="Filtrar por responsable" value={filtros.responsable} onChange={(event) => updateFilter('responsable', event.target.value)} /></label>
-        {config.campos.some((campo) => campo.nombre === 'estado') && <label>Estado<input aria-label="Filtrar por estado" value={filtros.estado} onChange={(event) => updateFilter('estado', event.target.value)} /></label>}
-        <label>Fecha desde<input aria-label="Filtrar desde" type="date" value={filtros.desde} onChange={(event) => updateFilter('desde', event.target.value)} /></label>
-        <label>Fecha hasta<input aria-label="Filtrar hasta" type="date" value={filtros.hasta} onChange={(event) => updateFilter('hasta', event.target.value)} /></label>
+        {filtrosDisponibles.map((filtro) => <label key={filtro.nombre}>{filtro.etiqueta}
+          {filtro.tipo === 'select'
+            ? <select aria-label={`Filtrar por ${filtro.etiqueta.toLowerCase()}`} value={filtros[filtro.nombre] ?? ''} onChange={(event) => updateFilter(filtro.nombre, event.target.value)}><option value="">Todos</option>{filtro.opciones?.map((opcion) => <option key={opcion} value={opcion}>{opcion}</option>)}</select>
+            : <input aria-label={`Filtrar por ${filtro.nombre === 'nombre' ? 'nombre' : filtro.nombre === 'desde' ? 'desde' : filtro.nombre === 'hasta' ? 'hasta' : filtro.etiqueta.toLowerCase()}`} type={filtro.tipo === 'fecha' ? 'date' : 'text'} value={filtros[filtro.nombre] ?? ''} onChange={(event) => updateFilter(filtro.nombre, event.target.value)} />}
+        </label>)}
         <div className="button-row full-width"><button type="submit">Aplicar filtros</button><button type="button" className="secondary" onClick={clearFilters}>Limpiar filtros</button></div>
       </form>}
       {error && <p className="form-error" role="alert">{error}</p>}
