@@ -500,4 +500,14 @@ No se inició Fase 8.
 
 ## Siguiente fase planificada
 
-**FASE 9 — IMÁGENES Y ADJUNTOS BLOB.** No iniciada.
+**FASE 9 — IMÁGENES Y ADJUNTOS BLOB.**
+
+### Bloque 1 — Auditoría y diseño técnico
+
+**Estado: VALIDADO.**
+
+- Auditoría documentada en `docs/SITS_FASE9_BLOB_DISENO.md`, sin cambios funcionales, migraciones, commit ni push.
+- `Documento` ya usa BLOB real: `contenido_comprimido: LargeBinary` desde `0008_documentos`; SQLite no almacena rutas, URLs ni base64 para documentos. No se autoriza un segundo sistema ni una migración 0023 duplicada.
+- Se diseñó el endurecimiento futuro de límites configurables, MIME/firma, headers privados, preview autenticado y la integración transaccional de ARCHIVO/FOTOGRAFIA de Formularios mediante la infraestructura única.
+- Riesgos, Producción y Oficina mantienen sus wrappers y validación de scope antes de descargar o modificar Documentos. Formularios actualmente muestra inputs de archivo pero aún no persiste sus `File`; esa brecha queda delimitada para Bloque 4.
+- `alembic heads` verificó `0022_beneficios_prestamos_seguros`. Fase 9 no está completada; el siguiente bloque requiere autorización explícita: **Bloque 2 — Backend / endurecimiento BLOB**.
