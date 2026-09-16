@@ -422,3 +422,25 @@ Fase 7 no está completada. El siguiente bloque es Bloque 4 — Integraciones de
 - Formularios exige `PRODUCCION` y `FORMULARIOS`; respuestas exige además `RESPUESTAS`. Los wrappers documentales contextuales validan primero el registro y su scope (`PRODUCCION` para Atenciones; entidad existente para Recorridos y Novedades) y luego delegan a la infraestructura existente con `PRODUCCION` + `DOCUMENTOS`. No se alteró BLOB, tablas ni rutas transversales.
 - Validación focalizada: frontend 35/35; backend Producción 7/7, incluyendo destinos concretos, multidestino, históricos, permisos y Documentos. Suite frontend: 124/124 en 19 archivos con un worker. Suite backend completa: 259/259. `npm run build` y `git diff --check` aprobados.
 - No se inició el Bloque 5 ni se realizó commit o push. El siguiente bloque, con autorización explícita, es Bloque 5 — Integración, regresión y cierre de Producción.
+
+### Bloque 5 — Integración, regresión y cierre de Producción
+
+**FASE 7 — PRODUCCIÓN COMPLETADA.**
+
+- Bloques 1–5 cerrados: arquitectura final, backend y frontend contextual, integraciones, regresión y cierre documental.
+- Atenciones usa `contexto_operativo` explícito: las creadas desde Producción quedan en `PRODUCCION`; las históricas `NULL` y las de `OFICINA` se excluyen y rechazan por ID contextual. No hay inferencia, backfill ni reclasificación.
+- Recorridos reutiliza `Recorrido`; Novedades de planta reutiliza `Novedad`. Persona sigue opcional donde el modelo lo permite y permanece separada de responsable, autor y usuario que responde formularios.
+- Formularios usa asignación explícita a `PRODUCCION_ATENCIONES`, `RECORRIDOS` y `NOVEDADES_PLANTA`; respuestas guardan el ID real del destino y una plantilla multidestino permanece única, sin mezclar respuestas ni crear registros operativos automáticamente.
+- Documentos contextuales validan registro y scope antes de delegar a la infraestructura existente; BLOB, almacenamiento y APIs documentales transversales no cambiaron. Historial y auditoría reutilizan la infraestructura existente.
+- Migración `0021_contexto_operativo_atenciones` validada en SQLite temporal: `0020 → 0021 → 0020 → 0021`, columna nullable, históricos `NULL`, restricción e índice `ix_atenciones_contexto_fecha`; `alembic check` aprobado.
+- Regresión: backend completo 259/259; backend focalizado Producción 7/7; frontend completo 124/124 en 19 suites con un worker; frontend focalizado 50/50; `npm run build` y `git diff --check` aprobados. Las suites abarcan navegación, Actividades, Ausentismos, Accidentes, Riesgos de trabajo y Formularios.
+- Se conserva la validación visual manual previa en desktop 1440x900, tablet 768x1024 y móvil 390x844. La inspección automatizada focalizada de Formularios, Documentos y respuestas del Bloque 4 no se pudo completar porque Chrome agotó el tiempo de automatización al solicitar foco.
+- No se hizo commit ni push. Los artefactos ajenos no rastreados se preservaron.
+
+## Siguiente fase planificada
+
+**FASE 8 — OFICINA**
+
+Subprocesos previstos: Beneficios, Atenciones, Préstamos, Seguro y Formularios.
+
+No se inició Fase 8.

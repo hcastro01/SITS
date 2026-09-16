@@ -1,6 +1,6 @@
 # SITS — Fase 7: diseño de Producción
 
-**Estado.** Bloques 1 y 2 — diseño y backend contextual implementados. No reclasifica históricos ni inicia el Bloque 3.
+**Estado final.** IMPLEMENTADO Y VALIDADO. Los cinco bloques de Fase 7 están cerrados; no reclasifica históricos ni inicia Fase 8.
 
 ## 1. Estado actual
 
@@ -120,4 +120,14 @@ Documentos reutiliza la infraestructura existente sin ampliar BLOB ni crear tabl
 
 Validación del Bloque 4: frontend focalizado 35/35, suite frontend 124/124 en 19 archivos con `--maxWorkers=1`, backend focalizado Producción 7/7 y suite backend completa 259/259. El build frontend y `git diff --check` aprobaron. **BLOQUE 4 FASE 7 VALIDADO — INTEGRACIONES DE PRODUCCIÓN LISTAS.**
 
-El siguiente bloque es exclusivamente Bloque 5 — Integración, regresión y cierre de Producción.
+## 16. Cierre final — Bloque 5
+
+Fase 7 queda implementada y validada. Atenciones conserva el discriminador explícito y nullable `contexto_operativo`; la vista contextual sólo admite `PRODUCCION`, no infiere ni reclasifica históricos y mantiene la compatibilidad transversal. Recorridos y Novedades de planta reutilizan respectivamente `Recorrido` y `Novedad`; no se creó un modelo paralelo.
+
+Los formularios usan las asignaciones explícitas del catálogo para `PRODUCCION_ATENCIONES`, `RECORRIDOS` y `NOVEDADES_PLANTA`. Cada respuesta contextual fija el ID real de su destino y no crea automáticamente una Atención, Recorrido o Novedad; una plantilla multidestino sigue siendo una sola plantilla, sin mezclar respuestas entre destinos. Persona opcional, responsable, autor y usuario respondedor permanecen separados.
+
+Documentos e historial reutilizan infraestructura transversal: los wrappers de Producción verifican registro y scope antes de delegar, sin cambiar BLOB, almacenamiento ni APIs documentales generales. La migración `0021_contexto_operativo_atenciones` se validó en SQLite temporal mediante `0020 → 0021 → 0020 → 0021`, conservando históricos en `NULL`, la restricción real y `ix_atenciones_contexto_fecha`; `alembic check` aprobó.
+
+Validación de cierre: backend completo 259/259; backend focalizado Producción 7/7; frontend completo 124/124 en 19 suites con un worker; frontend focalizado 50/50; build de producción y `git diff --check` aprobados. Se conserva la validación manual previa de navegación y responsive en 1440x900, 768x1024 y 390x844. La comprobación visual automatizada focalizada de las integraciones del Bloque 4 no pudo inspeccionarse porque Chrome agotó el tiempo de la conexión de automatización al solicitar foco.
+
+La siguiente fase planificada es **Fase 8 — Oficina**: Beneficios, Atenciones, Préstamos, Seguro y Formularios. No se inició en este cierre.
