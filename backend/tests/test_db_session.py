@@ -42,6 +42,11 @@ class SQLiteJournalModeTests(unittest.TestCase):
         self.assertEqual(pragmas["busy_timeout"], 10000)
         self.assertEqual(pragmas["synchronous"], 1)  # NORMAL
 
+    def test_document_limits_are_centralized_in_settings(self):
+        settings = Settings(_env_file=None, max_upload_bytes=1024, max_documents_per_record=3)
+        self.assertEqual(settings.max_upload_bytes, 1024)
+        self.assertEqual(settings.max_documents_per_record, 3)
+
     def test_delete_from_environment_is_applied_to_the_engine(self):
         with patch.dict(os.environ, {"SQLITE_JOURNAL_MODE": "delete"}):
             settings = Settings(_env_file=None)

@@ -119,3 +119,11 @@ Bloque 3 frontend: selección multipart, validación previa informativa, loading
 - El panel no ofrece preview y anuncia formatos de forma incongruente con WEBP; la preview de Formularios filtra object URLs.
 - ARCHIVO/FOTOGRAFIA aún no persisten archivos: el UI permite seleccionarlos, pero la serialización los omite.
 - Las respuestas binario se cargan completas en memoria y no definen headers privados de cache; deben mantenerse límites y no incluir BLOB en listados.
+
+## 13. Decisiones implementadas — Bloque 2
+
+- No se alteró el esquema: `contenido_comprimido` ya es BLOB real y la metadata existente (`nombre_archivo` saneado, MIME, extensión, tamaños y SHA-256 no único) cubre el flujo. No se agregó `nombre_original` sin sanear, porque no puede ser ruta ni fuente de confianza; `nombre_archivo` conserva la metadata segura de presentación.
+- `Settings.max_upload_bytes` y `Settings.max_documents_per_record` centralizan los valores compatibles de 10 MiB y 10. Los routers continúan leyendo límite + 1 antes de delegar, por lo que los rechazos no dejan Documento ni auditoría persistidos.
+- La whitelist efectiva de Documentos queda en PDF, JPEG, PNG y WEBP. La validación exige extensión, MIME exacto asociado y magic bytes; SVG, HTML, JS, ejecutables, Office y demás formatos no se aceptan en este flujo inicial.
+- Todas las rutas de contenido existentes siguen siendo `attachment`; el preview autenticado inline queda expresamente para Bloque 3. Se aplicaron cabeceras privadas uniformes (`private, no-store`, `Pragma: no-cache`, `nosniff` y filename RFC 5987) a genérico, Riesgos, Producción y Oficina.
+- La descarga transforma BLOB inválido o ausente en un `AppError` controlado, conserva baja lógica y auditoría `DOWNLOAD_FILE` sólo tras recuperar bytes válidos. Los controles de padre, permisos y scope de wrappers no cambiaron.

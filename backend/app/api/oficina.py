@@ -2,7 +2,6 @@
 
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile, status
 from fastapi.responses import Response
-from urllib.parse import quote
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
@@ -10,7 +9,7 @@ from app.core.permissions import AuthenticatedUser
 from app.services import oficina
 from app.services import oficina_entidades
 from app.api.formularios import ResponderFormularioRequest
-from app.services.documentos import MAX_FILE_BYTES
+from app.services.documentos import MAX_FILE_BYTES, content_response_headers
 from app.services.dynamic_responses import serialize_response
 
 router = APIRouter(prefix="/api/v1/oficina", tags=["Oficina"])
@@ -145,7 +144,7 @@ def _integration_routes(kind: str):
         document, content = oficina.download_office_document(db, user, kind=kind, record_id=record_id,
             document_id=document_id, correlation_id=request.state.correlation_id)
         return Response(content=content, media_type=document.mime_type,
-            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(document.nombre_archivo)}"})
+            headers=content_response_headers(document.nombre_archivo))
 
     @router.post(f"/{kind}/{{record_id}}/documentos/{{document_id}}/eliminacion")
     def delete_document(record_id: str, document_id: str, payload: dict, request: Request,

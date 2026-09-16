@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile, status
 from fastapi.responses import Response
-from urllib.parse import quote
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
@@ -8,7 +7,7 @@ from app.core.permissions import AuthenticatedUser
 from app.api.formularios import ResponderFormularioRequest
 from app.models import Documento
 from app.schemas.riesgos_trabajo import RiesgoCierre, RiesgoCompromiso, RiesgoCreate, RiesgoSeguimiento, RiesgoUpdate
-from app.services.documentos import MAX_FILE_BYTES
+from app.services.documentos import MAX_FILE_BYTES, content_response_headers
 from app.services.dynamic_responses import serialize_response
 from app.services.riesgos_trabajo import add_riesgo_compromiso, add_riesgo_seguimiento, close_riesgo, create_riesgo, delete_riesgo_documento, download_riesgo_documento, get_riesgo, list_riesgos, riesgo_compromisos, riesgo_documentos, riesgo_forms, riesgo_history, riesgo_seguimientos, save_riesgo_form_response, update_riesgo, upload_riesgo_documento
 
@@ -138,7 +137,7 @@ async def cargar_documento(riesgo_id: str, request: Request, categoria_documento
 def descargar_documento(riesgo_id: str, id_archivo: str, request: Request, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
     document, content = download_riesgo_documento(db, user, riesgo_id, id_archivo, correlation_id=request.state.correlation_id)
     return Response(content=content, media_type=document.mime_type,
-        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(document.nombre_archivo)}"})
+        headers=content_response_headers(document.nombre_archivo))
 
 
 @router.post("/{riesgo_id}/documentos/{id_archivo}/eliminacion")

@@ -3,14 +3,13 @@ en SQLite (decisión explícita del usuario, ver app/services/documentos.py)."""
 
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from fastapi.responses import Response
-from urllib.parse import quote
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.core.permissions import AuthenticatedUser
 from app.models import Documento
 from app.services.documentos import (
-    MAX_FILE_BYTES, download_documento, list_documentos, soft_delete_documento, upload_documento,
+    MAX_FILE_BYTES, content_response_headers, download_documento, list_documentos, soft_delete_documento, upload_documento,
 )
 
 router = APIRouter(prefix="/api/v1/documentos", tags=["Documentos"])
@@ -59,7 +58,7 @@ def descargar(id_archivo: str, db: Session = Depends(get_db), user: Authenticate
     documento, contenido = download_documento(db, user, id_archivo)
     return Response(
         content=contenido, media_type=documento.mime_type,
-        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(documento.nombre_archivo)}"},
+        headers=content_response_headers(documento.nombre_archivo),
     )
 
 

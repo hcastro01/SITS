@@ -511,3 +511,15 @@ No se inició Fase 8.
 - Se diseñó el endurecimiento futuro de límites configurables, MIME/firma, headers privados, preview autenticado y la integración transaccional de ARCHIVO/FOTOGRAFIA de Formularios mediante la infraestructura única.
 - Riesgos, Producción y Oficina mantienen sus wrappers y validación de scope antes de descargar o modificar Documentos. Formularios actualmente muestra inputs de archivo pero aún no persiste sus `File`; esa brecha queda delimitada para Bloque 4.
 - `alembic heads` verificó `0022_beneficios_prestamos_seguros`. Fase 9 no está completada; el siguiente bloque requiere autorización explícita: **Bloque 2 — Backend / endurecimiento BLOB**.
+
+### Bloque 2 — Backend BLOB / endurecimiento
+
+**BLOQUE 2 FASE 9 VALIDADO — BACKEND BLOB ENDURECIDO.**
+
+- Se reutilizó `Documento.contenido_comprimido` (`LargeBinary`) y el round-trip zlib existente: los bytes se comprimen antes de persistir y se descomprimen sólo en la descarga. No se creó tabla, storage, base64, URL pública ni migración `0023`.
+- La política centralizada en `Settings` conserva el límite compatible de 10 MiB y 10 documentos activos por registro. La whitelist explícita quedó restringida a PDF, JPEG, PNG y WEBP, con correspondencia exacta extensión--MIME y firmas de los cuatro formatos.
+- Los listados continúan serializando sólo metadata; el BLOB sólo se recupera desde el endpoint de contenido autenticado. Las descargas genéricas y contextuales añaden `Cache-Control: private, no-store`, `Pragma: no-cache`, `X-Content-Type-Options: nosniff` y `attachment` con nombre saneado RFC 5987.
+- Se preservaron permisos, baja lógica, auditoría y los wrappers anti-acceso-horizontal de Riesgos, Producción y Oficina. Contenido histórico corrupto o no recuperable se rechaza con error controlado, sin exponer una excepción zlib.
+- Validación: focalizadas Documentos/Riesgos/Producción/Oficina `48/48`; backend completo reconstruido `273/273` (exit 0); `alembic heads` = `0022_beneficios_prestamos_seguros`; SQLite temporal `upgrade head && alembic check` aprobado; `git diff --check` aprobado.
+
+Siguiente bloque autorizado sólo bajo nueva instrucción: **Bloque 3 — Frontend de carga, descarga y preview.**
