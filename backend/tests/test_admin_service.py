@@ -13,7 +13,7 @@ from app.db.session import build_engine
 from app.models import Auditoria, User
 from app.services.admin import create_user, list_administration, save_permission, save_user_role
 from app.services.passwords import verify_password
-from app.services.security_seed import seed_security
+from app.services.security_seed import MODULES, ROLES, seed_security
 
 
 class AdminServiceTests(unittest.TestCase):
@@ -49,7 +49,7 @@ class AdminServiceTests(unittest.TestCase):
             admin = resolve_current_user(session, "admin1@example.com")
             datos = list_administration(session, admin)
             self.assertEqual(len(datos["roles"]), 5)
-            self.assertEqual(len(datos["permisos"]), 125)
+            self.assertEqual(len(datos["permisos"]), len(MODULES) * len(ROLES))
             self.assertEqual(len(datos["usuarios"]), 3)
 
     def test_admin_can_create_an_active_user_with_a_hashed_password_and_audit(self):

@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, String
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.security import Base, MetadatosComunes
@@ -8,9 +8,15 @@ class Atencion(MetadatosComunes, Base):
     """Config.gs:56 (Atenciones), Fase 1 §4 línea 90."""
 
     __tablename__ = "atenciones"
-    __table_args__ = (CheckConstraint("version >= 1", name="version_positive"),)
+    __table_args__ = (
+        CheckConstraint("version >= 1", name="version_positive"),
+        CheckConstraint("contexto_operativo IS NULL OR contexto_operativo IN ('PRODUCCION', 'OFICINA')", name="contexto_operativo_valido"),
+        Index("ix_atenciones_contexto_fecha", "contexto_operativo", "fecha"),
+    )
 
     id_atencion: Mapped[str] = mapped_column(String, primary_key=True)
+    # Nullable: los registros anteriores a Producción/Oficina permanecen sin clasificar.
+    contexto_operativo: Mapped[str | None] = mapped_column(String)
     fecha: Mapped[str | None] = mapped_column(String)
     hora: Mapped[str | None] = mapped_column(String)
     id_persona: Mapped[str | None] = mapped_column(ForeignKey("personas.id_persona"), index=True)
