@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_db
 from app.core.permissions import AuthenticatedUser
 from app.services import oficina
+from app.services import oficina_entidades
 
 router = APIRouter(prefix="/api/v1/oficina", tags=["Oficina"])
 
@@ -48,3 +49,51 @@ def history_atencion(record_id: str, db: Session = Depends(get_db), user: Authen
     return [{"campo": row.campo, "accion": row.accion, "valor_anterior": row.valor_anterior,
              "valor_nuevo": row.valor_nuevo, "usuario": row.usuario, "fecha_hora": row.fecha_hora,
              "motivo": row.motivo} for row in oficina.atencion_history(db, user, record_id)]
+
+
+def _history(rows):
+    return [{"campo": row.campo, "accion": row.accion, "valor_anterior": row.valor_anterior,
+             "valor_nuevo": row.valor_nuevo, "usuario": row.usuario, "fecha_hora": row.fecha_hora,
+             "motivo": row.motivo} for row in rows]
+
+
+def _office_entity_routes(entity, path: str):
+    @router.get(path)
+    def list_records(nombre: str | None = None, cedula: str | None = None, area: str | None = None,
+                     responsable: str | None = None, fecha: str | None = None, tipo: str | None = None,
+                     tipo_gestion: str | None = None, limite: int = Query(25, ge=1, le=100),
+                     offset: int = Query(0, ge=0), db: Session = Depends(get_db),
+                     user: AuthenticatedUser = Depends(get_current_user)):
+        return oficina_entidades.list_records(db, user, entity, nombre=nombre, cedula=cedula, area=area,
+            responsable=responsable, fecha=fecha, tipo=tipo, tipo_gestion=tipo_gestion, limit=limite, offset=offset)
+
+    @router.post(path, status_code=status.HTTP_201_CREATED)
+    def create_record(payload: dict, request: Request, db: Session = Depends(get_db),
+                      user: AuthenticatedUser = Depends(get_current_user)):
+        return oficina_entidades.create(db, user, entity, correlation_id=request.state.correlation_id, fields=payload)
+
+    @router.get(f"{path}/{{record_id}}")
+    def get_record(record_id: str, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
+        return oficina_entidades.get(db, user, entity, record_id)
+
+    @router.patch(f"{path}/{{record_id}}")
+    def update_record(record_id: str, payload: dict, request: Request, db: Session = Depends(get_db),
+                      user: AuthenticatedUser = Depends(get_current_user)):
+        values = dict(payload); expected_version = values.pop("expected_version", None)
+        return oficina_entidades.update(db, user, entity, record_id, expected_version=expected_version,
+            correlation_id=request.state.correlation_id, fields=values)
+
+    @router.post(f"{path}/{{record_id}}/eliminacion")
+    def delete_record(record_id: str, payload: dict, request: Request, db: Session = Depends(get_db),
+                      user: AuthenticatedUser = Depends(get_current_user)):
+        return oficina_entidades.delete(db, user, entity, record_id, expected_version=payload.get("expected_version"),
+            motivo=payload.get("motivo") or payload.get("reason") or "", correlation_id=request.state.correlation_id)
+
+    @router.get(f"{path}/{{record_id}}/historial")
+    def history_record(record_id: str, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
+        return _history(oficina_entidades.history(db, user, entity, record_id))
+
+
+_office_entity_routes(oficina_entidades.beneficios, "/beneficios")
+_office_entity_routes(oficina_entidades.prestamos, "/prestamos")
+_office_entity_routes(oficina_entidades.seguros, "/seguro")

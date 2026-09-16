@@ -11,6 +11,7 @@ from app.models.formularios import (
     ReglaFormulario, SeccionFormulario,
 )
 from app.models.personas import Persona
+from app.models.oficina import Beneficio, Prestamo, Seguro
 from app.models.procesos import Atencion, HallazgoRecorrido, Novedad, Recorrido
 from app.models.respuestas import EnvioFormulario, RespuestaFormulario, SecuenciaRespuestaFormulario
 from app.models.security import Base, Permission, Role, User
@@ -18,12 +19,12 @@ from app.models.security import ModuloSistema
 from app.models.sesiones import Sesion
 
 __all__ = [
-    "Accidente", "Actividad", "Atencion", "Auditoria", "Ausentismo", "Base", "Catalogo", "Caso", "Cierre", "Compromiso",
+    "Accidente", "Actividad", "Atencion", "Auditoria", "Ausentismo", "Base", "Beneficio", "Catalogo", "Caso", "Cierre", "Compromiso",
     "Configuracion", "Derivacion", "DetalleCasoSensible", "Documento", "EnvioFormulario", "ErrorImportacionAusentismo",
     "LoteImportacionAccidente", "LoteImportacionAusentismo", "ErrorImportacionAccidente", "ModuloSistema",
     "DestinoFormulario", "Formulario", "FormularioDestino", "FormularioVersion", "HallazgoRecorrido", "Novedad",
     "OpcionPregunta", "Permission", "Persona", "Pregunta", "Recorrido", "ReglaFormulario",
     "RespuestaFormulario", "Role", "SeccionFormulario", "Seguimiento", "SecuenciaRespuestaFormulario",
-    "Sesion", "User",
+    "Prestamo", "Seguro", "Sesion", "User",
 ]
 

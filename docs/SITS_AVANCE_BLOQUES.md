@@ -461,8 +461,8 @@ No se inició Fase 8.
 
 ### Bloque 2 — Backend de Oficina
 
-**Estado: EN PROGRESO.**
+**Estado: VALIDADO.**
 
 - **2A — Atenciones Oficina + scope OFICINA: VALIDADO.** Wrapper `/api/v1/oficina/atenciones` reutiliza `Atencion`, fuerza `OFICINA` y aísla `PRODUCCION` e históricos `NULL`; scope aditivo sin elevar permisos transversales. Pruebas focalizadas Oficina/Producción: 9/9; suite backend: 261/261; `alembic check` aprobado sobre head `0021_contexto_operativo_atenciones`.
-- **2B — Beneficios / Préstamos / Seguro: PENDIENTE DE DEFINICIÓN FUNCIONAL.** Sin modelo ni contrato que defina campos, Persona, responsable, estado o fecha; no se crearon entidades, APIs ni migraciones especulativas.
-- No se inició frontend ni Bloque 3.
+- **2B — Beneficios / Préstamos / Seguro: VALIDADO.** Entidades operativas independientes bajo `/api/v1/oficina`, con `persona_id` nullable/FK, autor desde sesión, responsable nullable, CRUD, baja lógica, auditoría, filtros y paginación comunes. Beneficios limita TIA/FARMACIA y Activación/Bloqueo/Anulación; Préstamos limita Préstamo/Anticipo sin lógica financiera; Seguro limita sus seis gestiones, incluido Dependiente sin estructura adicional. Migración `0022_beneficios_prestamos_seguros` aditiva, reversible y validada en SQLite temporal. Pruebas nuevas 2B: 4/4; regresión Oficina/Producción: 9/9; suite backend completa: 265/265, sin fallos ni errores. No se implementaron frontend, BLOB, Formularios profundos ni Bloque 3.
+- Siguiente: **BLOQUE 3 — Frontend Oficina.** No se inició en este subbloque.

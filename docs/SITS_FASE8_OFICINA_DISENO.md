@@ -103,4 +103,13 @@ No se creó migración: `alembic heads` continúa en `0021_contexto_operativo_at
 
 ## 15. Bloque 2B — Beneficios, Préstamos y Seguro
 
-**PENDIENTE DE DEFINICIÓN FUNCIONAL.** Este documento no autoriza ningún campo, semántica operativa ni obligatoriedad de Persona para esas entidades. Antes de crear sus modelos, APIs, migración y pruebas se requiere una definición funcional explícita de cada gestión. No se inició frontend ni Bloque 3.
+**IMPLEMENTADO Y VALIDADO.** El backend crea las tres entidades persistentes y separadas: `Beneficio`, `Prestamo` y `Seguro`, bajo las rutas contextuales `/api/v1/oficina/beneficios`, `/prestamos` y `/seguro`. Todas reutilizan `EntityService`, metadatos comunes, versión optimista, baja lógica y `Auditoria`; no se creó una mega-tabla ni historial paralelo.
+
+- Beneficios admite únicamente `TIA` y `FARMACIA`, con gestiones `ACTIVACION`, `BLOQUEO` y `ANULACION`.
+- Préstamos admite únicamente `PRESTAMO` y `ANTICIPO`; no contiene monto, interés, cuotas, plazo, saldo, amortización ni lógica financiera.
+- Seguro admite únicamente `AFILIACION`, `ENROLAMIENTO`, `COBERTURA`, `REEMBOLSO`, `PRIMA` y `DEPENDIENTE`. `DEPENDIENTE` es una gestión, sin estructura ni campos de dependientes; tampoco hay pólizas ni motor de cobertura.
+- `persona_id` es FK nullable a `Persona`; nombre, cédula y área se proyectan desde esa relación cuando existe, sin duplicación. Fecha, descripción, observación y responsable de negocio son nullable. No se creó estado, monto ni catálogo adicional.
+- Autor proviene exclusivamente de la sesión mediante los metadatos existentes. Las rutas exigen el scope aditivo `OFICINA`, que no concede Producción ni las APIs transversales.
+- Los listados mantienen filtros server-side reales (Persona/nombre, cédula, área, responsable, fecha, tipo y tipo de gestión cuando aplica) y el contrato `items`, `total`, `limite`, `offset`. Formularios y Documentos permanecen sin wrappers ni integración profunda hasta el Bloque 4.
+
+Migración `0022_beneficios_prestamos_seguros`, posterior a `0021`: crea exclusivamente las tres tablas, FKs nullable hacia `personas`, constraints de tipos confirmados e índices de Persona y tipo/fecha. Su downgrade elimina únicamente esas tablas. No se modificó Atenciones Oficina ni se inició frontend o Bloque 3.
