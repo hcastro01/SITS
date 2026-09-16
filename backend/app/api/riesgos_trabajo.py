@@ -108,14 +108,16 @@ def formularios(riesgo_id: str, db: Session = Depends(get_db), user: Authenticat
 
 
 @router.post("/{riesgo_id}/formularios/{id_formulario}/respuestas", status_code=status.HTTP_201_CREATED)
-def responder_formulario(riesgo_id: str, id_formulario: str, payload: ResponderFormularioRequest, request: Request,
+async def responder_formulario(riesgo_id: str, id_formulario: str, request: Request,
                          db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
+    from app.api.formularios import response_request_payload
+    payload, attachments = await response_request_payload(request)
     envio = save_riesgo_form_response(db, user, riesgo_id, id_formulario,
         correlation_id=request.state.correlation_id, draft=payload.borrador, answers=payload.respuestas,
         client_key=payload.id_envio_cliente, legacy_record_id=payload.id_registro_proceso,
         response_id=payload.id_respuesta, expected_version=payload.expected_version,
         create_context=False, person_id=payload.id_persona, edit_registered=payload.editar_registrado,
-        id_destino_respuesta=payload.id_destino_respuesta)
+        id_destino_respuesta=payload.id_destino_respuesta, attachments=attachments)
     return serialize_response(db, envio, user=user)
 
 

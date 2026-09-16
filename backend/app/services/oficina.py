@@ -152,6 +152,7 @@ def save_office_form_response(session: Session, user: AuthenticatedUser, *, kind
         "client_key": values.pop("id_envio_cliente", None), "legacy_record_id": values.pop("id_registro_proceso", None),
         "response_id": values.pop("id_respuesta", None), "expected_version": values.pop("expected_version", None),
         "edit_registered": values.pop("editar_registrado", False),
+        "attachments": values.pop("adjuntos", []),
     }
     return save_dynamic_response(session, user, form_id, correlation_id=correlation_id,
         context_type=context_type, context_id=record_id, response_destination_id=destination.id_destino,

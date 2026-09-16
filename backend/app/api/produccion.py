@@ -66,8 +66,11 @@ def _form_routes(kind: str):
         return produccion.production_forms(db, user, kind=kind, record_id=record_id)
 
     @router.post(f"/{kind}/{{record_id}}/formularios/{{form_id}}/respuestas", status_code=status.HTTP_201_CREATED)
-    def answer(form_id: str, record_id: str, payload: ResponderFormularioRequest, request: Request, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
-        return serialize_response(db, produccion.save_production_form_response(db, user, kind=kind, record_id=record_id, form_id=form_id, correlation_id=request.state.correlation_id, payload=payload.model_dump()), user=user)
+    async def answer(form_id: str, record_id: str, request: Request, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
+        from app.api.formularios import response_request_payload
+        payload, attachments = await response_request_payload(request)
+        values = payload.model_dump(); values["adjuntos"] = attachments
+        return serialize_response(db, produccion.save_production_form_response(db, user, kind=kind, record_id=record_id, form_id=form_id, correlation_id=request.state.correlation_id, payload=values), user=user)
 
     @router.get(f"/{kind}/{{record_id}}/documentos")
     def documents(record_id: str, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):

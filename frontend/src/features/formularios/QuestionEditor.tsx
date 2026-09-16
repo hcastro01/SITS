@@ -107,6 +107,9 @@ export function QuestionEditor({ question, index, total, sections, allQuestions,
       {['ARCHIVO', 'FOTOGRAFIA'].includes(question.tipo) && <label className="builder-field">Cantidad máxima
         <input type="number" min="1" max="10" value={String(question.configuracion.max_files ?? 1)} onChange={(e) => updateConfig('max_files', Number(e.target.value))} />
       </label>}
+      {['ARCHIVO', 'FOTOGRAFIA'].includes(question.tipo) && <label className="builder-field">Tamaño máximo (MiB)
+        <input type="number" min="1" max="10" value={String(question.configuracion.max_size_mb ?? 10)} onChange={(e) => updateConfig('max_size_mb', Number(e.target.value))} />
+      </label>}
     </div>
 
     {OPTION_TYPES.has(question.tipo) && <div className="option-editor"><h4>Opciones</h4>

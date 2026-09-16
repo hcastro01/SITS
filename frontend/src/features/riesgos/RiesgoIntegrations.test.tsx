@@ -8,7 +8,7 @@ import { ContextFormsPanel } from '../formularios/ContextFormsPanel';
 import { DynamicResponsePage } from '../formularios/DynamicResponsePage';
 
 const riesgosApi = vi.hoisted(() => ({ listarFormulariosRiesgo: vi.fn(), listarDocumentosRiesgo: vi.fn(), responderFormularioRiesgo: vi.fn() }));
-const formApi = vi.hoisted(() => ({ getFormDefinition: vi.fn(), getFormResponse: vi.fn(), listDestinationTree: vi.fn() }));
+const formApi = vi.hoisted(() => ({ getFormDefinition: vi.fn(), getFormResponse: vi.fn(), listDestinationTree: vi.fn(), saveFormResponseMultipart: vi.fn() }));
 vi.mock('../../api/riesgosTrabajo', async () => ({ ...await vi.importActual<typeof import('../../api/riesgosTrabajo')>('../../api/riesgosTrabajo'), ...riesgosApi }));
 vi.mock('../../api/formBuilder', async () => ({ ...await vi.importActual<typeof import('../../api/formBuilder')>('../../api/formBuilder'), ...formApi }));
 vi.mock('../../app/AuthContext', () => ({ useAuth: () => ({ usuario: { permisos: { RIESGOS_TRABAJO: { edit: true }, DOCUMENTOS: { create: true, delete: true } } } }) }));
@@ -25,7 +25,7 @@ const tree = [{ id_destino: 'social', codigo: 'TRABAJO_SOCIAL', nombre: 'Trabajo
 const definition = { id_formulario: 'risk', nombre: 'Solo Riesgos', descripcion: null, responsable: null, estado: 'PUBLICADO' as const, fecha_publicacion: null, fecha_actualizacion: null, actualizado_por: null, permite_multiples_respuestas: false, version_publicada: 3, version: 4, activo: true, eliminado: false, destinos: [], destinos_jerarquicos: ['destino-riesgos-trabajo'], total_preguntas: 0, total_respuestas: 7, secciones: [], preguntas: [], reglas: [] };
 
 describe('Integraciones reales de RiesgosTrabajo', () => {
-  beforeEach(() => { vi.clearAllMocks(); riesgosApi.listarFormulariosRiesgo.mockResolvedValue(forms); riesgosApi.listarDocumentosRiesgo.mockResolvedValue([documento]); formApi.getFormDefinition.mockResolvedValue(definition); formApi.getFormResponse.mockResolvedValue(null); formApi.listDestinationTree.mockResolvedValue(tree); riesgosApi.responderFormularioRiesgo.mockResolvedValue({ id_respuesta: 'r1', codigo_respuesta: 'RIE-0007', version: 1, id_destino_respuesta: 'destino-riesgos-trabajo' }); });
+  beforeEach(() => { vi.clearAllMocks(); riesgosApi.listarFormulariosRiesgo.mockResolvedValue(forms); riesgosApi.listarDocumentosRiesgo.mockResolvedValue([documento]); formApi.getFormDefinition.mockResolvedValue(definition); formApi.getFormResponse.mockResolvedValue(null); formApi.listDestinationTree.mockResolvedValue(tree); formApi.saveFormResponseMultipart.mockResolvedValue({ id_respuesta: 'r1', codigo_respuesta: 'RIE-0007', version: 1, id_destino_respuesta: 'destino-riesgos-trabajo' }); });
 
   it('muestra solamente las plantillas ya filtradas por el endpoint contextual, incluida una multidestino una vez', async () => {
     render(<MemoryRouter><ContextFormsPanel contextType="CASOS" contextId="risk-1" riesgoId="risk-1" /></MemoryRouter>);
@@ -56,11 +56,11 @@ describe('Integraciones reales de RiesgosTrabajo', () => {
   it('responde por el endpoint contextual con el destino real de Riesgos, contexto Caso y sin doble envío', async () => {
     render(<MemoryRouter initialEntries={['/formularios/risk/responder?contexto_tipo=CASOS&contexto_id=risk-1&riesgo_id=risk-1&id_persona=persona-1']}><Routes><Route path="/formularios/:id/responder" element={<DynamicResponsePage />} /></Routes></MemoryRouter>);
     const user = userEvent.setup(); await screen.findByText('Solo Riesgos');
-    let resolve!: (value: unknown) => void; riesgosApi.responderFormularioRiesgo.mockReturnValue(new Promise((done) => { resolve = done; }));
+    let resolve!: (value: unknown) => void; formApi.saveFormResponseMultipart.mockReturnValue(new Promise((done) => { resolve = done; }));
     await user.click(screen.getByRole('button', { name: 'Enviar formulario' }));
-    expect(riesgosApi.responderFormularioRiesgo).toHaveBeenCalledOnce();
+    expect(formApi.saveFormResponseMultipart).toHaveBeenCalledOnce();
     expect(screen.getAllByRole('button', { name: 'Guardando…' })).toHaveLength(2);
-    expect(riesgosApi.responderFormularioRiesgo).toHaveBeenCalledWith('risk-1', 'risk', expect.objectContaining({ contexto_tipo: 'CASOS', contexto_id: 'risk-1', id_persona: 'persona-1', id_destino_respuesta: 'destino-riesgos-trabajo' }));
+    expect(formApi.saveFormResponseMultipart).toHaveBeenCalledWith('/riesgos-trabajo/risk-1/formularios/risk/respuestas', expect.objectContaining({ contexto_tipo: 'CASOS', contexto_id: 'risk-1', id_persona: 'persona-1', id_destino_respuesta: 'destino-riesgos-trabajo' }), []);
     resolve({ id_respuesta: 'r1', codigo_respuesta: 'RIE-0007', version: 1, id_destino_respuesta: 'destino-riesgos-trabajo' });
   });
 

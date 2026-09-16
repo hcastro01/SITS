@@ -1,15 +1,17 @@
 """Router de Formularios, Preguntas, Opciones, Reglas y Respuestas."""
 
+import json
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query, Request
-from pydantic import BaseModel, ConfigDict, Field, StrictBool
+from fastapi import APIRouter, Depends, Query, Request, Response, UploadFile
+from fastapi.exceptions import RequestValidationError
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.core.permissions import AuthenticatedUser, authorize, can
-from app.models import EnvioFormulario, Formulario, Pregunta
+from app.models import EnvioFormulario, Formulario, Pregunta, RespuestaDocumento, RespuestaFormulario
 from app.services.dynamic_responses import (
     context_forms, get_user_response, serialize_response, soft_delete_dynamic_response,
 )
@@ -29,6 +31,7 @@ from app.services.records import get_active
 from app.services.reglas_formulario import reglas_formulario
 from app.services.respuestas_formulario import save_response
 from app.services.response_contexts import response_action_allowed
+from app.services.documentos import content_response_headers, download_documento
 
 router = APIRouter(prefix="/api/v1/formularios", tags=["Formularios"])
 
@@ -59,6 +62,30 @@ class ResponderFormularioRequest(BaseModel):
     # intentionally never forwarded to save_response.
     codigo_respuesta: str | None = None
     numero_secuencial: int | None = None
+
+
+async def response_request_payload(request: Request) -> tuple[ResponderFormularioRequest, list[dict]]:
+    """Lee JSON histórico o multipart con `payload` JSON y `archivo:<pregunta>` repetible."""
+    try:
+        if "multipart/form-data" not in (request.headers.get("content-type") or ""):
+            return ResponderFormularioRequest.model_validate(await request.json()), []
+        form = await request.form()
+        raw_payload = form.get("payload")
+        if not isinstance(raw_payload, str):
+            raise ValueError("El envío multipart requiere el campo payload.")
+        payload = ResponderFormularioRequest.model_validate_json(raw_payload)
+    except ValidationError as error:
+        raise RequestValidationError(error.errors()) from error
+    attachments = []
+    for name, value in form.multi_items():
+        if not name.startswith("archivo:") or not isinstance(value, UploadFile):
+            continue
+        question_id = name.removeprefix("archivo:")
+        if not question_id:
+            raise ValueError("Cada adjunto requiere una pregunta.")
+        attachments.append({"id_pregunta": question_id, "nombre_archivo": value.filename or "archivo",
+                            "mime_type": value.content_type or "", "contenido": await value.read()})
+    return payload, attachments
 
 
 class DestinosFormularioRequest(BaseModel):
@@ -147,6 +174,23 @@ def obtener_respuesta(
     user: AuthenticatedUser = Depends(get_current_user),
 ):
     return get_user_response(db, user, id_respuesta)
+
+
+@router.get("/respuestas/{id_respuesta}/adjuntos/{id_archivo}/contenido")
+def descargar_adjunto_respuesta(id_respuesta: str, id_archivo: str, request: Request,
+                                db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
+    response = get_active(db, EnvioFormulario, id_respuesta, EnvioFormulario.id_respuesta)
+    from app.services.response_contexts import authorize_response_action
+    authorize_response_action(db, user, response, "read")
+    linked = db.scalar(select(RespuestaDocumento.id_respuesta_documento).join(
+        RespuestaFormulario, RespuestaFormulario.id_detalle_respuesta == RespuestaDocumento.id_detalle_respuesta,
+    ).where(RespuestaFormulario.id_respuesta == id_respuesta, RespuestaFormulario.eliminado.is_(False),
+            RespuestaDocumento.id_archivo == id_archivo))
+    if linked is None:
+        from app.core.errors import AppError
+        raise AppError("FORM_ATTACHMENT_NOT_FOUND", "El adjunto no pertenece a esta respuesta.", 404)
+    document, content = download_documento(db, user, id_archivo, correlation_id=request.state.correlation_id)
+    return Response(content=content, media_type=document.mime_type, headers=content_response_headers(document.nombre_archivo))
 
 
 @router.post("/respuestas/{id_respuesta}/eliminacion")
@@ -344,16 +388,12 @@ def crear_regla(
 
 
 @router.post("/{id_formulario}/respuestas", status_code=201)
-def responder(
-    id_formulario: str, payload: ResponderFormularioRequest,
+async def responder(
+    id_formulario: str, request: Request,
     db: Session = Depends(get_db),
     user: AuthenticatedUser = Depends(get_current_user),
-    request: Request = None,
 ):
-    # Preserve the callable API used by services/tests while FastAPI validates
-    # HTTP payloads against ResponderFormularioRequest.
-    if isinstance(payload, dict):
-        payload = ResponderFormularioRequest.model_validate(payload)
+    payload, attachments = await response_request_payload(request)
     envio = save_response(
         db, user, id_formulario,
         draft=payload.borrador,
@@ -365,6 +405,6 @@ def responder(
         crear_contexto=payload.crear_contexto, id_persona=payload.id_persona,
         editar_registrado=payload.editar_registrado,
         id_destino_respuesta=payload.id_destino_respuesta,
-        correlation_id=getattr(request.state, "correlation_id", "") if request else "",
+        adjuntos=attachments, correlation_id=getattr(request.state, "correlation_id", ""),
     )
     return serialize_response(db, envio, user=user)

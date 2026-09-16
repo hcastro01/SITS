@@ -534,3 +534,17 @@ Siguiente bloque autorizado sólo bajo nueva instrucción: **Bloque 3 — Fronte
 - Validación: nuevas focalizadas Cliente/Documentos `10/10`; regresión Riesgos/Producción/Oficina `27/27`; frontend serial completo `133/133` en 21 archivos con un worker; `npm run build` (TypeScript + Vite) y `git diff --check` aprobados.
 
 No se modificó backend, no se integraron Formularios y no se inició Bloque 4. El siguiente bloque requiere autorización explícita: **Bloque 4 — Formularios y módulos contextuales.**
+
+### Bloque 4 — Formularios y módulos contextuales
+
+En curso: los adjuntos `ARCHIVO` y `FOTOGRAFIA` se envían como `multipart/form-data` con un payload JSON y partes `archivo:<id_pregunta>`. La migración `0023_respuesta_documentos` agrega el puente repetible detalle de respuesta–Documento; los bytes siguen exclusivamente en el BLOB documental existente. El servicio guarda envío, detalles, documentos y vínculos con `flush()` en la misma transacción de la petición, sin commits parciales. No se inició Bloque 5.
+
+**BLOQUE 4 FASE 9 VALIDADO — ADJUNTOS TRANSACCIONALES DE FORMULARIOS.**
+
+- `backend/tests/test_form_response_attachments.py` aporta 10 pruebas: compatibilidad histórica, formatos, trazabilidad por pregunta, límites efectivos, rollback total de `envios_formulario`/`respuestas_formulario`/`respuesta_documentos`/`documentos`, bloqueo de edición, usuario autenticado sin permisos y descarga que exige el vínculo exacto. Documento de otra respuesta, sin vínculo o dado de baja se rechazan sin exponer el BLOB.
+- El acceso a adjuntos se autoriza primero por respuesta/contexto y después por el puente; conocer `id_archivo` no permite cruzar respuestas. La respuesta contextual diferente devuelve `FORM_ATTACHMENT_NOT_FOUND`; el usuario `ROLE_CONSULTA` recibe `FORBIDDEN` con la semántica central existente.
+- La suite backend fue ejecutada en ocho grupos sobre imagen reconstruida que contiene `0023_respuesta_documentos`: 39 archivos, `283/283` PASS, `0` FAIL, exit `0` por grupo. Las dos regresiones de integración descubiertas se corrigieron de forma acotada: el parser manual multipart transforma `ValidationError` en 422 y el test directo del router espera su interfaz async.
+- La suite frontend se ejecutó en 11 grupos aislados (`--pool=threads --maxWorkers=1`): 22 archivos, `136/136` PASS, `0` FAIL, exit `0` por grupo. El proceso global parecía no terminar porque Vitest arrancaba un worker aislado por archivo; no era un handle abierto. `--no-isolate` se descartó porque contamina el estado de pruebas. La regresión de Riesgos se corrigió actualizando el mock a `saveFormResponseMultipart`.
+- Alembic temporal `upgrade head` y `alembic check`, typecheck TypeScript, Vite build y `git diff --check` aprobaron. No existe script de lint configurado.
+
+No se creó commit, no se hizo push y no se inició Bloque 5.

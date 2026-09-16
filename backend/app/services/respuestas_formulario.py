@@ -14,6 +14,7 @@ def save_response(
     expected_version: int | None = None, correlation_id: str,
     crear_contexto: bool = False, id_persona: str | None = None,
     editar_registrado: bool = False, id_destino_respuesta: str | None = None,
+    adjuntos: list[dict] | None = None,
 ) -> EnvioFormulario:
     from app.services.dynamic_responses import save_dynamic_response
     return save_dynamic_response(
@@ -23,4 +24,5 @@ def save_response(
         expected_version=expected_version, correlation_id=correlation_id,
         create_context=crear_contexto, person_id=id_persona,
         edit_registered=editar_registrado, response_destination_id=id_destino_respuesta,
+        attachments=adjuntos,
     )

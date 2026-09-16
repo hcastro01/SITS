@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { deleteFormResponse, getFormDefinition, getFormResponse, listDestinationTree, saveFormResponse, saveOfficeFormResponse, saveProductionFormResponse, type FormAnswer, type FormDefinition, type FormDestinationNode, type FormResponse } from '../../api/formBuilder';
-import { subirDocumento } from '../../api/documentos';
-import { responderFormularioRiesgo } from '../../api/riesgosTrabajo';
+import { deleteFormResponse, getFormDefinition, getFormResponse, listDestinationTree, saveFormResponse, saveFormResponseMultipart, type FormAnswer, type FormDefinition, type FormDestinationNode, type FormResponse } from '../../api/formBuilder';
 import { HttpError } from '../../api/client';
 import { useFeedback } from '../../components/FeedbackProvider';
 import { useUnsavedChanges } from '../../components/useUnsavedChanges';
@@ -54,7 +52,7 @@ export function DynamicResponsePage() {
   useUnsavedChanges(dirty && !saving && !readOnly);
   useEffect(() => { let active = true; Promise.all([getFormDefinition(id), listDestinationTree(), responseId ? getFormResponse(responseId) : Promise.resolve(null)])
     .then(([form, tree, saved]) => { if (!active) return; setDefinition(saved?.definicion ?? form); setDestinationTree(tree); setResponse(saved); setSelectedDestinationId(saved?.id_destino_respuesta ?? null); if (saved?.respuestas) {
-      const next: FormValues = {}; saved.respuestas.forEach((answer) => { const value = answerValue(answer); const existing = next[answer.id_pregunta]; next[answer.id_pregunta] = existing === undefined ? value : Array.isArray(existing) ? [...existing as string[], String(value)] : [String(existing), String(value)]; }); setValues(next); setDirty(false);
+      const next: FormValues = {}; saved.respuestas.forEach((answer) => { const value = answer.adjuntos?.length ? answer.adjuntos : answerValue(answer); const existing = next[answer.id_pregunta]; next[answer.id_pregunta] = existing === undefined ? value : Array.isArray(existing) ? [...existing as string[], String(value)] : [String(existing), String(value)]; }); setValues(next); setDirty(false);
     }}).catch((err) => { if (active) setError(err instanceof HttpError ? err.message : 'No fue posible cargar el formulario.'); }).finally(() => { if (active) setLoading(false); }); return () => { active = false; }; }, [id, responseId]);
 
   const destinations = useMemo(() => {
@@ -99,17 +97,14 @@ export function DynamicResponsePage() {
       const files = definition.preguntas.flatMap((question) => {
         const value = values[question.id_pregunta]; return Array.isArray(value) && value.some((item) => item instanceof File) ? (value as File[]).map((file) => ({ question, file })) : [];
       });
-      let saved = response ?? null;
-      const save = (payload: typeof basePayload) => riesgoId ? responderFormularioRiesgo(riesgoId, id, payload) : productionKind && productionId ? saveProductionFormResponse(productionKind, productionId, id, payload) : officeKind && officeId ? saveOfficeFormResponse(officeKind, officeId, id, payload) : saveFormResponse(id, payload);
-      if (files.length && !saved) saved = await save(basePayload);
-      if (files.length) {
-        const uploaded = await Promise.all(files.map(({ question, file }) => subirDocumento('RESPUESTAS_FORMULARIO', saved!.id_respuesta, file, `FORMULARIO:${question.id_pregunta}`)));
-        const fileAnswers: FormAnswer[] = uploaded.map((document, index) => ({ id_pregunta: files[index].question.id_pregunta, valor_opcion: document.id_archivo }));
-        saved = await save({ ...basePayload, borrador: draft, crear_contexto: false,
-          respuestas: [...toAnswers(), ...fileAnswers], contexto_id: saved!.contexto_id,
-          id_respuesta: saved!.id_respuesta, expected_version: saved!.version });
-      }
-      if (!saved || !files.length) saved = await save({ ...basePayload, borrador: draft });
+      const payload = { ...basePayload, borrador: draft };
+      const path = riesgoId ? `/riesgos-trabajo/${encodeURIComponent(riesgoId)}/formularios/${encodeURIComponent(id)}/respuestas`
+        : productionKind && productionId ? `/produccion/${productionKind}/${encodeURIComponent(productionId)}/formularios/${encodeURIComponent(id)}/respuestas`
+        : officeKind && officeId ? `/oficina/${officeKind}/${encodeURIComponent(officeId)}/formularios/${encodeURIComponent(id)}/respuestas`
+        : `/formularios/${encodeURIComponent(id)}/respuestas`;
+      const saved = files.length || riesgoId || productionKind || officeKind
+        ? await saveFormResponseMultipart(path, payload, files.map(({ question, file }) => ({ id_pregunta: question.id_pregunta, file })))
+        : await saveFormResponse(id, payload);
       setResponse(saved); setDirty(false); notify(draft ? 'Borrador guardado correctamente.' : `Formulario enviado correctamente. Código: ${saved.codigo_respuesta ?? 'no disponible'}.`);
       const stableParams = new URLSearchParams({ contexto_tipo: saved.contexto_tipo ?? contextType, respuesta: saved.id_respuesta });
       if (saved.contexto_id) stableParams.set('contexto_id', saved.contexto_id);
@@ -142,7 +137,7 @@ export function DynamicResponsePage() {
       {error && <p className="form-error" role="alert">{error}</p>}
       {!readOnly && !response && (definition.destinos_jerarquicos ?? []).length > 0 && <section className="destination-manager" aria-label="Destino del registro"><h3>Destino del registro</h3>{destinations.length === 1 && selectedDestination ? <p><strong>Este registro se guardará en:</strong> {allDestinationPaths.get(selectedDestination.id_destino)}</p> : <label>¿Dónde se registrará esta respuesta?<select value={selectedDestinationId ?? ''} onChange={(event) => { setSelectedDestinationId(event.target.value || null); setDirty(true); }}><option value="">Seleccione un destino</option>{destinations.map((destination) => <option key={destination.id_destino} value={destination.id_destino}>{allDestinationPaths.get(destination.id_destino)}</option>)}</select></label>}<p className="footnote">El destino se valida nuevamente al guardar.</p></section>}
       {(responseDestination || selectedDestination) && <p className="footnote"><strong>Destino del registro:</strong> {responseDestination ?? allDestinationPaths.get(selectedDestination?.id_destino ?? '')}</p>}
-      <form onSubmit={submit}><DynamicFormRenderer definition={definition} values={values} onChange={(next) => { setValues(next); setDirty(true); }} readOnly={readOnly} />
+      <form onSubmit={submit}><DynamicFormRenderer definition={definition} values={values} onChange={(next) => { setValues(next); setDirty(true); }} readOnly={readOnly} responseId={response?.id_respuesta} />
         {!readOnly && <div className="response-actions">{!editing && <button type="button" className="secondary" disabled={saving} onClick={() => void persist(true)}>{saving ? 'Guardando…' : 'Guardar borrador'}</button>}<button type="submit" disabled={saving}>{saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Enviar formulario'}</button></div>}
         {readOnly && <><div className="inline-success">Respuesta registrada correctamente. Código: <strong>{response?.codigo_respuesta}</strong>.</div><div className="response-actions"><a className="button-link secondary-link" href="#response-detail">Ver respuesta</a><Link className="button-link" to={(response?.contexto_tipo ?? contextType) === 'GENERAL' ? `/formularios/${id}` : `/${(response?.contexto_tipo ?? contextType).toLowerCase()}`}>Volver al módulo</Link></div></>}
       </form>

@@ -1,4 +1,4 @@
-import { get, patch, post, put } from './client';
+import { get, patch, post, postForm, put } from './client';
 
 export const FORM_DESTINATIONS = ['GENERAL', 'CASOS', 'ATENCIONES', 'NOVEDADES', 'RECORRIDOS', 'PERSONAS'] as const;
 export type FormDestination = typeof FORM_DESTINATIONS[number];
@@ -110,7 +110,10 @@ export interface FormAnswer {
   valor_fecha?: string;
   valor_booleano?: boolean;
   valor_opcion?: string;
+  adjuntos?: Array<{ id_archivo: string; nombre_archivo: string; mime_type: string; tamano_bytes: number }>;
 }
+
+export interface FormAttachment { id_pregunta: string; file: File; }
 
 export interface FormResponse {
   id_respuesta: string;
@@ -229,6 +232,11 @@ export const listDestinationResponses = (destinationId: string) =>
 export const getFormResponse = (id: string) => get<FormResponse>(`/formularios/respuestas/${id}`);
 export const saveFormResponse = (id: string, data: Record<string, unknown>) =>
   post<FormResponse>(`/formularios/${id}/respuestas`, data);
+export const saveFormResponseMultipart = (path: string, data: Record<string, unknown>, attachments: FormAttachment[]) => {
+  const form = new FormData(); form.append('payload', JSON.stringify(data));
+  attachments.forEach(({ id_pregunta, file }) => form.append(`archivo:${id_pregunta}`, file));
+  return postForm<FormResponse>(path, form);
+};
 export const listProductionContextForms = (kind: 'atenciones' | 'recorridos' | 'novedades', recordId: string) =>
   get<ContextForm[]>(`/produccion/${kind}/${encodeURIComponent(recordId)}/formularios`);
 export const saveProductionFormResponse = (kind: 'atenciones' | 'recorridos' | 'novedades', recordId: string, formId: string, data: Record<string, unknown>) =>

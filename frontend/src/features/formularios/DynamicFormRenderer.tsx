@@ -1,8 +1,10 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { getForBlob } from '../../api/client';
 import type { FormDefinition, FormQuestion, FormRule, SearchResult } from '../../api/formBuilder';
 import { SearchAutocompleteField } from './SearchAutocompleteField';
 
-export type FieldValue = string | string[] | boolean | File[];
+export interface StoredAttachment { id_archivo: string; nombre_archivo: string; mime_type: string; tamano_bytes: number; }
+export type FieldValue = string | string[] | boolean | File[] | StoredAttachment[];
 export type FormValues = Record<string, FieldValue>;
 
 function text(value: FieldValue | undefined): string {
@@ -26,6 +28,31 @@ function matches(rule: FormRule, value: FieldValue | undefined): boolean {
   if (!Number.isFinite(left) || !Number.isFinite(right)) return false;
   return rule.operador === 'GT' ? left > right : rule.operador === 'GTE' ? left >= right :
     rule.operador === 'LT' ? left < right : rule.operador === 'LTE' ? left <= right : false;
+}
+
+function FileField({ question, files, required, disabled, onChange }: { question: FormQuestion; files: File[]; required: boolean; disabled: boolean; onChange: (files: File[]) => void }) {
+  const [preview, setPreview] = useState<string | null>(null);
+  useEffect(() => {
+    if (question.tipo !== 'FOTOGRAFIA' || !files[0]) { setPreview(null); return; }
+    const url = URL.createObjectURL(files[0]); setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [question.tipo, files]);
+  const maxFiles = Math.min(Number(question.configuracion.max_files ?? 1), 10);
+  const maxBytes = Math.min(Number(question.configuracion.max_size_mb ?? 10), 10) * 1024 * 1024;
+  const accept = question.tipo === 'FOTOGRAFIA' ? 'image/jpeg,image/png,image/webp' : '.pdf,.jpg,.jpeg,.png,.webp';
+  return <div className="file-field"><input id={question.id_pregunta} type="file" required={required && files.length === 0}
+    disabled={disabled} multiple={maxFiles > 1} accept={accept} capture={question.tipo === 'FOTOGRAFIA' ? 'environment' : undefined}
+    onChange={(event) => onChange(Array.from(event.target.files ?? []).filter((file) => file.size <= maxBytes).slice(0, maxFiles))} />
+    {files.length > 0 && <ul className="selected-files">{files.map((file, index) => <li key={`${file.name}-${file.size}-${index}`}>{file.name} <button type="button" className="ghost" disabled={disabled} onClick={() => onChange(files.filter((_, item) => item !== index))}>Quitar</button></li>)}</ul>}
+    {preview && <img className="image-preview" src={preview} alt="Vista previa seleccionada" />}
+  </div>;
+}
+
+function StoredFiles({ files, responseId }: { files: StoredAttachment[]; responseId?: string }) {
+  const [preview, setPreview] = useState<{ url: string; mime: string; name: string } | null>(null);
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview.url); }, [preview]);
+  async function open(file: StoredAttachment, show: boolean) { if (!responseId) return; const { blob, filename } = await getForBlob(`/formularios/respuestas/${encodeURIComponent(responseId)}/adjuntos/${encodeURIComponent(file.id_archivo)}/contenido`); const url = URL.createObjectURL(blob); if (show) { if (preview) URL.revokeObjectURL(preview.url); setPreview({ url, mime: file.mime_type, name: filename ?? file.nombre_archivo }); } else { const a = document.createElement('a'); a.href = url; a.download = filename ?? file.nombre_archivo; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 0); } }
+  return <div className="stored-files"><ul>{files.map((file) => <li key={file.id_archivo}>{file.nombre_archivo} ({file.mime_type}, {file.tamano_bytes} B) <button type="button" className="ghost" onClick={() => void open(file, false)}>Descargar</button>{['application/pdf', 'image/jpeg', 'image/png', 'image/webp'].includes(file.mime_type) && <button type="button" className="ghost" onClick={() => void open(file, true)}>Vista previa</button>}</li>)}</ul>{preview && <div className="document-preview"><button type="button" onClick={() => { URL.revokeObjectURL(preview.url); setPreview(null); }}>Cerrar vista previa</button>{preview.mime === 'application/pdf' ? <iframe src={preview.url} title={`Vista previa de ${preview.name}`} /> : <img src={preview.url} alt={`Vista previa de ${preview.name}`} />}</div>}</div>;
 }
 
 export function computeDynamicState(definition: FormDefinition, values: FormValues) {
@@ -53,9 +80,9 @@ export function computeDynamicState(definition: FormDefinition, values: FormValu
   return { visibleQuestions, requiredQuestions, visibleSections };
 }
 
-function DynamicField({ question, value, required, disabled, onChange, onAutocomplete }: {
+function DynamicField({ question, value, required, disabled, onChange, onAutocomplete, responseId }: {
   question: FormQuestion; value: FieldValue | undefined; required: boolean; disabled: boolean;
-  onChange: (value: FieldValue) => void; onAutocomplete: (result: SearchResult | null, label: string) => void;
+  onChange: (value: FieldValue) => void; onAutocomplete: (result: SearchResult | null, label: string) => void; responseId?: string;
 }) {
   const config = question.configuracion ?? {};
   const validation = question.validacion ?? {};
@@ -115,22 +142,15 @@ function DynamicField({ question, value, required, disabled, onChange, onAutocom
   if (['ARCHIVO', 'FOTOGRAFIA'].includes(question.tipo)) {
     const rawItems = Array.isArray(value) ? value : [];
     const files = rawItems.filter((item): item is File => item instanceof File);
-    const savedFiles = rawItems.filter((item) => typeof item === 'string');
-    if (disabled && savedFiles.length > 0) return <p className="readonly-value">{savedFiles.length === 1 ? '1 archivo asociado' : `${savedFiles.length} archivos asociados`}</p>;
-    return <div className="file-field"><input id={question.id_pregunta} type="file" required={required && files.length === 0}
-      disabled={disabled} multiple={Number(config.max_files ?? 1) > 1}
-      accept={question.tipo === 'FOTOGRAFIA' ? 'image/jpeg,image/png,image/webp' : String(config.accept ?? '.pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp')}
-      capture={question.tipo === 'FOTOGRAFIA' ? 'environment' : undefined}
-      onChange={(e) => onChange(Array.from(e.target.files ?? []))} />
-      {files.length > 0 && <ul className="selected-files">{files.map((file) => <li key={`${file.name}-${file.size}`}>{file.name}</li>)}</ul>}
-      {question.tipo === 'FOTOGRAFIA' && files[0] && <img className="image-preview" src={URL.createObjectURL(files[0])} alt="Vista previa seleccionada" />}
-    </div>;
+    const savedFiles = rawItems.filter((item): item is StoredAttachment => typeof item === 'object' && !(item instanceof File));
+    if (disabled && savedFiles.length > 0) return <StoredFiles files={savedFiles} responseId={responseId} />;
+    return <FileField question={question} files={files} required={required} disabled={disabled} onChange={onChange} />;
   }
   return <input {...common} type="text" value={text(value)} onChange={(e) => onChange(e.target.value)} />;
 }
 
-export function DynamicFormRenderer({ definition, values, onChange, readOnly = false }: {
-  definition: FormDefinition; values: FormValues; onChange: (values: FormValues) => void; readOnly?: boolean;
+export function DynamicFormRenderer({ definition, values, onChange, readOnly = false, responseId }: {
+  definition: FormDefinition; values: FormValues; onChange: (values: FormValues) => void; readOnly?: boolean; responseId?: string;
 }) {
   const state = useMemo(() => computeDynamicState(definition, values), [definition, values]);
   const update = (questionId: string, value: FieldValue) => onChange({ ...values, [questionId]: value });
@@ -144,6 +164,7 @@ export function DynamicFormRenderer({ definition, values, onChange, readOnly = f
       {question.descripcion && <p>{question.descripcion}</p>}
       <DynamicField question={question} value={values[question.id_pregunta]} required={required}
         disabled={readOnly || question.solo_lectura} onChange={(value) => update(question.id_pregunta, value)}
+        responseId={responseId}
         onAutocomplete={(result, label) => {
           if (!result && label) return;
           const next = { ...values, [question.id_pregunta]: result?.id ?? '' };
