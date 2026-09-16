@@ -444,3 +444,17 @@ Fase 7 no está completada. El siguiente bloque es Bloque 4 — Integraciones de
 Subprocesos previstos: Beneficios, Atenciones, Préstamos, Seguro y Formularios.
 
 No se inició Fase 8.
+
+## Fase 8 — Oficina
+
+### Bloque 1 — Auditoría y diseño técnico
+
+**Estado: VALIDADO.**
+
+- Auditoría completada sin modificar código funcional, migraciones, permisos ni rutas.
+- Beneficios, Préstamos y Seguro no tienen modelo, servicio, API, frontend ni reglas de negocio operativas; sólo existen permisos, navegación y destinos explícitos de Formularios. Sus campos y reglas no definidos quedan documentados, sin inferencias.
+- Atenciones de Oficina reutilizará `Atencion` y `contexto_operativo="OFICINA"`; no habrá tabla ni discriminador paralelo, backfill o clasificación de históricos `NULL`. Producción mantiene su aislamiento `PRODUCCION`.
+- Formularios reutiliza el repositorio central y los destinos existentes `BENEFICIOS`, `OFICINA_ATENCIONES`, `PRESTAMOS` y `SEGURO`. Respuestas no crean registros operativos automáticamente.
+- La cabeza Alembic verificada es `0021_contexto_operativo_atenciones`; Atenciones Oficina no requiere migración. Cualquier entidad futura será aditiva y requerirá definición funcional explícita.
+- Documento técnico: `docs/SITS_FASE8_OFICINA_DISENO.md`.
+- Fase 8 no está completada. El siguiente bloque autorizado es únicamente el Bloque 2 — Backend de Oficina.
