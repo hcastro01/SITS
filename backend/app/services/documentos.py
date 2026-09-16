@@ -25,8 +25,8 @@ from app.core.errors import AppError
 from app.core.permissions import AuthenticatedUser, authorize
 from app.core.time import utc_now_iso
 from app.models import (
-    Atencion, Caso, Cierre, Compromiso, Derivacion, Documento, EnvioFormulario,
-    HallazgoRecorrido, Novedad, Persona, Recorrido, Seguimiento,
+    Atencion, Beneficio, Caso, Cierre, Compromiso, Derivacion, Documento, EnvioFormulario,
+    HallazgoRecorrido, Novedad, Persona, Prestamo, Recorrido, Seguimiento, Seguro,
 )
 from app.services.audit import log_change
 from app.services.records import apply_soft_delete, check_expected_version, get_active, mark_updated
@@ -48,6 +48,9 @@ ALLOWED_MIME_TYPES = frozenset({
 TIPO_REGISTRO_MODELOS: dict[str, tuple[type, str, str]] = {
     "PERSONAS": (Persona, "PERSONAS", "id_persona"),
     "ATENCIONES": (Atencion, "ATENCIONES", "id_atencion"),
+    "BENEFICIOS": (Beneficio, "BENEFICIOS", "id_beneficio"),
+    "PRESTAMOS": (Prestamo, "PRESTAMOS", "id_prestamo"),
+    "SEGUROS": (Seguro, "SEGUROS", "id_seguro"),
     "CASOS": (Caso, "CASOS", "id_caso"),
     "NOVEDADES": (Novedad, "NOVEDADES", "id_novedad"),
     "RECORRIDOS": (Recorrido, "RECORRIDOS", "id_recorrido"),

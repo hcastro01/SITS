@@ -33,7 +33,8 @@ describe('frontend contextual de Oficina', () => {
     expect(segurosConfig.campos.find((campo) => campo.nombre === 'tipo_gestion')?.opciones).toEqual(['AFILIACION', 'ENROLAMIENTO', 'COBERTURA', 'REEMBOLSO', 'PRIMA', 'DEPENDIENTE']);
     expect(prestamosConfig.campos.map((campo) => campo.nombre)).not.toEqual(expect.arrayContaining(['monto', 'interes', 'cuotas', 'plazo', 'saldo', 'amortizacion']));
     expect(segurosConfig.campos.map((campo) => campo.nombre)).not.toEqual(expect.arrayContaining(['poliza', 'deducible', 'copago', 'dependiente_nombre']));
-    expect([beneficiosConfig, oficinaAtencionesConfig, prestamosConfig, segurosConfig].every((item) => item.integrations === false)).toBe(true);
+    expect([beneficiosConfig, oficinaAtencionesConfig, prestamosConfig, segurosConfig].every((item) => item.integrations !== false)).toBe(true);
+    expect([beneficiosConfig.oficinaKind, oficinaAtencionesConfig.oficinaKind, prestamosConfig.oficinaKind, segurosConfig.oficinaKind]).toEqual(['beneficios', 'atenciones', 'prestamos', 'seguro']);
   });
 
   it('usa el cliente Oficina, conserva trazabilidad, filtros reales y paginación', async () => {

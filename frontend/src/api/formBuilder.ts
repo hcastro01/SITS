@@ -233,6 +233,10 @@ export const listProductionContextForms = (kind: 'atenciones' | 'recorridos' | '
   get<ContextForm[]>(`/produccion/${kind}/${encodeURIComponent(recordId)}/formularios`);
 export const saveProductionFormResponse = (kind: 'atenciones' | 'recorridos' | 'novedades', recordId: string, formId: string, data: Record<string, unknown>) =>
   post<FormResponse>(`/produccion/${kind}/${encodeURIComponent(recordId)}/formularios/${encodeURIComponent(formId)}/respuestas`, data);
+export const listOfficeContextForms = (kind: 'atenciones' | 'beneficios' | 'prestamos' | 'seguro', recordId: string) =>
+  get<ContextForm[]>(`/oficina/${kind}/${encodeURIComponent(recordId)}/formularios`);
+export const saveOfficeFormResponse = (kind: 'atenciones' | 'beneficios' | 'prestamos' | 'seguro', recordId: string, formId: string, data: Record<string, unknown>) =>
+  post<FormResponse>(`/oficina/${kind}/${encodeURIComponent(recordId)}/formularios/${encodeURIComponent(formId)}/respuestas`, data);
 export const deleteFormResponse = (id: string, expectedVersion: number, motivo: string) =>
   post<FormResponse>(`/formularios/respuestas/${id}/eliminacion`, { expected_version: expectedVersion, motivo });
 export const listAvailableForms = (module: string) =>

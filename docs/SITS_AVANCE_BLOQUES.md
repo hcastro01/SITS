@@ -476,3 +476,13 @@ No se inició Fase 8.
 - Los filtros y la paginación son server-side y coinciden con cada endpoint. Estados loading, vacío, 401 y 403 se mantienen diferenciados. Formularios de Oficina sigue siendo el repositorio contextual existente; no se añadieron Formularios embebidos, Documentos contextuales, BLOB ni cambios backend.
 - Pruebas focalizadas Oficina/Producción: 7/7. Suite frontend serial: 128/128 en 20 archivos con un worker. `npm run build` y `git diff --check` aprobados. Validación visual manual APROBADA en `/trabajo-social/oficina/beneficios`, `/trabajo-social/oficina/atenciones`, `/trabajo-social/oficina/prestamos`, `/trabajo-social/oficina/seguro` y `/trabajo-social/oficina/formularios`, en desktop (1440x900), tablet (768x1024) y móvil (390x844): navegación, sidebar, filtros, paginación, formularios/modales, tablas y responsive correctos, sin errores visuales bloqueantes.
 - Fase 8 no está completada. Siguiente: **BLOQUE 4 — Integraciones de Oficina.**
+
+### Bloque 4 — Integraciones de Oficina
+
+**Estado: VALIDADO.**
+
+- Los detalles contextuales de Beneficios, Atenciones, Préstamos y Seguro reutilizan los paneles existentes de Formularios y Documentos. Los wrappers fuerzan el registro, contexto y destino hoja real; las respuestas multidestino conservan `id_destino_respuesta` y no crean registros operativos automáticamente.
+- Documentos valida primero el registro contextual y el scope `OFICINA`; Atenciones de Oficina excluye `PRODUCCION` e históricos `NULL`. No se creó BLOB, almacenamiento, repositorio de Formularios, historial ni API paralela.
+- Validación final: backend completo `267/267` en 83.144 s (exit 0; sin fallos ni errores; sólo `ResourceWarning` de conexiones SQLite sin cerrar), frontend serial `128/128` en `20/20` suites (exit 0), focalizadas Bloque 4 backend `4/4` y frontend `4/4`, y build frontend (exit 0).
+- La suite completa cubre regresión de Producción mediante `test_produccion.py` y `ProduccionEntities.test.tsx`, y Fase 5 mediante las pruebas del repositorio/destinos/respuestas contextualizadas, incluyendo `DynamicResponsePage.destination.test.tsx` y `test_respuestas_formulario_service.py`. `alembic heads` confirmó `0022_beneficios_prestamos_seguros`; `alembic check` aprobó sobre SQLite temporal y `git diff --check` aprobó.
+- Fase 8 no está completada. Siguiente: **BLOQUE 5 — Integración, regresión y cierre.**

@@ -124,3 +124,13 @@ Migración `0022_beneficios_prestamos_seguros`, posterior a `0021`: crea exclusi
 - Los detalles de Oficina no montan Formularios ni Documentos: la ruta Oficina/Formularios continúa usando el repositorio contextual existente. Integraciones profundas, documentos y BLOB quedan reservados para Bloque 4.
 
 Validación: pruebas focalizadas Oficina y regresión Producción 7/7; suite frontend serial 128/128 en 20 archivos; build y `git diff --check` aprobados. Validación visual manual APROBADA en las cinco rutas contextuales, en desktop (1440x900), tablet (768x1024) y móvil (390x844): navegación, sidebar, filtros, paginación, formularios/modales, tablas y responsive correctos, sin solapamientos, controles fuera de pantalla ni errores visuales bloqueantes. Fase 8 no está completa; el siguiente trabajo autorizado es Bloque 4 — Integraciones de Oficina.
+
+## 17. Bloque 4 — Integraciones de Oficina
+
+**IMPLEMENTADO Y VALIDADO.** Los cuatro registros operativos de Oficina reutilizan `ContextFormsPanel`, `DynamicResponsePage` y `DocumentosPanel`, con `oficinaKind` explícito. No se duplicó el repositorio central ni se crearon vistas, almacenamiento BLOB o historial paralelos.
+
+- Formularios se listan sólo por el destino hoja real de cada registro: `BENEFICIOS`, `OFICINA_ATENCIONES`, `PRESTAMOS` o `SEGURO`. El wrapper contextual fija registro, contexto y destino al guardar; ignora intentos de manipularlos y una respuesta no crea Beneficio, Atención, Préstamo ni Seguro. Las plantillas multidestino continúan únicas y la respuesta conserva su `id_destino_respuesta` concreto.
+- Documentos reutiliza el servicio existente después de verificar el registro y scope `OFICINA`. En Atenciones, el wrapper exige `contexto_operativo="OFICINA"`; registros Producción e históricos `NULL` se rechazan. Permisos, auditoría e historial existentes permanecen como fuente única.
+- Validación final: backend `267/267` (exit 0; 83.144 s; sin fallos ni errores), frontend serial `128/128` en 20 suites (exit 0), focalizadas backend `test_oficina` `4/4` y frontend `OficinaEntities.test.tsx` `4/4`, build (exit 0), `alembic heads` `0022_beneficios_prestamos_seguros`, `alembic check` y `git diff --check` aprobados. La suite global cubre las regresiones de Producción y del repositorio central/destinos/respuestas de Fase 5.
+
+Fase 8 no está completa; el siguiente trabajo autorizado es Bloque 5 — Integración, regresión y cierre.

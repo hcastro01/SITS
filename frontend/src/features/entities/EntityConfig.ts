@@ -31,6 +31,8 @@ export interface EntityPageConfig {
   personaIdField?: string;
   filtros?: readonly FiltroConfig[];
   integrations?: boolean;
+  produccionKind?: 'atenciones' | 'recorridos' | 'novedades';
+  oficinaKind?: 'atenciones' | 'beneficios' | 'prestamos' | 'seguro';
   maxListColumns?: number;
 }
 
@@ -89,7 +91,7 @@ export const recorridosConfig: EntityPageConfig = {
 
 export const produccionAtencionesConfig: EntityPageConfig = {
   ...atencionesConfig, titulo: 'Atenciones de Producción', tituloSingular: 'atención de Producción',
-  rutaBase: '/trabajo-social/produccion/atenciones', api: produccionAtencionesApi, contextual: true, permissionModule: 'PRODUCCION',
+  rutaBase: '/trabajo-social/produccion/atenciones', api: produccionAtencionesApi, contextual: true, permissionModule: 'PRODUCCION', produccionKind: 'atenciones',
   campos: [
     { nombre: 'id_atencion', etiqueta: 'ID', enFormulario: false }, { nombre: 'fecha', etiqueta: 'Fecha' },
     { nombre: 'persona', etiqueta: 'Persona', enFormulario: false }, { nombre: 'cedula', etiqueta: 'Cédula', enFormulario: false },
@@ -102,7 +104,7 @@ export const produccionAtencionesConfig: EntityPageConfig = {
 };
 
 export const produccionRecorridosConfig: EntityPageConfig = {
-  ...recorridosConfig, rutaBase: '/trabajo-social/produccion/recorridos', api: produccionRecorridosApi, contextual: true, permissionModule: 'PRODUCCION',
+  ...recorridosConfig, rutaBase: '/trabajo-social/produccion/recorridos', api: produccionRecorridosApi, contextual: true, permissionModule: 'PRODUCCION', produccionKind: 'recorridos',
   campos: [
     { nombre: 'id_recorrido', etiqueta: 'ID', enFormulario: false }, { nombre: 'fecha', etiqueta: 'Fecha' },
     { nombre: 'persona', etiqueta: 'Persona', enFormulario: false }, { nombre: 'cedula', etiqueta: 'Cédula', enFormulario: false },
@@ -114,7 +116,7 @@ export const produccionRecorridosConfig: EntityPageConfig = {
 
 export const produccionNovedadesConfig: EntityPageConfig = {
   ...novedadesConfig, titulo: 'Novedades de planta', tituloSingular: 'novedad de planta',
-  rutaBase: '/trabajo-social/produccion/novedades', api: produccionNovedadesApi, contextual: true, permissionModule: 'PRODUCCION',
+  rutaBase: '/trabajo-social/produccion/novedades', api: produccionNovedadesApi, contextual: true, permissionModule: 'PRODUCCION', produccionKind: 'novedades',
   campos: [
     { nombre: 'id_novedad', etiqueta: 'ID', enFormulario: false }, { nombre: 'fecha', etiqueta: 'Fecha' },
     { nombre: 'persona', etiqueta: 'Persona', enFormulario: false }, { nombre: 'cedula', etiqueta: 'Cédula', enFormulario: false },
@@ -132,12 +134,12 @@ const officeFilters: readonly FiltroConfig[] = [
 
 export const oficinaAtencionesConfig: EntityPageConfig = {
   ...produccionAtencionesConfig, titulo: 'Atenciones de Oficina', tituloSingular: 'atención de Oficina',
-  rutaBase: '/trabajo-social/oficina/atenciones', api: oficinaAtencionesApi, permissionModule: 'OFICINA', integrations: false,
+  rutaBase: '/trabajo-social/oficina/atenciones', api: oficinaAtencionesApi, permissionModule: 'OFICINA', produccionKind: undefined, oficinaKind: 'atenciones',
 };
 
 export const beneficiosConfig: EntityPageConfig = {
   titulo: 'Beneficios', tituloSingular: 'beneficio', rutaBase: '/trabajo-social/oficina/beneficios', api: beneficiosApi,
-  tipoRegistro: 'BENEFICIOS', contextual: true, permissionModule: 'OFICINA', personaIdField: 'persona_id', integrations: false, maxListColumns: 9,
+  tipoRegistro: 'BENEFICIOS', contextual: true, permissionModule: 'OFICINA', personaIdField: 'persona_id', oficinaKind: 'beneficios', maxListColumns: 9,
   filtros: [...officeFilters, { nombre: 'tipo', etiqueta: 'Tipo de beneficio', tipo: 'select', opciones: ['TIA', 'FARMACIA'] }, { nombre: 'tipo_gestion', etiqueta: 'Tipo de gestión', tipo: 'select', opciones: ['ACTIVACION', 'BLOQUEO', 'ANULACION'] }],
   campos: [
     { nombre: 'id_beneficio', etiqueta: 'ID', enFormulario: false }, { nombre: 'fecha', etiqueta: 'Fecha', tipo: 'fecha' },
@@ -151,7 +153,7 @@ export const beneficiosConfig: EntityPageConfig = {
 
 export const prestamosConfig: EntityPageConfig = {
   titulo: 'Préstamos', tituloSingular: 'préstamo', rutaBase: '/trabajo-social/oficina/prestamos', api: prestamosApi,
-  tipoRegistro: 'PRESTAMOS', contextual: true, permissionModule: 'OFICINA', personaIdField: 'persona_id', integrations: false, maxListColumns: 9,
+  tipoRegistro: 'PRESTAMOS', contextual: true, permissionModule: 'OFICINA', personaIdField: 'persona_id', oficinaKind: 'prestamos', maxListColumns: 9,
   filtros: [...officeFilters, { nombre: 'tipo', etiqueta: 'Tipo', tipo: 'select', opciones: ['PRESTAMO', 'ANTICIPO'] }],
   campos: [
     { nombre: 'id_prestamo', etiqueta: 'ID', enFormulario: false }, { nombre: 'fecha', etiqueta: 'Fecha', tipo: 'fecha' },
@@ -163,7 +165,7 @@ export const prestamosConfig: EntityPageConfig = {
 
 export const segurosConfig: EntityPageConfig = {
   titulo: 'Seguro', tituloSingular: 'gestión de Seguro', rutaBase: '/trabajo-social/oficina/seguro', api: segurosApi,
-  tipoRegistro: 'SEGUROS', contextual: true, permissionModule: 'OFICINA', personaIdField: 'persona_id', integrations: false, maxListColumns: 9,
+  tipoRegistro: 'SEGUROS', contextual: true, permissionModule: 'OFICINA', personaIdField: 'persona_id', oficinaKind: 'seguro', maxListColumns: 9,
   filtros: [...officeFilters, { nombre: 'tipo_gestion', etiqueta: 'Tipo de gestión', tipo: 'select', opciones: ['AFILIACION', 'ENROLAMIENTO', 'COBERTURA', 'REEMBOLSO', 'PRIMA', 'DEPENDIENTE'] }],
   campos: [
     { nombre: 'id_seguro', etiqueta: 'ID', enFormulario: false }, { nombre: 'fecha', etiqueta: 'Fecha', tipo: 'fecha' },

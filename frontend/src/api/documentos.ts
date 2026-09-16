@@ -54,3 +54,17 @@ export const eliminarDocumentoProduccion = (kind: ProduccionKind, recordId: stri
   post<Documento>(`${productionDocumentsPath(kind, recordId)}/${encodeURIComponent(idArchivo)}/eliminacion`, datos);
 export const urlDescargaDocumentoProduccion = (kind: ProduccionKind, recordId: string, idArchivo: string) =>
   fileUrl(`${productionDocumentsPath(kind, recordId)}/${encodeURIComponent(idArchivo)}/contenido`);
+
+type OfficeKind = 'atenciones' | 'beneficios' | 'prestamos' | 'seguro';
+const officeDocumentsPath = (kind: OfficeKind, recordId: string) => `/oficina/${kind}/${encodeURIComponent(recordId)}/documentos`;
+export const listarDocumentosOficina = (kind: OfficeKind, recordId: string) => get<Documento[]>(officeDocumentsPath(kind, recordId));
+export function subirDocumentoOficina(kind: OfficeKind, recordId: string, archivo: File, categoriaDocumento?: string): Promise<Documento> {
+  const formData = new FormData();
+  if (categoriaDocumento) formData.append('categoria_documento', categoriaDocumento);
+  formData.append('archivo', archivo);
+  return postForm<Documento>(officeDocumentsPath(kind, recordId), formData);
+}
+export const eliminarDocumentoOficina = (kind: OfficeKind, recordId: string, idArchivo: string, datos: { expected_version: number; motivo: string }) =>
+  post<Documento>(`${officeDocumentsPath(kind, recordId)}/${encodeURIComponent(idArchivo)}/eliminacion`, datos);
+export const urlDescargaDocumentoOficina = (kind: OfficeKind, recordId: string, idArchivo: string) =>
+  fileUrl(`${officeDocumentsPath(kind, recordId)}/${encodeURIComponent(idArchivo)}/contenido`);
