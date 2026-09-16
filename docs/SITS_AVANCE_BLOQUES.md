@@ -351,7 +351,7 @@ Esta sección es la única fuente de verdad para el orden de trabajo futuro de S
 | Accidentes | COMPLETADA | `5491b66` | Ninguna; conservar y validar en regresiones. |
 | Repositorio central y asignación de Formularios | SIGUIENTE | — | Definir y ejecutar el bloque transversal de Formularios. |
 | Riesgos de trabajo | COMPLETADA | Sin commit (instrucción de Bloque 5) | Ninguna; conservar y validar en regresiones. |
-| Producción | PENDIENTE | — | Implementar Atenciones, Recorridos, Novedades de planta y Formularios. |
+| Producción | EN CURSO — Bloque 1 validado | — | Esperar autorización para Bloque 2: backend contextual de Atenciones y contratos de Producción. |
 | Oficina | PENDIENTE | — | Implementar Beneficios, Atenciones, Préstamos, Seguro y Formularios. |
 | Imágenes y adjuntos BLOB | PENDIENTE | — | Definir integración reutilizable para módulos que lo requieran. |
 | Administración | PENDIENTE | — | Revisar Usuarios y Roles y permisos. |
@@ -372,3 +372,18 @@ Orden funcional de ejecución:
 10. Administración: Usuarios; Roles y permisos.
 11. Dashboard.
 12. Integración final, regresión y cierre.
+
+## Fase 7 — Producción
+
+### Bloque 1 — Auditoría y diseño técnico
+
+**Estado: VALIDADO.**
+
+- Atenciones, Recorridos y Novedades tienen modelos, APIs, auditoría, documentos y frontend existentes; no son placeholders. Atenciones usa servicio dedicado y Recorridos/Novedades usan `EntityService`.
+- Las rutas de Producción son funcionales pero Atenciones, Recorridos y Novedades aún reutilizan los listados históricos transversales. `Novedades de planta` es una etiqueta de presentación de `Novedad`, no una tabla nueva.
+- Gap real: Atenciones no tiene discriminador Producción/Oficina. El diseño propone evaluar un contexto operativo explícito, nullable y no inferido; los históricos ambiguos deben permanecer sin clasificación y conservar su acceso transversal.
+- Persona es opcional en los tres modelos actuales; autor, responsable y Persona permanecen conceptos distintos. Área de Persona, cuando existe, es el área actual y no determina el proceso.
+- Formularios reutiliza destinos jerárquicos de Producción; respuestas, Documentos, Historial y auditoría se integrarán mediante infraestructura existente, sin motor de Formularios ni BLOB paralelos.
+- Cabeza Alembic verificada: `0020_indice_casos_riesgos`. No se creó migración. Documento técnico: `docs/SITS_FASE7_PRODUCCION_DISENO.md`.
+
+Fase 7 no está completada. El siguiente bloque autorizado será únicamente el Bloque 2 — backend operativo de Producción.
