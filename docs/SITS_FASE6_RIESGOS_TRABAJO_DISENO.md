@@ -1,6 +1,6 @@
 # SITS — Fase 6: diseño de Riesgos de trabajo
 
-**Estado.** Bloque 1 — auditoría técnica y diseño. No crea migraciones, no modifica código funcional, no reclasifica históricos y no inicia los bloques de implementación.
+**ESTADO FINAL: IMPLEMENTADO Y VALIDADO.** Bloques 1 a 5 cerrados; no se reclasifican históricos ni se inicia Fase 7.
 
 ## 1. Estado actual
 
@@ -152,4 +152,10 @@ Para Documentos, los wrappers de Riesgos validan primero `Caso.tipo_caso == RIES
 
 La matriz frontend real quedó validada: Formularios cubre destino exclusivo Riesgos, exclusión Accidentes/Ausentismos/otras ramas, multidestino, respuesta contextual con `id_destino_respuesta` real, Persona/contexto, loading, vacío, error, 401/403 y doble envío; Documentos cubre metadata, permisos, loading, vacío, error y 401/403. El detalle integrado conserva sus seis secciones. Resultado: frontend específico 37/37, frontend completo serial 121/121 (18 archivos), build aprobado; backend Riesgos 5/5, regresión Formularios Fase 5 46/46 y suite completa 252/252.
 
-La única incidencia de la validación fue ajena a Riesgos: `test_the_four_overdue_rules` tomaba `date.today()` del contenedor UTC, mientras `is_overdue` compara contra `America/Guayaquil`. Se reprodujo 3/3 tanto en el árbol actual como en `2252487`; la prueba se hizo determinista usando la misma zona horaria explícita de producción, sin cambiar la regla funcional. No se creó relación con Accidentes o Ausentismos ni se inició Bloque 5.
+La única incidencia de la validación fue ajena a Riesgos: `test_the_four_overdue_rules` tomaba `date.today()` del contenedor UTC, mientras `is_overdue` compara contra `America/Guayaquil`. Se reprodujo 3/3 tanto en el árbol actual como en `2252487`; la prueba se hizo determinista usando la misma zona horaria explícita de producción, sin cambiar la regla funcional. No se creó relación con Accidentes o Ausentismos.
+
+## 22. Estado final — Bloque 5
+
+El cierre validó el flujo integral con SQLite temporal: alta de Riesgo con Persona, autor y responsable reales; filtros y paginación server-side; detalle, edición versionada y cierre; Seguimientos, Compromisos, Formularios, respuesta contextual con destino real, Documentos e Historial. El Caso genérico fue rechazado en cada ruta contextual y no apareció en el listado. La seguridad comprobó 401 sin sesión y 403 de `CASOS` para un operador con solo `RIESGOS_TRABAJO`.
+
+La migración `0020_indice_casos_riesgos` completó `0019 → 0020 → 0019 → 0020`; el índice `ix_casos_tipo_estado_fecha_apertura` quedó comprobado por la prueba de migración y `alembic check` aprobó tras el upgrade final. Resultado final: backend 252/252, Riesgos frontend 20/20, frontend completo 121/121 y build aprobado. No hubo cambios funcionales de Bloque 5, commit, push ni inicio de Fase 7.

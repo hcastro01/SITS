@@ -329,6 +329,16 @@ Fase 6 no está completada. El siguiente bloque autorizado será únicamente el 
 - Backend: Riesgos 5/5, regresión Formularios Fase 5 46/46 y suite completa 252/252. El único fallo previo fue un test de Actividades dependiente de `date.today()` en UTC frente a la regla de producción en `America/Guayaquil`; se ajustó exclusivamente la prueba para usar esa misma zona horaria. La regla de negocio no cambió; el fallo se reprodujo 3/3 también en `2252487`.
 - Fase 6 no está completada. El siguiente bloque autorizado será únicamente el Bloque 5 — integración, regresión y cierre de Fase 6.
 
+### Bloque 5 — Integración, regresión y cierre
+
+**FASE 6 — RIESGOS DE TRABAJO COMPLETADA.**
+
+- Flujo integrado validado en SQLite temporal: crea el Riesgo con Persona real, autor de sesión, responsable, `tipo_caso=RIESGOS_TRABAJO`; lista, filtros combinables, paginación, detalle, edición versionada, cierre, seguimientos, compromisos, Formularios, respuesta con destino real, Documentos e Historial operan bajo el mismo Caso.
+- El scope contextual rechaza un Caso genérico con 404 en detalle, edición/cierre, Seguimientos, Compromisos, Formularios, Documentos e Historial; el listado no lo incluye. La prueba cubre autenticación (401), separación de `RIESGOS_TRABAJO` frente a `CASOS` (403) y permisos contextuales sin cambiar la matriz global.
+- Migración `0020_indice_casos_riesgos`: ciclo SQLite temporal `0019 → 0020 → 0019 → 0020` con índice `ix_casos_tipo_estado_fecha_apertura` y `alembic check` aprobados. No agrega columnas, datos ni BLOB.
+- Regresión ejecutada: backend completo 252/252; frontend Riesgos 20/20, frontend completo serial 121/121 (18 archivos) y build aprobado. Actividades conserva las cuatro reglas de vencimiento en `America/Guayaquil`; Accidentes, Ausentismos y Formularios permanecen independientes y cubiertos por las suites.
+- `git diff --check` aprobado. No se hizo commit, push, ni se inició Fase 7. Pendientes reales de Fase 6: ninguno.
+
 ## ROADMAP VIGENTE A PARTIR DE `5491b66`
 
 Esta sección es la única fuente de verdad para el orden de trabajo futuro de SITS. El histórico anterior se conserva como evidencia de su ejecución; `docs/SITS_EXPANSION_SPEC.md` no se usa como roadmap vigente.
@@ -340,7 +350,7 @@ Esta sección es la única fuente de verdad para el orden de trabajo futuro de S
 | Ausentismos | COMPLETADA | `3a79689` | Ninguna; conservar y validar en regresiones. |
 | Accidentes | COMPLETADA | `5491b66` | Ninguna; conservar y validar en regresiones. |
 | Repositorio central y asignación de Formularios | SIGUIENTE | — | Definir y ejecutar el bloque transversal de Formularios. |
-| Riesgos de trabajo | PENDIENTE | — | Iniciar después de Formularios. |
+| Riesgos de trabajo | COMPLETADA | Sin commit (instrucción de Bloque 5) | Ninguna; conservar y validar en regresiones. |
 | Producción | PENDIENTE | — | Implementar Atenciones, Recorridos, Novedades de planta y Formularios. |
 | Oficina | PENDIENTE | — | Implementar Beneficios, Atenciones, Préstamos, Seguro y Formularios. |
 | Imágenes y adjuntos BLOB | PENDIENTE | — | Definir integración reutilizable para módulos que lo requieran. |
