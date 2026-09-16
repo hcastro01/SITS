@@ -458,3 +458,11 @@ No se inició Fase 8.
 - La cabeza Alembic verificada es `0021_contexto_operativo_atenciones`; Atenciones Oficina no requiere migración. Cualquier entidad futura será aditiva y requerirá definición funcional explícita.
 - Documento técnico: `docs/SITS_FASE8_OFICINA_DISENO.md`.
 - Fase 8 no está completada. El siguiente bloque autorizado es únicamente el Bloque 2 — Backend de Oficina.
+
+### Bloque 2 — Backend de Oficina
+
+**Estado: EN PROGRESO.**
+
+- **2A — Atenciones Oficina + scope OFICINA: VALIDADO.** Wrapper `/api/v1/oficina/atenciones` reutiliza `Atencion`, fuerza `OFICINA` y aísla `PRODUCCION` e históricos `NULL`; scope aditivo sin elevar permisos transversales. Pruebas focalizadas Oficina/Producción: 9/9; suite backend: 261/261; `alembic check` aprobado sobre head `0021_contexto_operativo_atenciones`.
+- **2B — Beneficios / Préstamos / Seguro: PENDIENTE DE DEFINICIÓN FUNCIONAL.** Sin modelo ni contrato que defina campos, Persona, responsable, estado o fecha; no se crearon entidades, APIs ni migraciones especulativas.
+- No se inició frontend ni Bloque 3.

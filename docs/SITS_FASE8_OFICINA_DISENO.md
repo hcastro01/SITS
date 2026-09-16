@@ -94,3 +94,13 @@ Beneficios, Préstamos y Seguro requerirían migraciones aditivas únicamente de
 5. **Bloque 5 — Cierre:** regresión, migraciones y documentación.
 
 Riesgos reales: clasificar históricos por inferencia; reutilizar `ATENCIONES` transversal sin scope; convertir respuestas en registros; inventar beneficios, préstamos o pólizas; conceder `OFICINA` automáticamente; y crear BLOB, historial, formularios o páginas paralelas.
+
+## 14. Bloque 2A — Atenciones Oficina + scope OFICINA
+
+**IMPLEMENTADO Y VALIDADO.** `/api/v1/oficina/atenciones` reutiliza `Atencion`, fuerza `contexto_operativo="OFICINA"` en backend, filtra exclusivamente ese valor y rechaza con 404 los registros `PRODUCCION` y los históricos `NULL`. El scope aditivo `OFICINA` no concede `PRODUCCION` ni el acceso transversal `ATENCIONES`; se conserva autor desde la sesión, responsable como campo existente, filtros server-side, paginación `items`/`total`/`limite`/`offset`, auditoría e historial existentes.
+
+No se creó migración: `alembic heads` continúa en `0021_contexto_operativo_atenciones` y `alembic check` no detectó operaciones pendientes. Las pruebas focalizadas de Oficina y Producción aprobaron 9/9; la suite backend por `python -m unittest discover -s tests` aprobó 261/261. No se modificaron Formularios, respuestas, Documentos ni BLOB.
+
+## 15. Bloque 2B — Beneficios, Préstamos y Seguro
+
+**PENDIENTE DE DEFINICIÓN FUNCIONAL.** Este documento no autoriza ningún campo, semántica operativa ni obligatoriedad de Persona para esas entidades. Antes de crear sus modelos, APIs, migración y pruebas se requiere una definición funcional explícita de cada gestión. No se inició frontend ni Bloque 3.

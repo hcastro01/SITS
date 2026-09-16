@@ -24,6 +24,7 @@ from app.api.importaciones_ausentismos import router as importaciones_ausentismo
 from app.api.importaciones_accidentes import router as importaciones_accidentes_router
 from app.api.riesgos_trabajo import router as riesgos_trabajo_router
 from app.api.produccion import router as produccion_router
+from app.api.oficina import router as oficina_router
 from app.api.routers_simples import (
     hallazgos_recorrido_router, novedades_router, personas_router, recorridos_router,
 )
@@ -111,6 +112,7 @@ app.include_router(actividades_router)
 app.include_router(accidentes_router)
 app.include_router(riesgos_trabajo_router)
 app.include_router(produccion_router)
+app.include_router(oficina_router)
 app.include_router(ausentismos_router)
 app.include_router(importaciones_ausentismos_router)
 app.include_router(importaciones_accidentes_router)
