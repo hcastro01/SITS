@@ -40,3 +40,17 @@ export function eliminarDocumento(idArchivo: string, datos: { expected_version: 
 export function urlDescargaDocumento(idArchivo: string): string {
   return fileUrl(`/documentos/${idArchivo}/contenido`);
 }
+
+type ProduccionKind = 'atenciones' | 'recorridos' | 'novedades';
+const productionDocumentsPath = (kind: ProduccionKind, recordId: string) => `/produccion/${kind}/${encodeURIComponent(recordId)}/documentos`;
+export const listarDocumentosProduccion = (kind: ProduccionKind, recordId: string) => get<Documento[]>(productionDocumentsPath(kind, recordId));
+export function subirDocumentoProduccion(kind: ProduccionKind, recordId: string, archivo: File, categoriaDocumento?: string): Promise<Documento> {
+  const formData = new FormData();
+  if (categoriaDocumento) formData.append('categoria_documento', categoriaDocumento);
+  formData.append('archivo', archivo);
+  return postForm<Documento>(productionDocumentsPath(kind, recordId), formData);
+}
+export const eliminarDocumentoProduccion = (kind: ProduccionKind, recordId: string, idArchivo: string, datos: { expected_version: number; motivo: string }) =>
+  post<Documento>(`${productionDocumentsPath(kind, recordId)}/${encodeURIComponent(idArchivo)}/eliminacion`, datos);
+export const urlDescargaDocumentoProduccion = (kind: ProduccionKind, recordId: string, idArchivo: string) =>
+  fileUrl(`${productionDocumentsPath(kind, recordId)}/${encodeURIComponent(idArchivo)}/contenido`);

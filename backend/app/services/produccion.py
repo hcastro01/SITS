@@ -4,9 +4,12 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
-from app.core.permissions import AuthenticatedUser, authorize
-from app.models import Atencion, Novedad, Persona, Recorrido
+from app.core.permissions import AuthenticatedUser, authorize, can
+from app.models import Atencion, DestinoFormulario, Documento, EnvioFormulario, Formulario, FormularioDestino, Novedad, Persona, Recorrido
+from app.services.documentos import download_documento, list_documentos, soft_delete_documento, upload_documento
 from app.services.atenciones import create_atencion, soft_delete_atencion, update_atencion
+from app.services.dynamic_responses import save_dynamic_response, serialize_response
+from app.services.form_builder import get_definition
 from app.services.records import get_active, get_history
 from app.services.novedades import novedades
 from app.services.recorridos import recorridos
@@ -121,3 +124,112 @@ def production_history(session: Session, user: AuthenticatedUser, *, kind: str, 
     authorize(user, MODULE, "read")
     record = _atencion(session, record_id) if kind == "atenciones" else _entity(session, model, identifier, record_id)
     return get_history(session, user, MODULE, table, record_id)
+
+
+_FORM_CONTEXTS = {
+    "atenciones": (Atencion, "id_atencion", "ATENCIONES", "PRODUCCION_ATENCIONES"),
+    "recorridos": (Recorrido, "id_recorrido", "RECORRIDOS", "RECORRIDOS"),
+    "novedades": (Novedad, "id_novedad", "NOVEDADES", "NOVEDADES_PLANTA"),
+}
+
+
+def _production_record(session: Session, kind: str, record_id: str):
+    model, identifier, context_type, destination_code = _FORM_CONTEXTS[kind]
+    record = _atencion(session, record_id) if kind == "atenciones" else _entity(session, model, identifier, record_id)
+    return record, context_type, destination_code
+
+
+def _production_destination(session: Session, code: str) -> DestinoFormulario:
+    destination = session.scalar(select(DestinoFormulario).where(
+        DestinoFormulario.codigo == code, DestinoFormulario.activo.is_(True),
+        DestinoFormulario.eliminado.is_(False),
+    ))
+    if destination is None:
+        raise AppError("FORM_DESTINATION_NOT_FOUND", "No está configurado el destino de Producción.", 422)
+    return destination
+
+
+def production_forms(session: Session, user: AuthenticatedUser, *, kind: str, record_id: str) -> list[dict]:
+    authorize(user, MODULE, "read"); authorize(user, "FORMULARIOS", "read")
+    record, context_type, destination_code = _production_record(session, kind, record_id)
+    destination = _production_destination(session, destination_code)
+    forms = list(session.scalars(select(Formulario).join(FormularioDestino).where(
+        FormularioDestino.id_destino_catalogo == destination.id_destino,
+        FormularioDestino.activo.is_(True), FormularioDestino.eliminado.is_(False),
+        Formulario.estado == "PUBLICADO", Formulario.activo.is_(True), Formulario.eliminado.is_(False),
+    ).order_by(Formulario.nombre)))
+    result = []
+    for form in forms:
+        response = session.scalar(select(EnvioFormulario).where(
+            EnvioFormulario.id_formulario == form.id_formulario,
+            EnvioFormulario.usuario_respuesta == user.correo,
+            EnvioFormulario.contexto_tipo == context_type, EnvioFormulario.contexto_id == record_id,
+            EnvioFormulario.id_destino_respuesta == destination.id_destino,
+            EnvioFormulario.eliminado.is_(False),
+        ).order_by(EnvioFormulario.fecha_respuesta.desc()))
+        definition = get_definition(session, form.id_formulario)
+        result.append({**(serialize_response(session, response, user=user) if response else {}),
+            "id_formulario": form.id_formulario, "nombre": form.nombre, "descripcion": form.descripcion,
+            "estado_respuesta": response.estado if response else "PENDIENTE", "total_preguntas": definition["total_preguntas"],
+            "permite_multiples_respuestas": form.permite_multiples_respuestas,
+            "puede_crear": can(user, "RESPUESTAS", "create") and can(user, MODULE, "create"),
+            "id_destino_respuesta": destination.id_destino})
+    return result
+
+
+def save_production_form_response(session: Session, user: AuthenticatedUser, *, kind: str, record_id: str,
+                                  form_id: str, correlation_id: str, payload: dict):
+    authorize(user, MODULE, "create"); authorize(user, "FORMULARIOS", "read"); authorize(user, "RESPUESTAS", "create")
+    _, context_type, destination_code = _production_record(session, kind, record_id)
+    destination = _production_destination(session, destination_code)
+    values = dict(payload)
+    for field in ("contexto_tipo", "contexto_id", "id_registro_proceso", "crear_contexto", "id_persona", "id_destino_respuesta"):
+        values.pop(field, None)
+    mapped = {
+        "draft": values.pop("borrador", False), "answers": values.pop("respuestas", []),
+        "client_key": values.pop("id_envio_cliente", None), "legacy_record_id": values.pop("id_registro_proceso", None),
+        "response_id": values.pop("id_respuesta", None), "expected_version": values.pop("expected_version", None),
+        "edit_registered": values.pop("editar_registrado", False),
+    }
+    return save_dynamic_response(session, user, form_id, correlation_id=correlation_id,
+        context_type=context_type, context_id=record_id, response_destination_id=destination.id_destino,
+        context_authorization_module=MODULE, required_destination_id=destination.id_destino, **mapped)
+
+
+_DOCUMENT_TYPES = {"atenciones": "ATENCIONES", "recorridos": "RECORRIDOS", "novedades": "NOVEDADES"}
+
+
+def _production_document_record(session: Session, user: AuthenticatedUser, *, kind: str, record_id: str, action: str):
+    authorize(user, MODULE, action)
+    _production_record(session, kind, record_id)
+    return _DOCUMENT_TYPES[kind]
+
+
+def production_documents(session: Session, user: AuthenticatedUser, *, kind: str, record_id: str):
+    record_type = _production_document_record(session, user, kind=kind, record_id=record_id, action="read")
+    return list_documentos(session, user, tipo_registro=record_type, id_registro=record_id, parent_module=MODULE)
+
+
+def upload_production_document(session: Session, user: AuthenticatedUser, *, kind: str, record_id: str, correlation_id: str, **payload):
+    record_type = _production_document_record(session, user, kind=kind, record_id=record_id, action="edit")
+    return upload_documento(session, user, tipo_registro=record_type, id_registro=record_id,
+                            correlation_id=correlation_id, parent_module=MODULE, **payload)
+
+
+def _production_document(session: Session, user: AuthenticatedUser, *, kind: str, record_id: str, document_id: str, action: str) -> Documento:
+    record_type = _production_document_record(session, user, kind=kind, record_id=record_id, action=action)
+    document = get_active(session, Documento, document_id, Documento.id_archivo)
+    if document.tipo_registro != record_type or document.id_registro != record_id:
+        raise AppError("NOT_FOUND", "Documento de Producción no encontrado.", 404)
+    return document
+
+
+def download_production_document(session: Session, user: AuthenticatedUser, *, kind: str, record_id: str, document_id: str, correlation_id: str = ""):
+    _production_document(session, user, kind=kind, record_id=record_id, document_id=document_id, action="read")
+    return download_documento(session, user, document_id, correlation_id=correlation_id, parent_module=MODULE)
+
+
+def delete_production_document(session: Session, user: AuthenticatedUser, *, kind: str, record_id: str, document_id: str, expected_version: int | None, motivo: str, correlation_id: str = ""):
+    _production_document(session, user, kind=kind, record_id=record_id, document_id=document_id, action="edit")
+    return soft_delete_documento(session, user, document_id, expected_version=expected_version, motivo=motivo,
+                                correlation_id=correlation_id, parent_module=MODULE)

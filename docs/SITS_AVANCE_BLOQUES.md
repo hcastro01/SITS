@@ -412,3 +412,13 @@ Fase 7 no está completada. El siguiente bloque autorizado será únicamente el 
 - Validación visual manual confirmada en `http://127.0.0.1:8081`: desktop `1440x900`, tablet `768x1024` y móvil `390x844`. Sidebar, navegación, Atenciones, Recorridos, Novedades de planta, Formularios, filtros, tablas, paginación y modales/formularios fueron correctos; no se observaron solapamientos, controles fuera de pantalla ni bloqueos visuales.
 
 Fase 7 no está completada. El siguiente bloque es Bloque 4 — Integraciones de Producción y requiere autorización explícita; no se inició.
+
+### Bloque 4 — Integraciones de Producción
+
+**Estado: VALIDADO.**
+
+- Atenciones, Recorridos y Novedades de planta obtienen únicamente formularios publicados asignados al destino jerárquico real correspondiente. La respuesta se guarda por un wrapper contextual que fuerza registro, contexto y `id_destino_respuesta`; no crea registros operativos ni duplica plantillas multidestino.
+- Atenciones mantiene su scope `PRODUCCION` y excluye históricos `NULL` y `OFICINA`. Persona sigue siendo opcional y separada de responsable, autor y usuario respondedor. Historial reutiliza auditoría existente.
+- Formularios exige `PRODUCCION` y `FORMULARIOS`; respuestas exige además `RESPUESTAS`. Los wrappers documentales contextuales validan primero el registro y su scope (`PRODUCCION` para Atenciones; entidad existente para Recorridos y Novedades) y luego delegan a la infraestructura existente con `PRODUCCION` + `DOCUMENTOS`. No se alteró BLOB, tablas ni rutas transversales.
+- Validación focalizada: frontend 35/35; backend Producción 7/7, incluyendo destinos concretos, multidestino, históricos, permisos y Documentos. Suite frontend: 124/124 en 19 archivos con un worker. Suite backend completa: 259/259. `npm run build` y `git diff --check` aprobados.
+- No se inició el Bloque 5 ni se realizó commit o push. El siguiente bloque, con autorización explícita, es Bloque 5 — Integración, regresión y cierre de Producción.

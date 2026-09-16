@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { HttpError } from '../../api/client';
 import {
-  eliminarDocumento, listarDocumentos, subirDocumento, urlDescargaDocumento, type Documento,
+  eliminarDocumento, eliminarDocumentoProduccion, listarDocumentos, listarDocumentosProduccion, subirDocumento, subirDocumentoProduccion, urlDescargaDocumento, urlDescargaDocumentoProduccion, type Documento,
 } from '../../api/documentos';
 import { eliminarDocumentoRiesgo, listarDocumentosRiesgo, subirDocumentoRiesgo, urlDescargaDocumentoRiesgo } from '../../api/riesgosTrabajo';
 import { Modal } from '../../components/Modal';
@@ -24,12 +24,12 @@ function formatoTamano(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function DocumentosPanel({ tipoRegistro, idRegistro, riesgoId }: { tipoRegistro: string; idRegistro: string; riesgoId?: string }) {
+export function DocumentosPanel({ tipoRegistro, idRegistro, riesgoId, produccionKind }: { tipoRegistro: string; idRegistro: string; riesgoId?: string; produccionKind?: 'atenciones' | 'recorridos' | 'novedades' }) {
   const { notify, confirm } = useFeedback();
   const { usuario } = useAuth();
   const parentModule = tipoRegistro === 'RESPUESTAS_FORMULARIO' ? 'RESPUESTAS'
     : tipoRegistro === 'HALLAZGOS_RECORRIDO' ? 'RECORRIDOS' : tipoRegistro;
-  const scopedModule = riesgoId ? 'RIESGOS_TRABAJO' : parentModule;
+  const scopedModule = riesgoId ? 'RIESGOS_TRABAJO' : produccionKind ? 'PRODUCCION' : parentModule;
   const canUpload = canAccess(usuario, scopedModule, 'edit') && canAccess(usuario, 'DOCUMENTOS', 'create');
   const canDelete = canAccess(usuario, scopedModule, 'edit') && canAccess(usuario, 'DOCUMENTOS', 'delete');
   const [documentos, setDocumentos] = useState<Documento[]>([]);
@@ -45,13 +45,13 @@ export function DocumentosPanel({ tipoRegistro, idRegistro, riesgoId }: { tipoRe
   const cargar = useCallback(async () => {
     setError(null);
     try {
-      setDocumentos(await (riesgoId ? listarDocumentosRiesgo(riesgoId) : listarDocumentos(tipoRegistro, idRegistro)));
+      setDocumentos(await (riesgoId ? listarDocumentosRiesgo(riesgoId) : produccionKind ? listarDocumentosProduccion(produccionKind, idRegistro) : listarDocumentos(tipoRegistro, idRegistro)));
     } catch (err) {
       setError(err instanceof HttpError ? err.message : 'No fue posible cargar los documentos.');
     } finally {
       setCargando(false);
     }
-  }, [tipoRegistro, idRegistro, riesgoId]);
+  }, [tipoRegistro, idRegistro, riesgoId, produccionKind]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -62,7 +62,7 @@ export function DocumentosPanel({ tipoRegistro, idRegistro, riesgoId }: { tipoRe
     setSubiendo(true);
     setError(null);
     try {
-      await (riesgoId ? subirDocumentoRiesgo(riesgoId, archivo, categoria || undefined) : subirDocumento(tipoRegistro, idRegistro, archivo, categoria || undefined));
+      await (riesgoId ? subirDocumentoRiesgo(riesgoId, archivo, categoria || undefined) : produccionKind ? subirDocumentoProduccion(produccionKind, idRegistro, archivo, categoria || undefined) : subirDocumento(tipoRegistro, idRegistro, archivo, categoria || undefined));
       if (inputArchivoRef.current) inputArchivoRef.current.value = '';
       setCategoria('');
       await cargar();
@@ -81,7 +81,7 @@ export function DocumentosPanel({ tipoRegistro, idRegistro, riesgoId }: { tipoRe
     setEliminando(true);
     setError(null);
     try {
-      await (riesgoId ? eliminarDocumentoRiesgo(riesgoId, documentoEliminar.id_archivo, { expected_version: documentoEliminar.version, motivo: motivoEliminacion }) : eliminarDocumento(documentoEliminar.id_archivo, { expected_version: documentoEliminar.version, motivo: motivoEliminacion }));
+      await (riesgoId ? eliminarDocumentoRiesgo(riesgoId, documentoEliminar.id_archivo, { expected_version: documentoEliminar.version, motivo: motivoEliminacion }) : produccionKind ? eliminarDocumentoProduccion(produccionKind, idRegistro, documentoEliminar.id_archivo, { expected_version: documentoEliminar.version, motivo: motivoEliminacion }) : eliminarDocumento(documentoEliminar.id_archivo, { expected_version: documentoEliminar.version, motivo: motivoEliminacion }));
       setDocumentoEliminar(null); setMotivoEliminacion('');
       await cargar();
       notify('Documento eliminado correctamente.');
@@ -135,7 +135,7 @@ export function DocumentosPanel({ tipoRegistro, idRegistro, riesgoId }: { tipoRe
                 <td>{formatoTamano(documento.tamano_bytes)}</td>
                 <td>{formatDateTime(documento.fecha_creacion)}<br /><small>{documento.creado_por ?? '—'}</small></td>
                 <td className="doc-actions">
-                  <a className="button-link" href={riesgoId ? urlDescargaDocumentoRiesgo(riesgoId, documento.id_archivo) : urlDescargaDocumento(documento.id_archivo)} download={documento.nombre_archivo}>
+                  <a className="button-link" href={riesgoId ? urlDescargaDocumentoRiesgo(riesgoId, documento.id_archivo) : produccionKind ? urlDescargaDocumentoProduccion(produccionKind, idRegistro, documento.id_archivo) : urlDescargaDocumento(documento.id_archivo)} download={documento.nombre_archivo}>
                     Descargar
                   </a>
                   {canDelete && <button type="button" className="danger" onClick={() => setDocumentoEliminar(documento)}>Eliminar</button>}

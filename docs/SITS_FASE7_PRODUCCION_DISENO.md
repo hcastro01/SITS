@@ -107,3 +107,17 @@ Atenciones de Producción solo presenta lo que el wrapper entrega; por ello las 
 Recorridos y Novedades reutilizan el mismo componente contextual, con creación, detalle, edición, filtros y paginación. Novedad conserva su entidad y se etiqueta como “Novedades de planta”. Formularios permanece en su ruta contextual ya existente y no se alteraron respuestas, Documentos, BLOB ni la integración profunda del Bloque 4. Los estados de carga, vacío y errores API (incluidos 401/403) se distinguen antes de mostrar el vacío.
 
 La validación visual manual final fue confirmada en el entorno local `http://127.0.0.1:8081`, en viewports `1440x900`, `768x1024` y `390x844`. Las cuatro rutas contextuales de Producción —Atenciones, Recorridos, Novedades de planta y Formularios—, junto con sidebar, navegación, filtros, tablas, paginación y modales, se observaron correctas y sin solapamientos, controles fuera de pantalla ni errores visuales bloqueantes. **BLOQUE 3 FASE 7 VALIDADO — FRONTEND DE PRODUCCIÓN LISTO.**
+
+## 15. Bloque 4 — Integraciones de Producción
+
+Las integraciones contextuales se realizan exclusivamente desde los registros de Producción. Los wrappers de Atenciones, Recorridos y Novedades consultan el catálogo por código y resuelven el ID real de `PRODUCCION_ATENCIONES`, `RECORRIDOS` o `NOVEDADES_PLANTA`; solamente incluyen formularios publicados asignados al subproceso exacto. Una plantilla multidestino continúa siendo una sola plantilla y cada respuesta conserva el ID del destino desde el que se respondió.
+
+El guardado se hace por la ruta contextual de Producción: ignora contexto, Persona y destino enviados por el cliente y fija el registro real, `contexto_tipo` y `id_destino_respuesta`. Por ello una respuesta no crea Atención, Recorrido ni Novedad. La respuesta conserva formulario, versión publicada, usuario, código, correlativo y auditoría del motor existente. Persona sigue siendo opcional y, cuando pertenece al registro, permanece separada de responsable, autor y respondedor.
+
+Atenciones de Producción sigue excluyendo registros `NULL` y `OFICINA`; no hay inferencia, backfill ni reclasificación. Historial reutiliza la ruta contextual existente y exige `PRODUCCION` junto con `AUDITORIA`. Formularios exige además `FORMULARIOS`; el guardado exige `RESPUESTAS`, sin que `PRODUCCION` conceda acceso transversal por sí solo.
+
+Documentos reutiliza la infraestructura existente sin ampliar BLOB ni crear tablas: sus wrappers de Producción validan primero el registro contextual y luego delegan con módulo padre `PRODUCCION` y permiso `DOCUMENTOS`. En Atenciones rechazan `NULL`, `OFICINA` e inexistentes; en Recorridos y Novedades validan existencia antes de acceder a un documento asociado. Un ID de documento de otro registro también se rechaza. Las rutas documentales transversales permanecen intactas.
+
+Validación del Bloque 4: frontend focalizado 35/35, suite frontend 124/124 en 19 archivos con `--maxWorkers=1`, backend focalizado Producción 7/7 y suite backend completa 259/259. El build frontend y `git diff --check` aprobaron. **BLOQUE 4 FASE 7 VALIDADO — INTEGRACIONES DE PRODUCCIÓN LISTAS.**
+
+El siguiente bloque es exclusivamente Bloque 5 — Integración, regresión y cierre de Producción.
