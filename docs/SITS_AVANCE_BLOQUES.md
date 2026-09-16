@@ -486,3 +486,18 @@ No se inició Fase 8.
 - Validación final: backend completo `267/267` en 83.144 s (exit 0; sin fallos ni errores; sólo `ResourceWarning` de conexiones SQLite sin cerrar), frontend serial `128/128` en `20/20` suites (exit 0), focalizadas Bloque 4 backend `4/4` y frontend `4/4`, y build frontend (exit 0).
 - La suite completa cubre regresión de Producción mediante `test_produccion.py` y `ProduccionEntities.test.tsx`, y Fase 5 mediante las pruebas del repositorio/destinos/respuestas contextualizadas, incluyendo `DynamicResponsePage.destination.test.tsx` y `test_respuestas_formulario_service.py`. `alembic heads` confirmó `0022_beneficios_prestamos_seguros`; `alembic check` aprobó sobre SQLite temporal y `git diff --check` aprobó.
 - Fase 8 no está completada. Siguiente: **BLOQUE 5 — Integración, regresión y cierre.**
+
+### Bloque 5 — Integración, regresión y cierre de Oficina
+
+**FASE 8 — OFICINA COMPLETADA.**
+
+- Bloques 1–5 cerrados: arquitectura, backend contextual, frontend reutilizable, integraciones de Formularios/Documentos y regresión final. Beneficios, Atenciones, Préstamos y Seguro conservan exclusivamente sus contratos aprobados; no se agregaron tipos, campos financieros, pólizas, BLOB ni motores paralelos.
+- Atenciones fuerza `contexto_operativo="OFICINA"`; Producción conserva exclusivamente `PRODUCCION` y los históricos `NULL` no se reclasifican ni entran a rutas contextuales. El scope `OFICINA` sigue aditivo y no concede Producción, APIs transversales, Formularios globales ni Documentos globales.
+- Formularios usa sólo los destinos hoja explícitos `BENEFICIOS`, `OFICINA_ATENCIONES`, `PRESTAMOS` y `SEGURO`; respuestas contextualizadas fijan registro/destino real, preservan multidestino sin duplicar plantillas y no crean registros operativos. Documentos valida registro y scope antes de delegar; historial y auditoría reutilizan la infraestructura única existente.
+- Persona permanece nullable en Beneficios, Préstamos y Seguro; Persona, responsable, autor y usuario respondedor siguen separados. La migración `0022_beneficios_prestamos_seguros` fue validada en SQLite temporal mediante `0021 → 0022 → 0021 → 0022`, con `alembic check` aprobado.
+- Regresión final: backend `267/267` (exit 0; 78.955 s; sin fallos ni errores; sólo `ResourceWarning` SQLite no bloqueantes), frontend serial `128/128` en `20/20` suites (exit 0), focalizadas backend `43/43` y frontend `24/24`, build y `git diff --check` aprobados. Las suites incluyen navegación, Actividades, Ausentismos, Accidentes, Riesgos, Producción, repositorio de Formularios, destinos jerárquicos, respuestas e historial.
+- Se conserva la validación visual manual previa de las rutas Oficina en desktop, tablet y móvil. La revisión visual focalizada nueva no se ejecutó porque el navegador no estuvo disponible por un error de política de cabeceras; no se infiere evidencia adicional.
+
+## Siguiente fase planificada
+
+**FASE 9 — IMÁGENES Y ADJUNTOS BLOB.** No iniciada.

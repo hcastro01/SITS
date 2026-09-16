@@ -1,6 +1,6 @@
 # SITS — Fase 8: diseño de Oficina
 
-**Estado.** Bloque 1 — auditoría y diseño técnico. No implementa entidades, migraciones, endpoints ni pantallas operativas.
+**Estado final.** IMPLEMENTADO Y VALIDADO. La evolución por bloques preserva las decisiones de arquitectura, compatibilidad histórica y restricciones funcionales documentadas a continuación.
 
 ## 1. Estado actual
 
@@ -134,3 +134,14 @@ Validación: pruebas focalizadas Oficina y regresión Producción 7/7; suite fro
 - Validación final: backend `267/267` (exit 0; 83.144 s; sin fallos ni errores), frontend serial `128/128` en 20 suites (exit 0), focalizadas backend `test_oficina` `4/4` y frontend `OficinaEntities.test.tsx` `4/4`, build (exit 0), `alembic heads` `0022_beneficios_prestamos_seguros`, `alembic check` y `git diff --check` aprobados. La suite global cubre las regresiones de Producción y del repositorio central/destinos/respuestas de Fase 5.
 
 Fase 8 no está completa; el siguiente trabajo autorizado es Bloque 5 — Integración, regresión y cierre.
+
+## 18. Estado final — Fase 8 Oficina
+
+**IMPLEMENTADO Y VALIDADO.** Bloques 1–5 quedaron cerrados. Beneficios, Atenciones, Préstamos y Seguro usan únicamente los contratos aprobados, componentes reutilizados, formularios centralizados y documentos contextuales; no se introdujeron BLOB, almacenamiento, repositorios, historial o motores paralelos.
+
+- La migración `0022_beneficios_prestamos_seguros` es aditiva sobre `0021`, con FKs nullable a Persona, constraints de tipos aprobados e índices de listado. El ciclo SQLite temporal `0021 → 0022 → 0021 → 0022` y `alembic check` aprobaron; no se tocaron datos productivos ni se hizo backfill.
+- Atenciones Oficina fija `OFICINA`; Producción fija `PRODUCCION`; históricos `NULL` permanecen históricos y se excluyen de ambos contextos. El scope `OFICINA` es aditivo y no concede Producción ni las APIs globales/transversales.
+- Los destinos hoja explícitos siguen siendo `BENEFICIOS`, `OFICINA_ATENCIONES`, `PRESTAMOS` y `SEGURO`. Respuestas mantienen el destino real y el multidestino no duplica plantillas ni mezcla respuestas; ninguna respuesta crea un registro operativo. Documentos, auditoría e historial reutilizan su infraestructura existente tras validar registro, scope y permisos.
+- Validación final: backend completo `267/267` (exit 0; 78.955 s), frontend `128/128` en `20/20` suites (exit 0), focalizadas backend `43/43`, focalizadas frontend `24/24`, build, `git diff --check` y Alembic aprobados. La regresión cubre Producción, Formularios/Fase 5, navegación, Actividades, Ausentismos, Accidentes y Riesgos.
+
+La validación visual manual general de Oficina, aprobada previamente en desktop, tablet y móvil, permanece como evidencia de estructura y responsive. La revisión visual focalizada de las integraciones no pudo ejecutarse en este cierre por indisponibilidad del navegador; no se declara evidencia visual nueva.
