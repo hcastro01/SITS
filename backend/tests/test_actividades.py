@@ -1,5 +1,6 @@
 import unittest
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 from tempfile import TemporaryDirectory
 
 from alembic import command
@@ -150,7 +151,7 @@ class ActividadesServiceTests(unittest.TestCase):
             self.assertEqual(ctx.exception.code, "FORBIDDEN")
 
     def test_the_four_overdue_rules(self):
-        today = date.today()
+        today = datetime.now(ZoneInfo("America/Guayaquil")).date()
         def activity(kind, target, state):
             return type("Activity", (), {"tipo_fecha": kind, "fecha_objetivo": target.isoformat(), "estado": state})()
         self.assertTrue(is_overdue(activity("LIMITE", today - timedelta(days=1), "PENDIENTE")))
