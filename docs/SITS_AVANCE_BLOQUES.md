@@ -523,3 +523,14 @@ No se inició Fase 8.
 - Validación: focalizadas Documentos/Riesgos/Producción/Oficina `48/48`; backend completo reconstruido `273/273` (exit 0); `alembic heads` = `0022_beneficios_prestamos_seguros`; SQLite temporal `upgrade head && alembic check` aprobado; `git diff --check` aprobado.
 
 Siguiente bloque autorizado sólo bajo nueva instrucción: **Bloque 3 — Frontend de carga, descarga y preview.**
+
+### Bloque 3 — Frontend de carga, descarga y preview
+
+**BLOQUE 3 FASE 9 VALIDADO — FRONTEND DOCUMENTOS.**
+
+- `DocumentosPanel` ahora limita informativamente la selección a PDF, JPEG, PNG y WEBP, máximo 10 MiB y 10 documentos activos; el backend continúa siendo la autoridad para formato, firma, permisos, scope y persistencia.
+- El listado consume únicamente metadata (`nombre_archivo`, MIME, tamaño, fecha y autor). La descarga usa el cliente autenticado existente para obtener `Blob`, conserva el filename de `Content-Disposition`, activa una descarga temporal y revoca su object URL.
+- Preview autenticado de PDF e imágenes mediante Blob URL dentro de `Modal`; las URLs se revocan al cerrar, sustituir preview o desmontar. Riesgos, Producción, Oficina y la ruta genérica mantienen sus endpoints contextuales.
+- Validación: nuevas focalizadas Cliente/Documentos `10/10`; regresión Riesgos/Producción/Oficina `27/27`; frontend serial completo `133/133` en 21 archivos con un worker; `npm run build` (TypeScript + Vite) y `git diff --check` aprobados.
+
+No se modificó backend, no se integraron Formularios y no se inició Bloque 4. El siguiente bloque requiere autorización explícita: **Bloque 4 — Formularios y módulos contextuales.**

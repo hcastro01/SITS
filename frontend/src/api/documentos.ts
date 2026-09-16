@@ -1,4 +1,4 @@
-import { fileUrl, get, post, postForm } from './client';
+import { get, getForBlob, post, postForm, type BlobResponse } from './client';
 
 export interface Documento {
   id_archivo: string;
@@ -37,9 +37,8 @@ export function eliminarDocumento(idArchivo: string, datos: { expected_version: 
   return post<Documento>(`/documentos/${idArchivo}/eliminacion`, datos);
 }
 
-export function urlDescargaDocumento(idArchivo: string): string {
-  return fileUrl(`/documentos/${idArchivo}/contenido`);
-}
+export const descargarDocumento = (idArchivo: string): Promise<BlobResponse> =>
+  getForBlob(`/documentos/${encodeURIComponent(idArchivo)}/contenido`);
 
 type ProduccionKind = 'atenciones' | 'recorridos' | 'novedades';
 const productionDocumentsPath = (kind: ProduccionKind, recordId: string) => `/produccion/${kind}/${encodeURIComponent(recordId)}/documentos`;
@@ -52,8 +51,8 @@ export function subirDocumentoProduccion(kind: ProduccionKind, recordId: string,
 }
 export const eliminarDocumentoProduccion = (kind: ProduccionKind, recordId: string, idArchivo: string, datos: { expected_version: number; motivo: string }) =>
   post<Documento>(`${productionDocumentsPath(kind, recordId)}/${encodeURIComponent(idArchivo)}/eliminacion`, datos);
-export const urlDescargaDocumentoProduccion = (kind: ProduccionKind, recordId: string, idArchivo: string) =>
-  fileUrl(`${productionDocumentsPath(kind, recordId)}/${encodeURIComponent(idArchivo)}/contenido`);
+export const descargarDocumentoProduccion = (kind: ProduccionKind, recordId: string, idArchivo: string): Promise<BlobResponse> =>
+  getForBlob(`${productionDocumentsPath(kind, recordId)}/${encodeURIComponent(idArchivo)}/contenido`);
 
 type OfficeKind = 'atenciones' | 'beneficios' | 'prestamos' | 'seguro';
 const officeDocumentsPath = (kind: OfficeKind, recordId: string) => `/oficina/${kind}/${encodeURIComponent(recordId)}/documentos`;
@@ -66,5 +65,5 @@ export function subirDocumentoOficina(kind: OfficeKind, recordId: string, archiv
 }
 export const eliminarDocumentoOficina = (kind: OfficeKind, recordId: string, idArchivo: string, datos: { expected_version: number; motivo: string }) =>
   post<Documento>(`${officeDocumentsPath(kind, recordId)}/${encodeURIComponent(idArchivo)}/eliminacion`, datos);
-export const urlDescargaDocumentoOficina = (kind: OfficeKind, recordId: string, idArchivo: string) =>
-  fileUrl(`${officeDocumentsPath(kind, recordId)}/${encodeURIComponent(idArchivo)}/contenido`);
+export const descargarDocumentoOficina = (kind: OfficeKind, recordId: string, idArchivo: string): Promise<BlobResponse> =>
+  getForBlob(`${officeDocumentsPath(kind, recordId)}/${encodeURIComponent(idArchivo)}/contenido`);

@@ -114,9 +114,7 @@ Bloque 3 frontend: selección multipart, validación previa informativa, loading
 ## 12. Riesgos reales pendientes
 
 - La finalidad BLOB ya existe, por lo que una implementación literal de una segunda tabla/columna sería regresiva y contraria a la reutilización.
-- El límite de 10 MiB y la política de formatos están hardcodeados, no centralizados.
-- La validación MIME no exige correspondencia exacta MIME-extensión y las firmas son superficiales; no equivalen a análisis de seguridad.
-- El panel no ofrece preview y anuncia formatos de forma incongruente con WEBP; la preview de Formularios filtra object URLs.
+- El backend ya centraliza límite/formato y el panel documental ofrece preview Blob autenticado; las preguntas ARCHIVO/FOTOGRAFIA de Formularios siguen fuera de este bloque y su preview provisional aún requiere tratamiento separado.
 - ARCHIVO/FOTOGRAFIA aún no persisten archivos: el UI permite seleccionarlos, pero la serialización los omite.
 - Las respuestas binario se cargan completas en memoria y no definen headers privados de cache; deben mantenerse límites y no incluir BLOB en listados.
 
@@ -127,3 +125,11 @@ Bloque 3 frontend: selección multipart, validación previa informativa, loading
 - La whitelist efectiva de Documentos queda en PDF, JPEG, PNG y WEBP. La validación exige extensión, MIME exacto asociado y magic bytes; SVG, HTML, JS, ejecutables, Office y demás formatos no se aceptan en este flujo inicial.
 - Todas las rutas de contenido existentes siguen siendo `attachment`; el preview autenticado inline queda expresamente para Bloque 3. Se aplicaron cabeceras privadas uniformes (`private, no-store`, `Pragma: no-cache`, `nosniff` y filename RFC 5987) a genérico, Riesgos, Producción y Oficina.
 - La descarga transforma BLOB inválido o ausente en un `AppError` controlado, conserva baja lógica y auditoría `DOWNLOAD_FILE` sólo tras recuperar bytes válidos. Los controles de padre, permisos y scope de wrappers no cambiaron.
+
+## 14. Decisiones implementadas — Bloque 3
+
+- El cliente HTTP existente incorpora una única lectura autenticada `getForBlob`: mantiene cookies, transforma errores HTTP en `HttpError` y extrae el filename RFC 5987 de `Content-Disposition`. No se creó cliente paralelo ni se cargaron BLOB en los listados.
+- `DocumentosPanel` reutiliza esa lectura en las rutas genérica, Riesgos, Producción y Oficina. La descarga crea un enlace temporal desde Blob y revoca la URL inmediatamente después de dispararla.
+- PDF, JPEG, PNG y WEBP se previsualizan exclusivamente tras fetch autenticado, en un `Modal` con Blob URL. La URL se revoca al cierre, al reemplazar un preview y al desmontar el componente. No se inserta endpoint protegido directamente en `img` o `iframe`.
+- La validación de UI es informativa y centralizada: extensión/MIME declarado, 10 MiB y máximo 10 documentos. El backend mantiene toda validación de seguridad y autorización.
+- Formularios no se modificó. Bloque 4 sigue siendo responsable de adjuntos por pregunta, vínculo transaccional con respuestas y tratamiento de sus object URLs.

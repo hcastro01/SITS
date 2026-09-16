@@ -1,4 +1,4 @@
-import { fileUrl, get, patch, post, postForm } from './client';
+import { get, getForBlob, patch, post, postForm, type BlobResponse } from './client';
 import type { ContextForm, FormResponse } from './formBuilder';
 import type { Documento } from './documentos';
 
@@ -71,4 +71,5 @@ export function subirDocumentoRiesgo(id: string, archivo: File, categoriaDocumen
 }
 export const eliminarDocumentoRiesgo = (riesgoId: string, idArchivo: string, datos: { expected_version: number; motivo: string }) =>
   post<Documento>(`/riesgos-trabajo/${riesgoId}/documentos/${idArchivo}/eliminacion`, datos);
-export const urlDescargaDocumentoRiesgo = (riesgoId: string, idArchivo: string) => fileUrl(`/riesgos-trabajo/${riesgoId}/documentos/${idArchivo}/contenido`);
+export const descargarDocumentoRiesgo = (riesgoId: string, idArchivo: string): Promise<BlobResponse> =>
+  getForBlob(`/riesgos-trabajo/${encodeURIComponent(riesgoId)}/documentos/${encodeURIComponent(idArchivo)}/contenido`);
