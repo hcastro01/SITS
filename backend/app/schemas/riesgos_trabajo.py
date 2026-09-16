@@ -33,6 +33,15 @@ class RiesgoSeguimiento(BaseModel):
     estado: str | None = None
 
 
+class RiesgoCompromiso(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    responsable: str | None = None
+    descripcion: str = Field(min_length=1)
+    fecha_limite: str | None = None
+    estado: str | None = None
+    observacion: str | None = None
+
+
 class RiesgoCierre(BaseModel):
     model_config = ConfigDict(extra="forbid")
     expected_version: int

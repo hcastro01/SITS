@@ -22,6 +22,7 @@ import { ActividadesPage } from '../features/actividades/ActividadesPage';
 import { AusentismosPage } from '../features/ausentismos/AusentismosPage';
 import { AccidentesPage } from '../features/accidentes/AccidentesPage';
 import { RiesgosTrabajoPage } from '../features/riesgos/RiesgosTrabajoPage';
+import { RiesgoDetailPage } from '../features/riesgos/RiesgoDetailPage';
 
 const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -36,6 +37,7 @@ const router = createBrowserRouter([
         { path: 'trabajo-social/actividades/registrar', element: <ActividadesPage register /> },
         { path: 'trabajo-social/actividades/formularios', element: <ContextualFormsPage config={CONTEXTUAL_FORM_BRANCHES.activities} /> },
         { path: 'trabajo-social/departamento-medico/riesgos', element: <RiesgosTrabajoPage /> },
+        { path: 'trabajo-social/departamento-medico/riesgos/:id', element: <RiesgoDetailPage /> },
         { path: 'trabajo-social/departamento-medico/ausentismos', element: <AusentismosPage /> },
         { path: 'trabajo-social/departamento-medico/accidentes', element: <AccidentesPage /> },
         { path: 'trabajo-social/departamento-medico/formularios', element: <ContextualFormsPage config={CONTEXTUAL_FORM_BRANCHES.medical} /> },

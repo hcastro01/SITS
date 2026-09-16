@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { deleteFormResponse, getFormDefinition, getFormResponse, listDestinationTree, saveFormResponse, type FormAnswer, type FormDefinition, type FormDestinationNode, type FormResponse } from '../../api/formBuilder';
 import { subirDocumento } from '../../api/documentos';
+import { responderFormularioRiesgo } from '../../api/riesgosTrabajo';
 import { HttpError } from '../../api/client';
 import { useFeedback } from '../../components/FeedbackProvider';
 import { useUnsavedChanges } from '../../components/useUnsavedChanges';
@@ -36,6 +37,7 @@ export function DynamicResponsePage() {
   const createContext = params.get('crear_contexto') === '1'; const personId = params.get('id_persona');
   const editRequested = params.get('editar') === '1';
   const requestedDestinationId = params.get('id_destino_respuesta'); const contextualProcessCode = params.get('proceso_contextual');
+  const riesgoId = params.get('riesgo_id');
   const [definition, setDefinition] = useState<FormDefinition | null>(null); const [response, setResponse] = useState<FormResponse | null>(null);
   const [destinationTree, setDestinationTree] = useState<FormDestinationNode[]>([]); const [selectedDestinationId, setSelectedDestinationId] = useState<string | null>(null);
   const [values, setValues] = useState<FormValues>({}); const [loading, setLoading] = useState(true);
@@ -94,15 +96,16 @@ export function DynamicResponsePage() {
         const value = values[question.id_pregunta]; return Array.isArray(value) && value.some((item) => item instanceof File) ? (value as File[]).map((file) => ({ question, file })) : [];
       });
       let saved = response ?? null;
-      if (files.length && !saved) saved = await saveFormResponse(id, basePayload);
+      const save = (payload: typeof basePayload) => riesgoId ? responderFormularioRiesgo(riesgoId, id, payload) : saveFormResponse(id, payload);
+      if (files.length && !saved) saved = await save(basePayload);
       if (files.length) {
         const uploaded = await Promise.all(files.map(({ question, file }) => subirDocumento('RESPUESTAS_FORMULARIO', saved!.id_respuesta, file, `FORMULARIO:${question.id_pregunta}`)));
         const fileAnswers: FormAnswer[] = uploaded.map((document, index) => ({ id_pregunta: files[index].question.id_pregunta, valor_opcion: document.id_archivo }));
-        saved = await saveFormResponse(id, { ...basePayload, borrador: draft, crear_contexto: false,
+        saved = await save({ ...basePayload, borrador: draft, crear_contexto: false,
           respuestas: [...toAnswers(), ...fileAnswers], contexto_id: saved!.contexto_id,
           id_respuesta: saved!.id_respuesta, expected_version: saved!.version });
       }
-      if (!saved || !files.length) saved = await saveFormResponse(id, { ...basePayload, borrador: draft });
+      if (!saved || !files.length) saved = await save({ ...basePayload, borrador: draft });
       setResponse(saved); setDirty(false); notify(draft ? 'Borrador guardado correctamente.' : `Formulario enviado correctamente. Código: ${saved.codigo_respuesta ?? 'no disponible'}.`);
       const stableParams = new URLSearchParams({ contexto_tipo: saved.contexto_tipo ?? contextType, respuesta: saved.id_respuesta });
       if (saved.contexto_id) stableParams.set('contexto_id', saved.contexto_id);

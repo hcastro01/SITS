@@ -1,10 +1,16 @@
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile, status
+from fastapi.responses import Response
+from urllib.parse import quote
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.core.permissions import AuthenticatedUser
-from app.schemas.riesgos_trabajo import RiesgoCierre, RiesgoCreate, RiesgoSeguimiento, RiesgoUpdate
-from app.services.riesgos_trabajo import add_riesgo_seguimiento, close_riesgo, create_riesgo, get_riesgo, list_riesgos, riesgo_compromisos, riesgo_history, riesgo_seguimientos, update_riesgo
+from app.api.formularios import ResponderFormularioRequest
+from app.models import Documento
+from app.schemas.riesgos_trabajo import RiesgoCierre, RiesgoCompromiso, RiesgoCreate, RiesgoSeguimiento, RiesgoUpdate
+from app.services.documentos import MAX_FILE_BYTES
+from app.services.dynamic_responses import serialize_response
+from app.services.riesgos_trabajo import add_riesgo_compromiso, add_riesgo_seguimiento, close_riesgo, create_riesgo, delete_riesgo_documento, download_riesgo_documento, get_riesgo, list_riesgos, riesgo_compromisos, riesgo_documentos, riesgo_forms, riesgo_history, riesgo_seguimientos, save_riesgo_form_response, update_riesgo, upload_riesgo_documento
 
 router = APIRouter(prefix="/api/v1/riesgos-trabajo", tags=["Riesgos de trabajo"])
 
@@ -25,6 +31,15 @@ def _case(record, person=None) -> dict:
 def _child(record, fields: tuple[str, ...], identifier: str) -> dict:
     return {identifier: getattr(record, identifier), **{field: getattr(record, field) for field in fields},
             "fecha_creacion": record.fecha_creacion, "creado_por": record.creado_por, "version": record.version}
+
+
+def _document(record: Documento) -> dict:
+    return {"id_archivo": record.id_archivo, "tipo_registro": record.tipo_registro, "id_registro": record.id_registro,
+            "nombre_archivo": record.nombre_archivo, "mime_type": record.mime_type, "extension": record.extension,
+            "tamano_bytes": record.tamano_bytes, "tamano_comprimido_bytes": record.tamano_comprimido_bytes,
+            "sha256": record.sha256, "categoria_documento": record.categoria_documento, "version": record.version,
+            "activo": record.activo, "eliminado": record.eliminado, "fecha_creacion": record.fecha_creacion,
+            "creado_por": record.creado_por}
 
 
 @router.get("")
@@ -70,6 +85,13 @@ def compromisos(riesgo_id: str, db: Session = Depends(get_db), user: Authenticat
     return [_child(row, fields, "id_compromiso") for row in riesgo_compromisos(db, user, riesgo_id)]
 
 
+@router.post("/{riesgo_id}/compromisos", status_code=status.HTTP_201_CREATED)
+def crear_compromiso(riesgo_id: str, payload: RiesgoCompromiso, request: Request, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
+    fields = ("id_seguimiento", "fecha_creacion_compromiso", "responsable", "descripcion", "fecha_limite", "estado", "fecha_cumplimiento", "evidencia", "observacion")
+    record = add_riesgo_compromiso(db, user, riesgo_id, correlation_id=request.state.correlation_id, **payload.model_dump(exclude_none=True))
+    return _child(record, fields, "id_compromiso")
+
+
 @router.post("/{riesgo_id}/cierres", status_code=status.HTTP_201_CREATED)
 def cerrar(riesgo_id: str, payload: RiesgoCierre, request: Request, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
     record = close_riesgo(db, user, riesgo_id, correlation_id=request.state.correlation_id, **payload.model_dump())
@@ -79,3 +101,49 @@ def cerrar(riesgo_id: str, payload: RiesgoCierre, request: Request, db: Session 
 @router.get("/{riesgo_id}/historial")
 def historial(riesgo_id: str, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
     return [{"campo": row.campo, "accion": row.accion, "valor_anterior": row.valor_anterior, "valor_nuevo": row.valor_nuevo, "usuario": row.usuario, "fecha_hora": row.fecha_hora, "motivo": row.motivo} for row in riesgo_history(db, user, riesgo_id)]
+
+
+@router.get("/{riesgo_id}/formularios")
+def formularios(riesgo_id: str, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
+    return riesgo_forms(db, user, riesgo_id)
+
+
+@router.post("/{riesgo_id}/formularios/{id_formulario}/respuestas", status_code=status.HTTP_201_CREATED)
+def responder_formulario(riesgo_id: str, id_formulario: str, payload: ResponderFormularioRequest, request: Request,
+                         db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
+    envio = save_riesgo_form_response(db, user, riesgo_id, id_formulario,
+        correlation_id=request.state.correlation_id, draft=payload.borrador, answers=payload.respuestas,
+        client_key=payload.id_envio_cliente, legacy_record_id=payload.id_registro_proceso,
+        response_id=payload.id_respuesta, expected_version=payload.expected_version,
+        create_context=False, person_id=payload.id_persona, edit_registered=payload.editar_registrado,
+        id_destino_respuesta=payload.id_destino_respuesta)
+    return serialize_response(db, envio, user=user)
+
+
+@router.get("/{riesgo_id}/documentos")
+def documentos(riesgo_id: str, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
+    return [_document(record) for record in riesgo_documentos(db, user, riesgo_id)]
+
+
+@router.post("/{riesgo_id}/documentos", status_code=status.HTTP_201_CREATED)
+async def cargar_documento(riesgo_id: str, request: Request, categoria_documento: str | None = Form(None),
+                           archivo: UploadFile = File(...), db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
+    record = upload_riesgo_documento(db, user, riesgo_id, nombre_archivo=archivo.filename or "archivo",
+        mime_type=archivo.content_type or "", contenido=await archivo.read(MAX_FILE_BYTES + 1),
+        categoria_documento=categoria_documento, correlation_id=request.state.correlation_id)
+    return _document(record)
+
+
+@router.get("/{riesgo_id}/documentos/{id_archivo}/contenido")
+def descargar_documento(riesgo_id: str, id_archivo: str, request: Request, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
+    document, content = download_riesgo_documento(db, user, riesgo_id, id_archivo, correlation_id=request.state.correlation_id)
+    return Response(content=content, media_type=document.mime_type,
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(document.nombre_archivo)}"})
+
+
+@router.post("/{riesgo_id}/documentos/{id_archivo}/eliminacion")
+def eliminar_documento(riesgo_id: str, id_archivo: str, payload: dict, request: Request,
+                       db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
+    record = delete_riesgo_documento(db, user, riesgo_id, id_archivo, expected_version=payload.get("expected_version"),
+        motivo=payload.get("motivo") or payload.get("reason") or "", correlation_id=request.state.correlation_id)
+    return _document(record)

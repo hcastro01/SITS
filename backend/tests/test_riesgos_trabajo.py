@@ -11,7 +11,7 @@ import app.db.session as db_session
 from app.api.deps import get_db
 from app.db.session import build_engine
 from app.main import app
-from app.models import Caso, Permission, Persona, Role, User
+from app.models import Caso, DestinoFormulario, EnvioFormulario, Formulario, FormularioDestino, Permission, Persona, Role, User
 from app.services.form_destinations import seed_form_destinations
 from app.services.security_seed import seed_security
 
@@ -122,6 +122,41 @@ class RiesgosTrabajoApiTests(unittest.TestCase):
             self.assertTrue(session.get(type(session.get(Caso, risk["id_caso"])), risk["id_caso"]))
             from app.models import DestinoFormulario
             self.assertEqual(session.get(DestinoFormulario, "destino-riesgos-trabajo").codigo, "RIESGOS_TRABAJO")
+
+    def test_contextual_forms_documents_commitments_and_generic_rejection(self):
+        self.login()
+        risk = self.create()
+        with Session(self.engine) as session, session.begin():
+            session.add_all([
+                Formulario(id_formulario="form-risk", nombre="Formulario Riesgo", estado="PUBLICADO"),
+                Formulario(id_formulario="form-accident", nombre="Solo Accidentes", estado="PUBLICADO"),
+                Formulario(id_formulario="form-absence", nombre="Solo Ausentismos", estado="PUBLICADO"),
+                FormularioDestino(id_destino="assign-risk", id_formulario="form-risk", modulo="RIESGOS_TRABAJO", id_destino_catalogo="destino-riesgos-trabajo"),
+                FormularioDestino(id_destino="assign-accident", id_formulario="form-accident", modulo="ACCIDENTES", id_destino_catalogo="destino-accidentes"),
+                FormularioDestino(id_destino="assign-absence", id_formulario="form-absence", modulo="AUSENTISMOS", id_destino_catalogo="destino-ausentismos"),
+            ])
+        forms = self.client.get(f"/api/v1/riesgos-trabajo/{risk['id_caso']}/formularios")
+        self.assertEqual(forms.status_code, 200, forms.text)
+        self.assertEqual([item["id_formulario"] for item in forms.json()], ["form-risk"])
+        saved = self.client.post(f"/api/v1/riesgos-trabajo/{risk['id_caso']}/formularios/form-risk/respuestas", json={"borrador": True, "respuestas": [], "id_destino_respuesta": "destino-accidentes"})
+        self.assertEqual(saved.status_code, 201, saved.text)
+        self.assertEqual(saved.json()["id_destino_respuesta"], "destino-riesgos-trabajo")
+        self.assertEqual(self.client.get("/api/v1/riesgos-trabajo/generic/formularios").status_code, 404)
+        compromiso = self.client.post(f"/api/v1/riesgos-trabajo/{risk['id_caso']}/compromisos", json={"responsable": "Rosa", "descripcion": "Entregar informe", "fecha_limite": "2026-10-01", "estado": "PENDIENTE"})
+        self.assertEqual(compromiso.status_code, 201, compromiso.text)
+        self.assertEqual(compromiso.json()["responsable"], "Rosa")
+        self.assertEqual(compromiso.json()["fecha_limite"], "2026-10-01")
+        self.assertEqual(compromiso.json()["creado_por"], "admin@example.com")
+        self.assertEqual(len(self.client.get(f"/api/v1/riesgos-trabajo/{risk['id_caso']}/compromisos").json()), 1)
+        self.assertEqual(self.client.post("/api/v1/riesgos-trabajo/generic/compromisos", json={"descripcion": "No"}).status_code, 404)
+        uploaded = self.client.post(f"/api/v1/riesgos-trabajo/{risk['id_caso']}/documentos", files={"archivo": ("evidencia.pdf", b"%PDF-1.4\\n", "application/pdf")})
+        self.assertEqual(uploaded.status_code, 201, uploaded.text)
+        documents = self.client.get(f"/api/v1/riesgos-trabajo/{risk['id_caso']}/documentos")
+        self.assertEqual(documents.status_code, 200)
+        self.assertEqual(documents.json()[0]["id_registro"], risk["id_caso"])
+        self.assertEqual(self.client.get(f"/api/v1/riesgos-trabajo/{risk['id_caso']}/documentos/{uploaded.json()['id_archivo']}/contenido").status_code, 200)
+        self.assertEqual(self.client.get("/api/v1/riesgos-trabajo/generic/documentos").status_code, 404)
+        self.assertEqual(self.client.get("/api/v1/riesgos-trabajo/generic/historial").status_code, 404)
 
 
 class RiesgosTrabajoMigrationTests(unittest.TestCase):

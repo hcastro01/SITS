@@ -103,12 +103,12 @@ def _autorizar_propietario_respuesta(user: AuthenticatedUser, registro_padre) ->
 def upload_documento(
     session: Session, user: AuthenticatedUser, *,
     tipo_registro: str, id_registro: str, nombre_archivo: str, mime_type: str, contenido: bytes,
-    categoria_documento: str | None = None, correlation_id: str = "",
+    categoria_documento: str | None = None, correlation_id: str = "", parent_module: str | None = None,
 ) -> Documento:
     registro_padre, modulo, tipo = _resolver_registro_padre(session, tipo_registro, id_registro)
     _autorizar_propietario_respuesta(user, registro_padre)
     sensible = is_sensitive_record(session, registro_padre)
-    authorize(user, modulo, "edit", sensitive=sensible)
+    authorize(user, parent_module or modulo, "edit", sensitive=sensible)
     authorize(user, MODULE, "create", sensitive=sensible)
 
     if len(contenido) > MAX_FILE_BYTES:
@@ -152,11 +152,12 @@ def upload_documento(
     return documento
 
 
-def list_documentos(session: Session, user: AuthenticatedUser, *, tipo_registro: str, id_registro: str) -> list[Documento]:
+def list_documentos(session: Session, user: AuthenticatedUser, *, tipo_registro: str, id_registro: str,
+                    parent_module: str | None = None) -> list[Documento]:
     registro_padre, modulo, tipo = _resolver_registro_padre(session, tipo_registro, id_registro)
     _autorizar_propietario_respuesta(user, registro_padre)
     sensible = is_sensitive_record(session, registro_padre)
-    authorize(user, modulo, "read", sensitive=sensible)
+    authorize(user, parent_module or modulo, "read", sensitive=sensible)
     authorize(user, MODULE, "read", sensitive=sensible)
     return list(session.scalars(
         select(Documento).where(
@@ -166,12 +167,13 @@ def list_documentos(session: Session, user: AuthenticatedUser, *, tipo_registro:
     ))
 
 
-def download_documento(session: Session, user: AuthenticatedUser, id_archivo: str, *, correlation_id: str = "") -> tuple[Documento, bytes]:
+def download_documento(session: Session, user: AuthenticatedUser, id_archivo: str, *, correlation_id: str = "",
+                       parent_module: str | None = None) -> tuple[Documento, bytes]:
     documento = get_active(session, Documento, id_archivo, Documento.id_archivo)
     registro_padre, modulo, _tipo = _resolver_registro_padre(session, documento.tipo_registro, documento.id_registro)
     _autorizar_propietario_respuesta(user, registro_padre)
     sensible = is_sensitive_record(session, registro_padre)
-    authorize(user, modulo, "read", sensitive=sensible)
+    authorize(user, parent_module or modulo, "read", sensitive=sensible)
     authorize(user, MODULE, "read", sensitive=sensible)
     log_change(session, "documentos", id_archivo, "DOWNLOAD_FILE", {}, {}, user.correo,
                "Descarga de documento", correlation_id, sensitive_record=sensible)
@@ -180,13 +182,13 @@ def download_documento(session: Session, user: AuthenticatedUser, id_archivo: st
 
 def soft_delete_documento(
     session: Session, user: AuthenticatedUser, id_archivo: str, *,
-    expected_version: int | None, motivo: str, correlation_id: str = "",
+    expected_version: int | None, motivo: str, correlation_id: str = "", parent_module: str | None = None,
 ) -> Documento:
     documento = get_active(session, Documento, id_archivo, Documento.id_archivo)
     registro_padre, modulo, _tipo = _resolver_registro_padre(session, documento.tipo_registro, documento.id_registro)
     _autorizar_propietario_respuesta(user, registro_padre)
     sensible = is_sensitive_record(session, registro_padre)
-    authorize(user, modulo, "edit", sensitive=sensible)
+    authorize(user, parent_module or modulo, "edit", sensitive=sensible)
     authorize(user, MODULE, "delete", sensitive=sensible)
     check_expected_version(documento, expected_version)
     before = {"nombre_archivo": documento.nombre_archivo}

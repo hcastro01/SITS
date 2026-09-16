@@ -80,12 +80,17 @@ def dynamic_state(definition: dict, answer_values: dict[str, list]) -> tuple[dic
 
 
 def _validate_context(session: Session, user: AuthenticatedUser, form_id: str,
-                      context_type: str | None, context_id: str | None) -> tuple[str, str | None]:
+                      context_type: str | None, context_id: str | None, *,
+                      context_authorization_module: str | None = None,
+                      required_destination_id: str | None = None) -> tuple[str, str | None]:
     normalized = (context_type or "GENERAL").strip().upper()
-    destination = session.scalar(select(FormularioDestino).where(
-        FormularioDestino.id_formulario == form_id, FormularioDestino.modulo == normalized,
-        FormularioDestino.activo.is_(True), FormularioDestino.eliminado.is_(False),
-    ))
+    destination_conditions = [FormularioDestino.id_formulario == form_id,
+        FormularioDestino.activo.is_(True), FormularioDestino.eliminado.is_(False)]
+    if required_destination_id:
+        destination_conditions.append(FormularioDestino.id_destino_catalogo == required_destination_id)
+    else:
+        destination_conditions.append(FormularioDestino.modulo == normalized)
+    destination = session.scalar(select(FormularioDestino).where(*destination_conditions))
     if destination is None:
         raise AppError("FORM_CONTEXT_NOT_ALLOWED", "El formulario no está disponible en este módulo.", 403)
     if normalized == "GENERAL":
@@ -97,7 +102,7 @@ def _validate_context(session: Session, user: AuthenticatedUser, form_id: str,
         raise AppError("INVALID_FORM_CONTEXT", "El contexto del formulario no es válido.", 422)
     model, id_field = model_info
     record = get_active(session, model, context_id, getattr(model, id_field))
-    authorize(user, normalized, "read", sensitive=is_sensitive_record(session, record))
+    authorize(user, context_authorization_module or normalized, "read", sensitive=is_sensitive_record(session, record))
     return normalized, context_id
 
 
@@ -242,13 +247,17 @@ def save_dynamic_response(session: Session, user: AuthenticatedUser, form_id: st
                           context_id: str | None = None, response_id: str | None = None,
                           expected_version: int | None = None, correlation_id: str = "",
                           create_context: bool = False, person_id: str | None = None,
-                          edit_registered: bool = False, response_destination_id: str | None = None) -> EnvioFormulario:
+                          edit_registered: bool = False, response_destination_id: str | None = None,
+                          context_authorization_module: str | None = None,
+                          required_destination_id: str | None = None) -> EnvioFormulario:
     authorize(user, "RESPUESTAS", "edit" if edit_registered else "create")
     form = session.get(Formulario, form_id)
     if form is None or form.eliminado or not form.activo:
         raise AppError("FORM_NOT_FOUND", "Formulario no encontrado.", 404)
     if not answers and not draft:
         raise AppError("EMPTY_RESPONSE", "El formulario no contiene respuestas para guardar.", 422)
+    if required_destination_id and response_destination_id != required_destination_id:
+        raise AppError("FORM_DESTINATION_NOT_ALLOWED", "El destino de respuesta no corresponde al Riesgo de trabajo.", 403)
     response_destination = validate_response_destination(session, form_id, response_destination_id)
     response = _find_response_by_identity(
         session, user, form, response_id=response_id, client_key=client_key,
@@ -269,7 +278,11 @@ def save_dynamic_response(session: Session, user: AuthenticatedUser, form_id: st
             session, user, normalized_requested, person_id, correlation_id,
         )
         inferred_type = normalized_requested
-    normalized_type, normalized_id = _validate_context(session, user, form_id, inferred_type, inferred_id)
+    normalized_type, normalized_id = _validate_context(
+        session, user, form_id, inferred_type, inferred_id,
+        context_authorization_module=context_authorization_module,
+        required_destination_id=required_destination_id,
+    )
     if response is None:
         response = _find_response(session, user, form, response_id=None, client_key=None,
                                   context_type=normalized_type, context_id=normalized_id)

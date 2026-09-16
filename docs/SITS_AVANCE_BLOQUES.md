@@ -319,6 +319,16 @@ Fase 6 no está completada. El siguiente bloque autorizado será únicamente el 
 
 Fase 6 no está completada. El siguiente bloque autorizado será únicamente el Bloque 4 — integraciones operativas de Riesgos de trabajo.
 
+### Bloque 4 — Integraciones del detalle de Riesgos de trabajo
+
+**Estado: VALIDADO.**
+
+- El detalle integrado conserva resumen, seguimientos, compromisos, Formularios, Documentos e Historial. Se agregaron wrappers de Riesgos: Formularios resuelve el destino activo del catálogo por código `RIESGOS_TRABAJO`, lista únicamente asignaciones a ese destino y fuerza su `id_destino_respuesta`; Documentos valida primero el Caso Riesgo y delega al almacenamiento/servicio existente con el permiso contextual.
+- Las rutas contextuales rechazan un Caso genérico (404), incluidas Formularios, Documentos, Compromisos e Historial. La prueba backend específica cubre esos contratos y aprobó 5/5; el build frontend aprobó.
+- Formularios y Documentos se validaron mediante paneles reales: destino exclusivo Riesgos, exclusión Accidentes/Ausentismos/otras ramas, multidestino único, respuesta contextual con destino real, Persona/contexto, metadata, permisos, loading, vacío, error, 401/403 y doble envío. Frontend específico 37/37; suite serial completa 121/121 (18 archivos); build aprobado.
+- Backend: Riesgos 5/5, regresión Formularios Fase 5 46/46 y suite completa 252/252. El único fallo previo fue un test de Actividades dependiente de `date.today()` en UTC frente a la regla de producción en `America/Guayaquil`; se ajustó exclusivamente la prueba para usar esa misma zona horaria. La regla de negocio no cambió; el fallo se reprodujo 3/3 también en `2252487`.
+- Fase 6 no está completada. El siguiente bloque autorizado será únicamente el Bloque 5 — integración, regresión y cierre de Fase 6.
+
 ## ROADMAP VIGENTE A PARTIR DE `5491b66`
 
 Esta sección es la única fuente de verdad para el orden de trabajo futuro de SITS. El histórico anterior se conserva como evidencia de su ejecución; `docs/SITS_EXPANSION_SPEC.md` no se usa como roadmap vigente.

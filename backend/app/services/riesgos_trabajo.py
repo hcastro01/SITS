@@ -7,12 +7,15 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
 from app.core.permissions import AuthenticatedUser, authorize, can
-from app.models import Caso, Persona
+from app.models import Caso, DestinoFormulario, Documento, EnvioFormulario, Formulario, FormularioDestino, Persona
 from app.services.casos import (
     add_compromiso, add_seguimiento, close_caso, create_caso, is_sensitive_caso,
     list_compromisos, list_seguimientos, sensitive_case_values, update_caso,
 )
 from app.services.records import get_active, get_history
+from app.services.dynamic_responses import save_dynamic_response, serialize_response
+from app.services.form_builder import get_definition
+from app.services.documentos import download_documento, list_documentos, soft_delete_documento, upload_documento
 
 MODULE = "RIESGOS_TRABAJO"
 CASE_TYPE = "RIESGOS_TRABAJO"
@@ -115,6 +118,14 @@ def riesgo_compromisos(session: Session, user: AuthenticatedUser, risk_id: str):
     return list_compromisos(session, user, risk_id, authorization_module=MODULE)
 
 
+def add_riesgo_compromiso(session: Session, user: AuthenticatedUser, risk_id: str, *, correlation_id: str, **fields):
+    _risk(session, risk_id)
+    return add_compromiso(
+        session, user, risk_id, authorization_module=MODULE, correlation_id=correlation_id,
+        motivo_auditoria="Compromiso de Riesgo de trabajo", **fields,
+    )
+
+
 def close_riesgo(session: Session, user: AuthenticatedUser, risk_id: str, *, expected_version: int,
                  fecha_cierre_caso: str | None, responsable: str | None, motivo_cierre: str | None,
                  resultado_final: str | None, correlation_id: str):
@@ -130,3 +141,83 @@ def close_riesgo(session: Session, user: AuthenticatedUser, risk_id: str, *, exp
 def riesgo_history(session: Session, user: AuthenticatedUser, risk_id: str):
     _risk(session, risk_id)
     return get_history(session, user, MODULE, "casos", risk_id)
+
+
+def _risk_destination(session: Session) -> DestinoFormulario:
+    destination = session.scalar(select(DestinoFormulario).where(
+        DestinoFormulario.codigo == CASE_TYPE, DestinoFormulario.activo.is_(True),
+        DestinoFormulario.eliminado.is_(False),
+    ))
+    if destination is None:
+        raise AppError("FORM_DESTINATION_NOT_FOUND", "No está configurado el destino Riesgos de trabajo.", 422)
+    return destination
+
+
+def riesgo_forms(session: Session, user: AuthenticatedUser, risk_id: str) -> list[dict]:
+    record = _risk(session, risk_id)
+    _authorize_record(session, user, record, "read")
+    destination = _risk_destination(session)
+    forms = list(session.scalars(select(Formulario).join(FormularioDestino).where(
+        FormularioDestino.id_destino_catalogo == destination.id_destino,
+        FormularioDestino.activo.is_(True), FormularioDestino.eliminado.is_(False),
+        Formulario.estado == "PUBLICADO", Formulario.activo.is_(True), Formulario.eliminado.is_(False),
+    ).order_by(Formulario.nombre)))
+    result = []
+    for form in forms:
+        response = session.scalar(select(EnvioFormulario).where(
+            EnvioFormulario.id_formulario == form.id_formulario,
+            EnvioFormulario.usuario_respuesta == user.correo,
+            EnvioFormulario.contexto_tipo == "CASOS", EnvioFormulario.contexto_id == risk_id,
+            EnvioFormulario.id_destino_respuesta == destination.id_destino,
+            EnvioFormulario.eliminado.is_(False),
+        ).order_by(EnvioFormulario.fecha_respuesta.desc()))
+        definition = get_definition(session, form.id_formulario)
+        result.append({**(serialize_response(session, response, user=user) if response else {}),
+            "id_formulario": form.id_formulario, "nombre": form.nombre, "descripcion": form.descripcion,
+            "estado_respuesta": response.estado if response else "PENDIENTE", "total_preguntas": definition["total_preguntas"],
+            "permite_multiples_respuestas": form.permite_multiples_respuestas,
+            "puede_crear": can(user, "RESPUESTAS", "create") and can(user, MODULE, "create"),
+            "id_destino_respuesta": destination.id_destino})
+    return result
+
+
+def save_riesgo_form_response(session: Session, user: AuthenticatedUser, risk_id: str, form_id: str, *, correlation_id: str, **payload):
+    record = _risk(session, risk_id)
+    _authorize_record(session, user, record, "read")
+    destination = _risk_destination(session)
+    payload.pop("id_destino_respuesta", None)
+    payload["context_type"] = "CASOS"
+    payload["context_id"] = risk_id
+    return save_dynamic_response(session, user, form_id, correlation_id=correlation_id,
+        response_destination_id=destination.id_destino, context_authorization_module=MODULE,
+        required_destination_id=destination.id_destino, **payload)
+
+
+def riesgo_documentos(session: Session, user: AuthenticatedUser, risk_id: str):
+    _authorize_record(session, user, _risk(session, risk_id), "read")
+    return list_documentos(session, user, tipo_registro="CASOS", id_registro=risk_id, parent_module=MODULE)
+
+
+def upload_riesgo_documento(session: Session, user: AuthenticatedUser, risk_id: str, *, correlation_id: str, **payload):
+    _authorize_record(session, user, _risk(session, risk_id), "edit")
+    return upload_documento(session, user, tipo_registro="CASOS", id_registro=risk_id,
+        correlation_id=correlation_id, parent_module=MODULE, **payload)
+
+
+def _risk_document(session: Session, risk_id: str, id_archivo: str) -> Documento:
+    _risk(session, risk_id)
+    document = get_active(session, Documento, id_archivo, Documento.id_archivo)
+    if document.tipo_registro != "CASOS" or document.id_registro != risk_id:
+        raise AppError("NOT_FOUND", "Documento de Riesgo de trabajo no encontrado.", 404)
+    return document
+
+
+def download_riesgo_documento(session: Session, user: AuthenticatedUser, risk_id: str, id_archivo: str, *, correlation_id: str = ""):
+    _risk_document(session, risk_id, id_archivo)
+    return download_documento(session, user, id_archivo, correlation_id=correlation_id, parent_module=MODULE)
+
+
+def delete_riesgo_documento(session: Session, user: AuthenticatedUser, risk_id: str, id_archivo: str, *, expected_version: int | None, motivo: str, correlation_id: str = ""):
+    _risk_document(session, risk_id, id_archivo)
+    return soft_delete_documento(session, user, id_archivo, expected_version=expected_version, motivo=motivo,
+        correlation_id=correlation_id, parent_module=MODULE)

@@ -7,6 +7,7 @@ import { Modal } from '../../components/Modal';
 import { useFeedback } from '../../components/FeedbackProvider';
 import { SearchAutocompleteField } from '../formularios/SearchAutocompleteField';
 import type { SearchResult } from '../../api/formBuilder';
+import { Link } from 'react-router-dom';
 
 const pageSize = 25;
 const today = () => new Date().toISOString().slice(0, 10);
@@ -29,7 +30,6 @@ export function RiesgosTrabajoPage() {
   const [draftFilters, setDraftFilters] = useState(filters);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<RiesgoTrabajo | null>(null);
-  const [detail, setDetail] = useState<RiesgoTrabajo | null>(null);
   const [closing, setClosing] = useState<RiesgoTrabajo | null>(null);
 
   const canCreate = canAccess(usuario, 'RIESGOS_TRABAJO', 'create');
@@ -58,10 +58,6 @@ export function RiesgosTrabajoPage() {
     setDraftFilters(empty); setPage(0); setFilters({ ...empty });
   }
 
-  async function openDetail(item: RiesgoTrabajo) {
-    try { setDetail(await obtenerRiesgo(item.id_caso)); }
-    catch (caught) { setError(message(caught, 'No fue posible obtener el detalle del Riesgo.')); }
-  }
 
   async function saveCreated(payload: RiesgoCreate) {
     const saved = await crearRiesgo(payload);
@@ -71,7 +67,6 @@ export function RiesgosTrabajoPage() {
   async function saveEdited(item: RiesgoTrabajo, payload: RiesgoUpdate) {
     const saved = await actualizarRiesgo(item.id_caso, payload);
     setEditing(null); setItems((current) => current.map((entry) => entry.id_caso === saved.id_caso ? saved : entry));
-    if (detail?.id_caso === saved.id_caso) setDetail(saved);
     notify('Riesgo actualizado correctamente.');
   }
 
@@ -93,11 +88,10 @@ export function RiesgosTrabajoPage() {
       <label>Hasta<input aria-label="Fecha hasta" type="date" value={draftFilters.hasta} onChange={(e) => setDraftFilters({ ...draftFilters, hasta: e.target.value })} /></label>
       <div className="button-row"><button type="submit">Aplicar filtros</button><button type="button" className="secondary" onClick={clearFilters}>Limpiar filtros</button></div>
     </form>
-    {loading ? <p className="loading-message" role="status">Cargando Riesgos de trabajo…</p> : items.length === 0 ? <p className="empty-state">No existen Riesgos de trabajo para los filtros seleccionados.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Código</th><th>Fecha</th><th>Persona</th><th>Estado</th><th>Responsable</th><th>Actualización</th><th>Acciones</th></tr></thead><tbody>{items.map((item) => <tr key={item.id_caso}><td>{item.codigo_caso}<small>{item.id_caso}</small></td><td>{visible(item.fecha_apertura)}</td><td>{visible(item.persona)}<small>{visible(item.cedula)} · {visible(item.area)}</small><small>{visible(item.resumen)}</small></td><td>{item.estado_caso}</td><td>{visible(item.responsable)}<small>Por: {visible(item.registrado_por)}</small></td><td>{visible(item.fecha_actualizacion)}</td><td className="table-actions"><button type="button" className="secondary" onClick={() => void openDetail(item)}>Ver detalle</button>{canEdit && item.estado_caso !== 'CERRADO' && <><button type="button" className="secondary" onClick={() => setEditing(item)}>Editar</button><button type="button" onClick={() => setClosing(item)}>Cerrar</button></>}</td></tr>)}</tbody></table></div>}
+    {loading ? <p className="loading-message" role="status">Cargando Riesgos de trabajo…</p> : items.length === 0 ? <p className="empty-state">No existen Riesgos de trabajo para los filtros seleccionados.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Código</th><th>Fecha</th><th>Persona</th><th>Estado</th><th>Responsable</th><th>Actualización</th><th>Acciones</th></tr></thead><tbody>{items.map((item) => <tr key={item.id_caso}><td>{item.codigo_caso}<small>{item.id_caso}</small></td><td>{visible(item.fecha_apertura)}</td><td>{visible(item.persona)}<small>{visible(item.cedula)} · {visible(item.area)}</small><small>{visible(item.resumen)}</small></td><td>{item.estado_caso}</td><td>{visible(item.responsable)}<small>Por: {visible(item.registrado_por)}</small></td><td>{visible(item.fecha_actualizacion)}</td><td className="table-actions"><Link className="button-link secondary-link" to={`/trabajo-social/departamento-medico/riesgos/${item.id_caso}`}>Ver detalle</Link>{canEdit && item.estado_caso !== 'CERRADO' && <><button type="button" className="secondary" onClick={() => setEditing(item)}>Editar</button><button type="button" onClick={() => setClosing(item)}>Cerrar</button></>}</td></tr>)}</tbody></table></div>}
     <div className="pagination-controls"><button type="button" className="secondary" disabled={!page || loading} onClick={() => setPage(page - 1)}>Anterior</button><span>{total ? `Mostrando ${page * pageSize + 1}-${Math.min(total, (page + 1) * pageSize)} de ${total}` : '0 registros'}</span><button type="button" className="secondary" disabled={loading || (page + 1) * pageSize >= total} onClick={() => setPage(page + 1)}>Siguiente</button></div>
     {creating && <RiesgoForm title="Registrar Riesgo" onClose={() => setCreating(false)} onSave={(payload) => saveCreated(payload as RiesgoCreate)} />}
     {editing && <RiesgoForm title={`Editar Riesgo ${editing.codigo_caso}`} riesgo={editing} onClose={() => setEditing(null)} onSave={(payload) => saveEdited(editing, payload as RiesgoUpdate)} />}
-    {detail && <RiesgoDetail riesgo={detail} onClose={() => setDetail(null)} />}
     {closing && <CierreForm riesgo={closing} onClose={() => setClosing(null)} onSave={saveClosed} />}
   </section>;
 }

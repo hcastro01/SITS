@@ -1,5 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FeedbackProvider } from '../../components/FeedbackProvider';
 import { HttpError } from '../../api/client';
@@ -12,7 +13,7 @@ vi.mock('../../api/auth', async () => ({ canAccess: (user: { permisos?: Record<s
 vi.mock('../formularios/SearchAutocompleteField', () => ({ SearchAutocompleteField: ({ ariaLabel, onSelect }: { ariaLabel: string; onSelect: (result: { id: string; label: string; data: Record<string, string> }, text: string) => void }) => <input aria-label={ariaLabel} onChange={(event) => onSelect({ id: ariaLabel === 'Persona' ? 'persona-1' : 'responsable-1', label: event.target.value, data: { nombre: event.target.value, cedula: '0012345678', area: 'Operaciones' } }, event.target.value)} /> }));
 
 const riesgo = { id_caso: 'r-1', codigo_caso: 'CAS-2026-1', tipo_caso: 'RIESGOS_TRABAJO' as const, persona_id: 'persona-1', persona: 'Ana Pérez', cedula: '0012345678', area: 'Operaciones', fecha_apertura: '2026-09-15', responsable: 'Juan Responsable', estado_caso: 'ABIERTO' as const, prioridad: 'ALTA', resultado: 'Superficie resbaladiza', resumen: 'Superficie resbaladiza', ultimo_seguimiento: null, fecha_creacion: '2026-09-15T10:00:00', fecha_actualizacion: '2026-09-15T11:00:00', fecha_cierre: null, motivo_cierre: null, registrado_por: 'Administradora', version: 3 };
-const renderPage = () => render(<FeedbackProvider><RiesgosTrabajoPage /></FeedbackProvider>);
+const renderPage = () => render(<MemoryRouter><FeedbackProvider><RiesgosTrabajoPage /></FeedbackProvider></MemoryRouter>);
 
 beforeEach(() => { vi.clearAllMocks(); listarRiesgos.mockResolvedValue({ items: [riesgo], total: 26, limite: 25, offset: 0 }); obtenerRiesgo.mockResolvedValue(riesgo); });
 
@@ -29,8 +30,8 @@ describe('RiesgosTrabajoPage', () => {
     crearRiesgo.mockResolvedValue(riesgo); renderPage(); await screen.findByText('CAS-2026-1'); await userEvent.click(screen.getByRole('button', { name: 'Registrar Riesgo' })); const dialog = screen.getByRole('dialog'); await userEvent.type(within(dialog).getByLabelText('Persona'), 'Ana Pérez'); await userEvent.type(within(dialog).getByLabelText('Responsable'), 'Juan Responsable'); await userEvent.type(within(dialog).getByLabelText('Descripción / resumen *'), 'Riesgo informado'); expect(within(dialog).queryByLabelText(/tipo_caso/i)).toBeNull(); await userEvent.click(within(dialog).getByRole('button', { name: 'Registrar Riesgo' })); await waitFor(() => expect(crearRiesgo).toHaveBeenCalledWith(expect.objectContaining({ persona_id: 'persona-1', responsable: 'Juan Responsable', resultado: 'Riesgo informado' }))); expect(crearRiesgo.mock.calls[0][0]).not.toHaveProperty('tipo_caso');
   });
 
-  it('muestra detalle básico desde el endpoint contextual', async () => {
-    renderPage(); await screen.findByText('CAS-2026-1'); await userEvent.click(screen.getByRole('button', { name: 'Ver detalle' })); expect(await screen.findByRole('dialog')).toBeInTheDocument(); expect(obtenerRiesgo).toHaveBeenCalledWith('r-1'); expect(screen.getByText('Administradora')).toBeInTheDocument(); expect(screen.getByText('3')).toBeInTheDocument();
+  it('navega al detalle integrado contextual', async () => {
+    renderPage(); await screen.findByText('CAS-2026-1'); expect(screen.getByRole('link', { name: 'Ver detalle' })).toHaveAttribute('href', '/trabajo-social/departamento-medico/riesgos/r-1');
   });
 
   it('edita solo los campos autorizados y conserva la versión', async () => {
