@@ -537,7 +537,7 @@ No se modificó backend, no se integraron Formularios y no se inició Bloque 4. 
 
 ### Bloque 4 — Formularios y módulos contextuales
 
-En curso: los adjuntos `ARCHIVO` y `FOTOGRAFIA` se envían como `multipart/form-data` con un payload JSON y partes `archivo:<id_pregunta>`. La migración `0023_respuesta_documentos` agrega el puente repetible detalle de respuesta–Documento; los bytes siguen exclusivamente en el BLOB documental existente. El servicio guarda envío, detalles, documentos y vínculos con `flush()` en la misma transacción de la petición, sin commits parciales. No se inició Bloque 5.
+Cerrado en `4d48319`: los adjuntos `ARCHIVO` y `FOTOGRAFIA` se envían como `multipart/form-data` con un payload JSON y partes `archivo:<id_pregunta>`. La migración `0023_respuesta_documentos` agrega el puente repetible detalle de respuesta–Documento; los bytes siguen exclusivamente en el BLOB documental existente. El servicio guarda envío, detalles, documentos y vínculos con `flush()` en la misma transacción de la petición, sin commits parciales.
 
 **BLOQUE 4 FASE 9 VALIDADO — ADJUNTOS TRANSACCIONALES DE FORMULARIOS.**
 
@@ -547,4 +547,17 @@ En curso: los adjuntos `ARCHIVO` y `FOTOGRAFIA` se envían como `multipart/form-
 - La suite frontend se ejecutó en 11 grupos aislados (`--pool=threads --maxWorkers=1`): 22 archivos, `136/136` PASS, `0` FAIL, exit `0` por grupo. El proceso global parecía no terminar porque Vitest arrancaba un worker aislado por archivo; no era un handle abierto. `--no-isolate` se descartó porque contamina el estado de pruebas. La regresión de Riesgos se corrigió actualizando el mock a `saveFormResponseMultipart`.
 - Alembic temporal `upgrade head` y `alembic check`, typecheck TypeScript, Vite build y `git diff --check` aprobaron. No existe script de lint configurado.
 
-No se creó commit, no se hizo push y no se inició Bloque 5.
+No se hizo push.
+
+### Bloque 5 — Regresión, migración y cierre
+
+**FASE 9 — IMÁGENES Y ADJUNTOS BLOB COMPLETADA.**
+
+- Base de cierre: Bloque 2 `eda107e`, Bloque 3 `f975cf8` y Bloque 4 `4d48319`. No se introdujeron funcionalidades nuevas durante el Bloque 5.
+- SQLite temporal limpia: `alembic upgrade head` y `alembic check` aprobaron en `0023_respuesta_documentos`; el downgrade a `0022_beneficios_prestamos_seguros` aprobó; el upgrade final volvió a `0023_respuesta_documentos` y `alembic check` continuó sin operaciones pendientes. La tabla `respuesta_documentos` conserva FK a `respuestas_formulario.id_detalle_respuesta` y `documentos.id_archivo`, unicidad detalle--documento e índices `ix_respuesta_documentos_detalle` e `ix_respuesta_documentos_archivo`.
+- Regresión completa: backend `283/283` en 98.536 s (exit 0); frontend aislado con `--pool=threads --maxWorkers=1`, `22/22` archivos y `136/136` pruebas (exit 0). Las pruebas cubren Documentos, Formularios, adjuntos, permisos, Riesgos, Producción y Oficina; no se usó `--no-isolate`.
+- Typecheck `tsc -b`, build TypeScript/Vite y `git diff --check` aprobaron. No existe script lint configurado.
+- Se confirma una única arquitectura documental: Formularios reutiliza `Documento` y el puente `respuesta_documentos`; `valor_*` permanece escalar, los listados no exponen BLOB y las Blob URL son temporales y se revocan.
+- Deuda conocida no bloqueante: BLOB en SQLite aumenta I/O y tamaño de backups, conserva límites de concurrencia/bloqueo y no recupera espacio inmediatamente tras baja lógica; carga/descarga usa memoria dentro de límites; no hay antivirus/análisis profundo; históricos sin puente no se infieren; editar una respuesta con adjuntos continúa restringido para preservar atomicidad. No se detectó defecto bloqueante.
+
+No se creó commit ni se hizo push para el Bloque 5.
