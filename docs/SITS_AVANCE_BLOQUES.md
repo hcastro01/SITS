@@ -387,3 +387,28 @@ Orden funcional de ejecución:
 - Cabeza Alembic verificada: `0020_indice_casos_riesgos`. No se creó migración. Documento técnico: `docs/SITS_FASE7_PRODUCCION_DISENO.md`.
 
 Fase 7 no está completada. El siguiente bloque autorizado será únicamente el Bloque 2 — backend operativo de Producción.
+
+### Bloque 2 — Backend contextual de Producción
+
+**Estado: VALIDADO.**
+
+- Se añadió el scope aditivo `PRODUCCION` y los wrappers `/api/v1/produccion/atenciones`, `/recorridos` y `/novedades`. Un usuario exclusivo de Producción no obtiene acceso a las APIs transversales de Atenciones, Recorridos o Novedades.
+- Migración `0021_contexto_operativo_atenciones`: columna nullable de valores `PRODUCCION`/`OFICINA` e índice `ix_atenciones_contexto_fecha`, sin backfill. La ruta contextual fuerza `PRODUCCION`; históricos `NULL` y futuras Atenciones `OFICINA` quedan fuera y reciben 404 en detalle/edición contextual.
+- Recorridos y Novedades se reutilizan como procesos de Producción mediante wrappers y `EntityService`; no se crearon tablas, columnas ni entidad paralela para Novedades de planta. Persona sigue opcional y autor, responsable y Persona permanecen separados.
+- Los listados contextuales aplican filtros server-side y paginación con `items`, `total`, `limite`, `offset`. Formularios, respuestas, Documentos y BLOB no se modificaron; auditoría, historial, versión y baja lógica se reutilizan.
+- Validación focalizada: Producción 3/3 y regresión Atenciones/Casos/Admin/Bootstrap 36/36 aprobadas. Suite backend completa: 255/255 aprobadas, sin fallos ni errores. Ciclo SQLite temporal `0020 → 0021 → 0020 → 0021` y `alembic check` aprobados.
+
+Fase 7 no está completada. El siguiente bloque autorizado será únicamente el Bloque 3 — frontend operativo de Producción.
+
+### Bloque 3 — Frontend contextual de Producción
+
+**Estado: VALIDADO.**
+
+- Las rutas `Trabajo Social / Producción / Atenciones`, `Recorridos` y `Novedades de planta` consumen exclusivamente `/api/v1/produccion/atenciones`, `/recorridos` y `/novedades`; los listados y rutas históricas se conservaron sin cambios de contrato.
+- Atenciones de Producción no expone `contexto_operativo` y solo obtiene registros del wrapper contextual, que excluye `NULL` y `OFICINA`; creación y edición permanecen sometidas al contexto forzado por backend. Persona es opcional y usa la búsqueda existente cuando se selecciona.
+- Tablas contextuales reutilizan los componentes existentes, muestran trazabilidad real separada (Persona, responsable y registrado por), filtros server-side, paginación, estados de carga/vacío/error y enlaces de detalle contextuales. Recorridos conserva Persona opcional; Novedades se presenta como “Novedades de planta”, sin entidad paralela.
+- Formularios de Producción continúa en su ruta ya implementada; no se modificaron Formularios, respuestas, Documentos, BLOB ni backend.
+- Prueba focalizada frontend de Producción: 3/3 aprobadas. Regresión frontend: 124/124 en 19 archivos con `--maxWorkers=1`. `npm run build` y `git diff --check` aprobados.
+- Validación visual manual confirmada en `http://127.0.0.1:8081`: desktop `1440x900`, tablet `768x1024` y móvil `390x844`. Sidebar, navegación, Atenciones, Recorridos, Novedades de planta, Formularios, filtros, tablas, paginación y modales/formularios fueron correctos; no se observaron solapamientos, controles fuera de pantalla ni bloqueos visuales.
+
+Fase 7 no está completada. El siguiente bloque es Bloque 4 — Integraciones de Producción y requiere autorización explícita; no se inició.

@@ -1,6 +1,6 @@
 # SITS — Fase 7: diseño de Producción
 
-**Estado.** Bloque 1 — auditoría técnica y diseño funcional. No crea migraciones, no modifica código funcional, no reclasifica históricos y no inicia el Bloque 2.
+**Estado.** Bloques 1 y 2 — diseño y backend contextual implementados. No reclasifica históricos ni inicia el Bloque 3.
 
 ## 1. Estado actual
 
@@ -86,4 +86,24 @@ No se reclasifican Atenciones, Recorridos ni Novedades históricos. Las rutas hi
 3. **Bloque 4 — Integración:** Persona, Formularios con destino real, respuestas, documentos, historial y trazabilidad.
 4. **Bloque 5 — Cierre:** seguridad, regresión, migraciones e integración punta a punta.
 
-Riesgos reales: clasificar históricos por inferencia; usar un formulario como sustituto de registro; convertir área actual en contexto o historia; ocultar la separación Producción/Oficina detrás del mismo endpoint; y crear una infraestructura paralela de documentos o formularios. Ninguno se implementa en este bloque.
+Riesgos reales: clasificar históricos por inferencia; usar un formulario como sustituto de registro; convertir área actual en contexto o historia; ocultar la separación Producción/Oficina detrás del mismo endpoint; y crear una infraestructura paralela de documentos o formularios.
+
+## 13. Bloque 2 implementado: backend contextual
+
+Se añadió `PRODUCCION` como scope aditivo y los wrappers `/api/v1/produccion/atenciones`, `/recorridos` y `/novedades`. El usuario que tiene solo `PRODUCCION` puede operar las rutas contextuales, pero no recibe automáticamente el permiso de las rutas transversales `ATENCIONES`, `RECORRIDOS` o `NOVEDADES`. Todos los wrappers delegan en los modelos, versionado, baja lógica y auditoría existentes.
+
+La migración `0021_contexto_operativo_atenciones` es posterior a `0020`. Agrega `atenciones.contexto_operativo` nullable, restringido a `PRODUCCION` u `OFICINA`, más el índice `ix_atenciones_contexto_fecha`; no modifica filas existentes ni hace backfill. El wrapper de creación elimina cualquier contexto del request y fuerza `PRODUCCION`; edición no puede cambiarlo. El listado, detalle, edición, historial y baja contextual rechazan con 404 las Atenciones históricas `NULL` y las de `OFICINA`.
+
+Recorridos y Novedades se confirmaron conceptualmente exclusivos de Producción en la arquitectura vigente. Sus wrappers contextuales reutilizan `EntityService`, no añaden columnas ni modelos y conservan Persona opcional. Novedades de planta sigue siendo la presentación de `Novedad`; no existe una entidad paralela. Los filtros se ejecutan server-side con paginación `items`, `total`, `limite`, `offset`, sobre fecha, Persona/nombre, cédula, área actual, responsable y estado cuando ese campo existe.
+
+No se modificaron Formularios, respuestas ni BLOB. Documentos e historial conservan la infraestructura existente; el siguiente Bloque 3 solo podrá consumir estos contratos backend desde una interfaz contextual. La validación focalizada cubre autenticación, scope aislado, contexto forzado, NULL/OFICINA excluidos, filtro, paginación, Persona textual, edición inmutable, Recorridos/Novedades, auditoría y ciclo de migración. Resultado: Producción 3/3, regresión focalizada 36/36 y backend completo 255/255, sin fallos ni errores; `alembic check` aprobado tras `0020 → 0021 → 0020 → 0021` en SQLite temporal.
+
+## 14. Bloque 3 implementado: frontend contextual
+
+Las rutas de Producción ya no son alias de los listados transversales: Atenciones, Recorridos y Novedades de planta usan clientes separados bajo `/api/v1/produccion/*`, sus detalles vuelven a la ruta contextual y las rutas históricas conservan sus clientes y URLs anteriores. Los clientes contextuales consumen la página real `{items,total,limite,offset}` y los filtros server-side de nombre, cédula, responsable, estado cuando existe y fechas.
+
+Atenciones de Producción solo presenta lo que el wrapper entrega; por ello las Atenciones `NULL` u `OFICINA` no aparecen ni pueden abrirse desde esa vista. El formulario no muestra ni envía `contexto_operativo`; el wrapper de backend lo fija a `PRODUCCION`. Persona es opcional y se reutiliza la búsqueda existente cuando se asocia una Persona. Las tablas muestran Persona, cédula, área actual, responsable y autor/registrado por como campos distintos, sin sustituir el autor histórico.
+
+Recorridos y Novedades reutilizan el mismo componente contextual, con creación, detalle, edición, filtros y paginación. Novedad conserva su entidad y se etiqueta como “Novedades de planta”. Formularios permanece en su ruta contextual ya existente y no se alteraron respuestas, Documentos, BLOB ni la integración profunda del Bloque 4. Los estados de carga, vacío y errores API (incluidos 401/403) se distinguen antes de mostrar el vacío.
+
+La validación visual manual final fue confirmada en el entorno local `http://127.0.0.1:8081`, en viewports `1440x900`, `768x1024` y `390x844`. Las cuatro rutas contextuales de Producción —Atenciones, Recorridos, Novedades de planta y Formularios—, junto con sidebar, navegación, filtros, tablas, paginación y modales, se observaron correctas y sin solapamientos, controles fuera de pantalla ni errores visuales bloqueantes. **BLOQUE 3 FASE 7 VALIDADO — FRONTEND DE PRODUCCIÓN LISTO.**

@@ -1,5 +1,5 @@
-import type { EntityClient } from '../../api/entities';
-import { atencionesApi, novedadesApi, personasApi, recorridosApi } from '../../api/entities';
+import type { ContextualEntityClient, EntityClient } from '../../api/entities';
+import { atencionesApi, novedadesApi, personasApi, produccionAtencionesApi, produccionNovedadesApi, produccionRecorridosApi, recorridosApi } from '../../api/entities';
 
 export interface CampoConfig {
   nombre: string;
@@ -14,10 +14,12 @@ export interface EntityPageConfig {
   titulo: string;
   tituloSingular: string;
   rutaBase: string;
-  api: EntityClient;
+  api: EntityClient | ContextualEntityClient;
   campos: CampoConfig[];
   /** Valor de tipo_registro en app/services/documentos.py::TIPO_REGISTRO_MODELOS. */
   tipoRegistro: string;
+  contextual?: boolean;
+  permissionModule?: string;
 }
 
 export const atencionesConfig: EntityPageConfig = {
@@ -70,6 +72,44 @@ export const recorridosConfig: EntityPageConfig = {
     { nombre: 'area', etiqueta: 'Área' },
     { nombre: 'objetivo', etiqueta: 'Objetivo', enLista: false },
     { nombre: 'observaciones', etiqueta: 'Observaciones', enLista: false },
+  ],
+};
+
+export const produccionAtencionesConfig: EntityPageConfig = {
+  ...atencionesConfig, titulo: 'Atenciones de Producción', tituloSingular: 'atención de Producción',
+  rutaBase: '/trabajo-social/produccion/atenciones', api: produccionAtencionesApi, contextual: true, permissionModule: 'PRODUCCION',
+  campos: [
+    { nombre: 'id_atencion', etiqueta: 'ID', enFormulario: false }, { nombre: 'fecha', etiqueta: 'Fecha' },
+    { nombre: 'persona', etiqueta: 'Persona', enFormulario: false }, { nombre: 'cedula', etiqueta: 'Cédula', enFormulario: false },
+    { nombre: 'area_persona', etiqueta: 'Área actual', enFormulario: false }, { nombre: 'motivo', etiqueta: 'Motivo' },
+    { nombre: 'responsable', etiqueta: 'Responsable' }, { nombre: 'registrado_por', etiqueta: 'Registrado por', enFormulario: false },
+    { nombre: 'estado', etiqueta: 'Estado' }, { nombre: 'tipo_atencion', etiqueta: 'Tipo', enLista: false },
+    { nombre: 'canal', etiqueta: 'Canal', enLista: false }, { nombre: 'gestion', etiqueta: 'Gestión', enLista: false },
+    { nombre: 'resultado', etiqueta: 'Resultado', enLista: false }, { nombre: 'observaciones', etiqueta: 'Observaciones', enLista: false },
+  ],
+};
+
+export const produccionRecorridosConfig: EntityPageConfig = {
+  ...recorridosConfig, rutaBase: '/trabajo-social/produccion/recorridos', api: produccionRecorridosApi, contextual: true, permissionModule: 'PRODUCCION',
+  campos: [
+    { nombre: 'id_recorrido', etiqueta: 'ID', enFormulario: false }, { nombre: 'fecha', etiqueta: 'Fecha' },
+    { nombre: 'persona', etiqueta: 'Persona', enFormulario: false }, { nombre: 'cedula', etiqueta: 'Cédula', enFormulario: false },
+    { nombre: 'area_persona', etiqueta: 'Área actual', enFormulario: false }, { nombre: 'objetivo', etiqueta: 'Objetivo' },
+    { nombre: 'responsable', etiqueta: 'Responsable' }, { nombre: 'registrado_por', etiqueta: 'Registrado por', enFormulario: false },
+    { nombre: 'planta', etiqueta: 'Planta', enLista: false }, { nombre: 'area', etiqueta: 'Área', enLista: false }, { nombre: 'observaciones', etiqueta: 'Observaciones', enLista: false },
+  ],
+};
+
+export const produccionNovedadesConfig: EntityPageConfig = {
+  ...novedadesConfig, titulo: 'Novedades de planta', tituloSingular: 'novedad de planta',
+  rutaBase: '/trabajo-social/produccion/novedades', api: produccionNovedadesApi, contextual: true, permissionModule: 'PRODUCCION',
+  campos: [
+    { nombre: 'id_novedad', etiqueta: 'ID', enFormulario: false }, { nombre: 'fecha', etiqueta: 'Fecha' },
+    { nombre: 'persona', etiqueta: 'Persona', enFormulario: false }, { nombre: 'cedula', etiqueta: 'Cédula', enFormulario: false },
+    { nombre: 'area_persona', etiqueta: 'Área actual', enFormulario: false }, { nombre: 'descripcion', etiqueta: 'Descripción', requerido: true },
+    { nombre: 'responsable', etiqueta: 'Responsable' }, { nombre: 'registrado_por', etiqueta: 'Registrado por', enFormulario: false },
+    { nombre: 'estado', etiqueta: 'Estado' }, { nombre: 'tipo', etiqueta: 'Tipo', enLista: false }, { nombre: 'area', etiqueta: 'Área', enLista: false },
+    { nombre: 'impacto', etiqueta: 'Impacto', enLista: false }, { nombre: 'prioridad', etiqueta: 'Prioridad', enLista: false },
   ],
 };
 

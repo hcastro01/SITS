@@ -4,6 +4,7 @@ import type { EntityRecord } from '../../api/entities';
 import { Modal } from '../../components/Modal';
 import { useFeedback } from '../../components/FeedbackProvider';
 import type { EntityPageConfig } from './EntityConfig';
+import { SearchAutocompleteField } from '../formularios/SearchAutocompleteField';
 
 interface Props {
   config: EntityPageConfig;
@@ -26,6 +27,8 @@ export function EntityFormModal({ config, registro, onClose, onSaved }: Props) {
   });
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [personaId, setPersonaId] = useState(() => String(registro?.id_persona ?? ''));
+  const [personaTexto, setPersonaTexto] = useState(() => String(registro?.persona ?? ''));
   const dirty = camposFormulario.some((campo) => (valores[campo.nombre] ?? '') !== String(registro?.[campo.nombre] ?? ''));
 
   async function requestClose() {
@@ -48,6 +51,7 @@ export function EntityFormModal({ config, registro, onClose, onSaved }: Props) {
       for (const campo of camposFormulario) {
         if (valores[campo.nombre]) datos[campo.nombre] = valores[campo.nombre];
       }
+      if (config.contextual && personaId) datos.id_persona = personaId;
       const guardado = editando
         ? await config.api.update(String(registro![config.api.idField]), { ...datos, expected_version: registro!.version })
         : await config.api.create(datos);
@@ -63,6 +67,7 @@ export function EntityFormModal({ config, registro, onClose, onSaved }: Props) {
     <Modal titulo={editando ? `Editar ${config.tituloSingular}` : `Nuevo registro: ${config.tituloSingular}`} onClose={() => void requestClose()} size="large">
       <form onSubmit={handleSubmit}>
         <div className="form-grid">
+        {config.contextual && <div><label>Persona (opcional)</label><SearchAutocompleteField source="PERSONAS" value={personaTexto} ariaLabel="Persona" placeholder="Buscar por nombre o cédula" onSelect={(result, text) => { setPersonaId(result?.id ?? ''); setPersonaTexto(text); }} /><small>Al seleccionarla se mostrará su nombre, cédula y área actual.</small></div>}
         {camposFormulario.map((campo) => (
           <div key={campo.nombre}>
             <label htmlFor={campo.nombre}>{campo.etiqueta}</label>

@@ -14,7 +14,7 @@ import { ContextualFormsPage, CONTEXTUAL_FORM_BRANCHES } from '../features/formu
 import { BusquedaPage } from '../features/busqueda/BusquedaPage';
 import { EntityListPage } from '../features/entities/EntityListPage';
 import { EntityDetailPage } from '../features/entities/EntityDetailPage';
-import { atencionesConfig, novedadesConfig, personasConfig, recorridosConfig } from '../features/entities/EntityConfig';
+import { atencionesConfig, novedadesConfig, personasConfig, produccionAtencionesConfig, produccionNovedadesConfig, produccionRecorridosConfig, recorridosConfig } from '../features/entities/EntityConfig';
 import { AdminUsuariosPage } from '../features/admin/AdminUsuariosPage';
 import { AdminPermisosPage } from '../features/admin/AdminPermisosPage';
 import { StructureBasePage } from '../components/StructureBasePage';
@@ -44,14 +44,17 @@ const router = createBrowserRouter([
         { path: 'casos', element: <CasosListPage /> },
         { path: 'casos/:id', element: <CasoDetailProductionPage /> },
         { path: 'atenciones', element: <EntityListPage config={atencionesConfig} /> },
-        { path: 'trabajo-social/produccion/atenciones', element: <EntityListPage config={atencionesConfig} /> },
+        { path: 'trabajo-social/produccion/atenciones', element: <EntityListPage config={produccionAtencionesConfig} /> },
+        { path: 'trabajo-social/produccion/atenciones/:id', element: <EntityDetailPage config={produccionAtencionesConfig} /> },
         { path: 'atenciones/:id', element: <EntityDetailPage config={atencionesConfig} /> },
         { path: 'novedades', element: <EntityListPage config={novedadesConfig} /> },
-        { path: 'trabajo-social/produccion/novedades', element: <EntityListPage config={novedadesConfig} /> },
+        { path: 'trabajo-social/produccion/novedades', element: <EntityListPage config={produccionNovedadesConfig} /> },
+        { path: 'trabajo-social/produccion/novedades/:id', element: <EntityDetailPage config={produccionNovedadesConfig} /> },
         { path: 'trabajo-social/produccion/formularios', element: <ContextualFormsPage config={CONTEXTUAL_FORM_BRANCHES.production} /> },
         { path: 'novedades/:id', element: <EntityDetailPage config={novedadesConfig} /> },
         { path: 'recorridos', element: <EntityListPage config={recorridosConfig} /> },
-        { path: 'trabajo-social/produccion/recorridos', element: <EntityListPage config={recorridosConfig} /> },
+        { path: 'trabajo-social/produccion/recorridos', element: <EntityListPage config={produccionRecorridosConfig} /> },
+        { path: 'trabajo-social/produccion/recorridos/:id', element: <EntityDetailPage config={produccionRecorridosConfig} /> },
         { path: 'recorridos/:id', element: <EntityDetailPage config={recorridosConfig} /> },
         { path: 'trabajo-social/oficina/beneficios', element: <StructureBasePage title="Beneficios" /> },
         { path: 'trabajo-social/oficina/atenciones', element: <StructureBasePage title="Atenciones de Oficina" /> },
