@@ -96,14 +96,14 @@ class OficinaEntidadesMigrationTests(unittest.TestCase):
         with TemporaryDirectory() as directory:
             engine = build_engine(f"sqlite:///{directory}/migration.db"); original = db_session.engine; db_session.engine = engine
             try:
-                config = Config("alembic.ini"); command.upgrade(config, "0021_contexto_operativo_atenciones"); command.upgrade(config, "head")
+                config = Config("alembic.ini"); command.upgrade(config, "0021_contexto_operativo_atenciones"); command.upgrade(config, "0022_beneficios_prestamos_seguros")
                 inspector = inspect(engine)
                 for table, index in (("beneficios", "ix_beneficios_tipo_fecha"), ("prestamos", "ix_prestamos_tipo_fecha"), ("seguros", "ix_seguros_tipo_gestion_fecha")):
                     self.assertIn(table, inspector.get_table_names()); self.assertIn(index, {row["name"] for row in inspector.get_indexes(table)})
                     self.assertTrue(any(fk["referred_table"] == "personas" for fk in inspector.get_foreign_keys(table)))
                 command.downgrade(config, "0021_contexto_operativo_atenciones")
                 self.assertNotIn("beneficios", inspect(engine).get_table_names())
-                command.upgrade(config, "head"); self.assertIn("seguros", inspect(engine).get_table_names())
+                command.upgrade(config, "0022_beneficios_prestamos_seguros"); self.assertIn("seguros", inspect(engine).get_table_names())
             finally:
                 db_session.engine = original; engine.dispose()
 

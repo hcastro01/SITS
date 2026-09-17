@@ -14,7 +14,7 @@ import { ContextualFormsPage, CONTEXTUAL_FORM_BRANCHES } from '../features/formu
 import { BusquedaPage } from '../features/busqueda/BusquedaPage';
 import { EntityListPage } from '../features/entities/EntityListPage';
 import { EntityDetailPage } from '../features/entities/EntityDetailPage';
-import { atencionesConfig, beneficiosConfig, novedadesConfig, oficinaAtencionesConfig, personasConfig, prestamosConfig, produccionAtencionesConfig, produccionNovedadesConfig, produccionRecorridosConfig, recorridosConfig, segurosConfig } from '../features/entities/EntityConfig';
+import { atencionesConfig, beneficiosConfig, medicoAtencionesConfig, novedadesConfig, oficinaAtencionesConfig, personasConfig, prestamosConfig, produccionAtencionesConfig, produccionNovedadesConfig, produccionRecorridosConfig, recorridosConfig, segurosConfig } from '../features/entities/EntityConfig';
 import { AdminUsuariosPage } from '../features/admin/AdminUsuariosPage';
 import { AdminPermisosPage } from '../features/admin/AdminPermisosPage';
 import { ActividadesPage } from '../features/actividades/ActividadesPage';
@@ -40,6 +40,8 @@ const router = createBrowserRouter([
         { path: 'trabajo-social/departamento-medico/ausentismos', element: <AusentismosPage /> },
         { path: 'trabajo-social/departamento-medico/accidentes', element: <AccidentesPage /> },
         { path: 'trabajo-social/departamento-medico/formularios', element: <ContextualFormsPage config={CONTEXTUAL_FORM_BRANCHES.medical} /> },
+        { path: 'trabajo-social/departamento-medico/atenciones', element: <EntityListPage config={medicoAtencionesConfig} /> },
+        { path: 'trabajo-social/departamento-medico/atenciones/:id', element: <EntityDetailPage config={medicoAtencionesConfig} /> },
         { path: 'casos', element: <CasosListPage /> },
         { path: 'casos/:id', element: <CasoDetailProductionPage /> },
         { path: 'atenciones', element: <EntityListPage config={atencionesConfig} /> },

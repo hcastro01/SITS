@@ -1,5 +1,5 @@
 import type { ContextualEntityClient, EntityClient } from '../../api/entities';
-import { atencionesApi, beneficiosApi, novedadesApi, oficinaAtencionesApi, personasApi, prestamosApi, produccionAtencionesApi, produccionNovedadesApi, produccionRecorridosApi, recorridosApi, segurosApi } from '../../api/entities';
+import { atencionesApi, beneficiosApi, medicoAtencionesApi, novedadesApi, oficinaAtencionesApi, personasApi, prestamosApi, produccionAtencionesApi, produccionNovedadesApi, produccionRecorridosApi, recorridosApi, segurosApi } from '../../api/entities';
 
 export interface CampoConfig {
   nombre: string;
@@ -33,6 +33,7 @@ export interface EntityPageConfig {
   integrations?: boolean;
   produccionKind?: 'atenciones' | 'recorridos' | 'novedades';
   oficinaKind?: 'atenciones' | 'beneficios' | 'prestamos' | 'seguro';
+  medicoKind?: 'atenciones';
   maxListColumns?: number;
 }
 
@@ -101,6 +102,12 @@ export const produccionAtencionesConfig: EntityPageConfig = {
     { nombre: 'canal', etiqueta: 'Canal', enLista: false }, { nombre: 'gestion', etiqueta: 'Gestión', enLista: false },
     { nombre: 'resultado', etiqueta: 'Resultado', enLista: false }, { nombre: 'observaciones', etiqueta: 'Observaciones', enLista: false },
   ],
+};
+
+export const medicoAtencionesConfig: EntityPageConfig = {
+  ...produccionAtencionesConfig, titulo: 'Atenciones', tituloSingular: 'atención',
+  rutaBase: '/trabajo-social/departamento-medico/atenciones', api: medicoAtencionesApi,
+  permissionModule: 'ATENCIONES', produccionKind: undefined, medicoKind: 'atenciones',
 };
 
 export const produccionRecorridosConfig: EntityPageConfig = {

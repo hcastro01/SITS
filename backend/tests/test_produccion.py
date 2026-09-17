@@ -5,6 +5,7 @@ from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import inspect
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import app.db.session as db_session
@@ -140,18 +141,24 @@ class ProduccionApiTests(unittest.TestCase):
 
 
 class ProduccionMigrationTests(unittest.TestCase):
-    def test_context_upgrade_downgrade_upgrade_and_null_history(self):
+    def test_medico_hotfix_upgrade_downgrade_upgrade_and_null_history(self):
         with TemporaryDirectory() as directory:
             engine = build_engine(f"sqlite:///{directory}/migration.db"); original = db_session.engine; db_session.engine = engine
             try:
-                config = Config("alembic.ini"); command.upgrade(config, "0020_indice_casos_riesgos")
+                config = Config("alembic.ini"); command.upgrade(config, "0023_respuesta_documentos")
                 with engine.begin() as connection: connection.execute(Atencion.__table__.insert().values(id_atencion="historic", motivo="Antes"))
-                command.upgrade(config, "head")
-                columns = {row["name"] for row in inspect(engine).get_columns("atenciones")}; indexes = {row["name"] for row in inspect(engine).get_indexes("atenciones")}
-                self.assertIn("contexto_operativo", columns); self.assertIn("ix_atenciones_contexto_fecha", indexes)
+                command.upgrade(config, "0024_contexto_medico_atenciones")
+                constraints = {row["name"]: row["sqltext"] for row in inspect(engine).get_check_constraints("atenciones")}
+                self.assertEqual(constraints["contexto_operativo_valido"], "contexto_operativo IS NULL OR contexto_operativo IN ('MEDICO', 'PRODUCCION', 'OFICINA')")
                 with Session(engine) as session: self.assertIsNone(session.get(Atencion, "historic").contexto_operativo)
-                command.downgrade(config, "0020_indice_casos_riesgos"); self.assertNotIn("contexto_operativo", {row["name"] for row in inspect(engine).get_columns("atenciones")})
-                command.upgrade(config, "head"); self.assertIn("contexto_operativo", {row["name"] for row in inspect(engine).get_columns("atenciones")})
+                command.downgrade(config, "0023_respuesta_documentos")
+                constraints = {row["name"]: row["sqltext"] for row in inspect(engine).get_check_constraints("atenciones")}
+                self.assertEqual(constraints["contexto_operativo_valido"], "contexto_operativo IS NULL OR contexto_operativo IN ('PRODUCCION', 'OFICINA')")
+                with self.assertRaises(IntegrityError), engine.begin() as connection:
+                    connection.execute(Atencion.__table__.insert().values(id_atencion="medico-out-of-scope", motivo="No permitido", contexto_operativo="MEDICO"))
+                command.upgrade(config, "0024_contexto_medico_atenciones")
+                constraints = {row["name"]: row["sqltext"] for row in inspect(engine).get_check_constraints("atenciones")}
+                self.assertEqual(constraints["contexto_operativo_valido"], "contexto_operativo IS NULL OR contexto_operativo IN ('MEDICO', 'PRODUCCION', 'OFICINA')")
             finally: db_session.engine = original; engine.dispose()
 
 

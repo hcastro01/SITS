@@ -65,6 +65,7 @@ export const produccionAtencionesApi = createContextualEntityClient('/produccion
 export const produccionRecorridosApi = createContextualEntityClient('/produccion/recorridos', 'id_recorrido');
 export const produccionNovedadesApi = createContextualEntityClient('/produccion/novedades', 'id_novedad');
 export const oficinaAtencionesApi = createContextualEntityClient('/oficina/atenciones', 'id_atencion');
+export const medicoAtencionesApi = createContextualEntityClient('/medico/atenciones', 'id_atencion');
 export const beneficiosApi = createContextualEntityClient('/oficina/beneficios', 'id_beneficio');
 export const prestamosApi = createContextualEntityClient('/oficina/prestamos', 'id_prestamo');
 export const segurosApi = createContextualEntityClient('/oficina/seguro', 'id_seguro');
