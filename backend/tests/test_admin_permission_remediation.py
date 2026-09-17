@@ -95,6 +95,48 @@ class RoleAdminPermissionRemediationTests(unittest.TestCase):
             self.assertEqual(session.scalar(select(func.count()).select_from(Permission)), before_permissions)
             self.assertEqual(session.scalar(select(func.count()).select_from(Auditoria)), before_audits)
 
+    def test_cli_apply_uses_one_real_transaction_and_is_idempotent(self):
+        """El --apply no puede hacer un SELECT que active autobegin antes de begin()."""
+        from app.cli.remediate_role_admin_permissions import main
+
+        # La fila falsa existe sólo para el caso de inspección; esta regresión parte de los cinco objetivos ausentes.
+        with Session(self.engine) as session, session.begin():
+            session.delete(session.get(Permission, "ROLE_ADMIN:PRODUCCION"))
+
+        first_output = io.StringIO()
+        with patch("app.cli.remediate_role_admin_permissions.SessionLocal", return_value=Session(self.engine)), \
+             patch.object(sys, "argv", ["remediate_role_admin_permissions", "--apply"]), \
+             patch("sys.stdout", first_output):
+            self.assertIsNone(main())
+
+        expected = "RIESGOS_TRABAJO, AUSENTISMO, ACCIDENTES, PRODUCCION, OFICINA"
+        self.assertIn(f"ROLE_ADMIN filas insertadas: {expected}", first_output.getvalue())
+        with Session(self.engine) as session:
+            admin = {row.modulo: row for row in session.scalars(select(Permission).where(Permission.rol_id == ROLE_ADMIN))}
+            self.assertEqual(set(admin), set(TARGET_MODULES))
+            for module in TARGET_MODULES:
+                self.assertEqual({field: getattr(admin[module], field) for field in ALL_RIGHTS}, ALL_RIGHTS)
+            audits = session.scalars(select(Auditoria).where(
+                Auditoria.correlation_id == "maintenance:role-admin-missing-permissions",
+            )).all()
+            self.assertEqual(len(audits), len(TARGET_MODULES) * (len(ALL_RIGHTS) + 2))
+            self.assertTrue(all(row.usuario == "SYSTEM_MAINTENANCE" for row in audits))
+            self.assertEqual({row.id_registro for row in audits}, {
+                f"{ROLE_ADMIN}:{module}" for module in TARGET_MODULES
+            })
+
+        second_output = io.StringIO()
+        with patch("app.cli.remediate_role_admin_permissions.SessionLocal", return_value=Session(self.engine)), \
+             patch.object(sys, "argv", ["remediate_role_admin_permissions", "--apply"]), \
+             patch("sys.stdout", second_output):
+            self.assertIsNone(main())
+        self.assertIn("ROLE_ADMIN filas insertadas: ninguna", second_output.getvalue())
+        with Session(self.engine) as session:
+            audits = session.scalars(select(Auditoria).where(
+                Auditoria.correlation_id == "maintenance:role-admin-missing-permissions",
+            )).all()
+            self.assertEqual(len(audits), len(TARGET_MODULES) * (len(ALL_RIGHTS) + 2))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -19,8 +19,8 @@ def main() -> None:
     parser.add_argument("--apply", action="store_true", help="confirma la transacción; sin esta bandera sólo inspecciona")
     args = parser.parse_args()
     with SessionLocal() as session:
-        missing = missing_target_modules(session)
         if not args.apply:
+            missing = missing_target_modules(session)
             print(f"ROLE_ADMIN filas ausentes: {', '.join(missing) if missing else 'ninguna'}")
             print("No se realizaron cambios. Use --apply únicamente con autorización explícita.")
             return
