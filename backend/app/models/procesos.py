@@ -10,12 +10,12 @@ class Atencion(MetadatosComunes, Base):
     __tablename__ = "atenciones"
     __table_args__ = (
         CheckConstraint("version >= 1", name="version_positive"),
-        CheckConstraint("contexto_operativo IS NULL OR contexto_operativo IN ('PRODUCCION', 'OFICINA')", name="contexto_operativo_valido"),
+        CheckConstraint("contexto_operativo IS NULL OR contexto_operativo IN ('MEDICO', 'PRODUCCION', 'OFICINA')", name="contexto_operativo_valido"),
         Index("ix_atenciones_contexto_fecha", "contexto_operativo", "fecha"),
     )
 
     id_atencion: Mapped[str] = mapped_column(String, primary_key=True)
-    # Nullable: los registros anteriores a Producción/Oficina permanecen sin clasificar.
+    # NULL conserva únicamente el legado sin clasificar; los nuevos registros usan contexto explícito.
     contexto_operativo: Mapped[str | None] = mapped_column(String)
     fecha: Mapped[str | None] = mapped_column(String)
     hora: Mapped[str | None] = mapped_column(String)

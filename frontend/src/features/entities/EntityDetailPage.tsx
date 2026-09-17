@@ -109,7 +109,7 @@ export function EntityDetailPage({ config }: { config: EntityPageConfig }) {
         )}
       </section>
 
-      {config.integrations !== false && <><DocumentosPanel tipoRegistro={config.tipoRegistro} idRegistro={id} produccionKind={config.produccionKind} oficinaKind={config.oficinaKind} />
+      {config.integrations !== false && <><DocumentosPanel tipoRegistro={config.tipoRegistro} idRegistro={id} produccionKind={config.produccionKind} oficinaKind={config.oficinaKind} medicoKind={config.medicoKind} />
 
       <ContextFormsPanel contextType={config.tipoRegistro} contextId={id} produccionKind={config.produccionKind} oficinaKind={config.oficinaKind} /></>}
 

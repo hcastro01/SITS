@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
+from app.core.errors import AppError
 from app.core.permissions import AuthenticatedUser, authorize
 from app.models import Atencion
 from app.services.atenciones import CAMPOS, create_atencion, restore_atencion, soft_delete_atencion, update_atencion
@@ -23,6 +24,13 @@ def _serialize(record: Atencion) -> dict:
     }
 
 
+def _legacy_atencion(db: Session, id_atencion: str, *, include_deleted: bool = False) -> Atencion:
+    record = get_active(db, Atencion, id_atencion, Atencion.id_atencion, include_deleted=include_deleted)
+    if record.contexto_operativo is not None:
+        raise AppError("NOT_FOUND", "Atención histórica no encontrada.", 404)
+    return record
+
+
 @router.get("")
 def listar(
     db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user),
@@ -31,7 +39,7 @@ def listar(
     authorize(user, "ATENCIONES", "read")
     if incluir_eliminados:
         authorize(user, "ATENCIONES", "delete")
-    stmt = select(Atencion)
+    stmt = select(Atencion).where(Atencion.contexto_operativo.is_(None))
     if not incluir_eliminados:
         stmt = stmt.where(
             Atencion.eliminado.is_(False),
@@ -42,17 +50,13 @@ def listar(
 
 @router.post("", status_code=201)
 def crear(payload: dict, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
-    payload = dict(payload)
-    motivo = payload.pop("motivo_auditoria", None) or "Creación de registro"
-    correlation_id = payload.pop("correlation_id", "")
-    registro = create_atencion(db, user, motivo_auditoria=motivo, correlation_id=correlation_id, **payload)
-    return _serialize(registro)
+    raise AppError("LEGACY_CONTEXT_READ_ONLY", "Las Atenciones sin contexto son sólo legado; use la superficie médica.", 409)
 
 
 @router.get("/{id_atencion}")
 def obtener(id_atencion: str, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
     authorize(user, "ATENCIONES", "read")
-    return _serialize(get_active(db, Atencion, id_atencion, Atencion.id_atencion))
+    return _serialize(_legacy_atencion(db, id_atencion))
 
 
 @router.patch("/{id_atencion}")
@@ -64,6 +68,7 @@ def actualizar(
     expected_version = payload.pop("expected_version", None)
     motivo = payload.pop("motivo_auditoria", None) or "Edición de registro"
     correlation_id = payload.pop("correlation_id", "")
+    _legacy_atencion(db, id_atencion)
     registro = update_atencion(db, user, id_atencion, expected_version=expected_version,
                                 motivo_auditoria=motivo, correlation_id=correlation_id, **payload)
     return _serialize(registro)
@@ -74,6 +79,7 @@ def eliminar(
     id_atencion: str, payload: dict, db: Session = Depends(get_db),
     user: AuthenticatedUser = Depends(get_current_user),
 ):
+    _legacy_atencion(db, id_atencion)
     registro = soft_delete_atencion(
         db, user, id_atencion, expected_version=payload.get("expected_version"),
         motivo=payload.get("motivo") or payload.get("reason") or "", correlation_id=payload.get("correlation_id", ""),
@@ -86,12 +92,14 @@ def restaurar(
     id_atencion: str, payload: dict | None = None, db: Session = Depends(get_db),
     user: AuthenticatedUser = Depends(get_current_user),
 ):
+    _legacy_atencion(db, id_atencion, include_deleted=True)
     registro = restore_atencion(db, user, id_atencion, correlation_id=(payload or {}).get("correlation_id", ""))
     return _serialize(registro)
 
 
 @router.get("/{id_atencion}/historial")
 def historial(id_atencion: str, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
+    _legacy_atencion(db, id_atencion)
     filas = get_history(db, user, "ATENCIONES", "atenciones", id_atencion)
     return [
         {"campo": f.campo, "accion": f.accion, "valor_anterior": f.valor_anterior,

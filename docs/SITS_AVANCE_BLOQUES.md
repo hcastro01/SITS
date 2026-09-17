@@ -561,3 +561,7 @@ No se hizo push.
 - Deuda conocida no bloqueante: BLOB en SQLite aumenta I/O y tamaño de backups, conserva límites de concurrencia/bloqueo y no recupera espacio inmediatamente tras baja lógica; carga/descarga usa memoria dentro de límites; no hay antivirus/análisis profundo; históricos sin puente no se infieren; editar una respuesta con adjuntos continúa restringido para preservar atomicidad. No se detectó defecto bloqueante.
 
 No se creó commit ni se hizo push para el Bloque 5.
+
+### Deuda histórica de migraciones SQLite
+
+- El downgrade histórico `0021_contexto_operativo_atenciones → 0020` presenta una limitación preexistente en SQLite al retirar `contexto_operativo`. No afecta el upgrade productivo ni el rollback específico `0024 → 0023`. No se modifica `0021` por tratarse de una migración ya aplicada.

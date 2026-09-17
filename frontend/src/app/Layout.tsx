@@ -24,6 +24,7 @@ export const navigation: readonly NavigationNode[] = [
       { id: 'actividades-formularios', label: 'Formularios', icon: '▤', permission: 'FORMULARIOS', to: '/trabajo-social/actividades/formularios' },
     ] },
     { id: 'departamento-medico', label: 'Departamento Médico', icon: '✚', children: [
+      { id: 'medico-atenciones', label: 'Atenciones', icon: '+', permission: 'ATENCIONES', to: '/trabajo-social/departamento-medico/atenciones' },
       { id: 'riesgos', label: 'Riesgos de trabajo', icon: '!', permission: 'RIESGOS_TRABAJO', to: '/trabajo-social/departamento-medico/riesgos' },
       { id: 'ausentismos', label: 'Ausentismos', icon: '◷', permission: 'AUSENTISMO', to: '/trabajo-social/departamento-medico/ausentismos' },
       { id: 'accidentes', label: 'Accidentes', icon: '⚠', permission: 'ACCIDENTES', to: '/trabajo-social/departamento-medico/accidentes' },

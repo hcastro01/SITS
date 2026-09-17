@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { HttpError } from '../../api/client';
 import {
-  descargarDocumento, descargarDocumentoOficina, descargarDocumentoProduccion, eliminarDocumento, eliminarDocumentoOficina, eliminarDocumentoProduccion, listarDocumentos, listarDocumentosOficina, listarDocumentosProduccion, subirDocumento, subirDocumentoOficina, subirDocumentoProduccion, type Documento,
+  descargarDocumento, descargarDocumentoMedico, descargarDocumentoOficina, descargarDocumentoProduccion, eliminarDocumento, eliminarDocumentoMedico, eliminarDocumentoOficina, eliminarDocumentoProduccion, listarDocumentos, listarDocumentosMedico, listarDocumentosOficina, listarDocumentosProduccion, subirDocumento, subirDocumentoMedico, subirDocumentoOficina, subirDocumentoProduccion, type Documento,
 } from '../../api/documentos';
 import { descargarDocumentoRiesgo, eliminarDocumentoRiesgo, listarDocumentosRiesgo, subirDocumentoRiesgo } from '../../api/riesgosTrabajo';
 import { Modal } from '../../components/Modal';
@@ -45,12 +45,12 @@ function formatoTamano(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function DocumentosPanel({ tipoRegistro, idRegistro, riesgoId, produccionKind, oficinaKind }: { tipoRegistro: string; idRegistro: string; riesgoId?: string; produccionKind?: 'atenciones' | 'recorridos' | 'novedades'; oficinaKind?: 'atenciones' | 'beneficios' | 'prestamos' | 'seguro' }) {
+export function DocumentosPanel({ tipoRegistro, idRegistro, riesgoId, produccionKind, oficinaKind, medicoKind }: { tipoRegistro: string; idRegistro: string; riesgoId?: string; produccionKind?: 'atenciones' | 'recorridos' | 'novedades'; oficinaKind?: 'atenciones' | 'beneficios' | 'prestamos' | 'seguro'; medicoKind?: 'atenciones' }) {
   const { notify, confirm } = useFeedback();
   const { usuario } = useAuth();
   const parentModule = tipoRegistro === 'RESPUESTAS_FORMULARIO' ? 'RESPUESTAS'
     : tipoRegistro === 'HALLAZGOS_RECORRIDO' ? 'RECORRIDOS' : tipoRegistro;
-  const scopedModule = riesgoId ? 'RIESGOS_TRABAJO' : produccionKind ? 'PRODUCCION' : oficinaKind ? 'OFICINA' : parentModule;
+  const scopedModule = riesgoId ? 'RIESGOS_TRABAJO' : produccionKind ? 'PRODUCCION' : oficinaKind ? 'OFICINA' : medicoKind ? 'ATENCIONES' : parentModule;
   const canUpload = canAccess(usuario, scopedModule, 'edit') && canAccess(usuario, 'DOCUMENTOS', 'create');
   const canDelete = canAccess(usuario, scopedModule, 'edit') && canAccess(usuario, 'DOCUMENTOS', 'delete');
   const [documentos, setDocumentos] = useState<Documento[]>([]);
@@ -74,13 +74,13 @@ export function DocumentosPanel({ tipoRegistro, idRegistro, riesgoId, produccion
   const cargar = useCallback(async () => {
     setError(null);
     try {
-      setDocumentos(await (riesgoId ? listarDocumentosRiesgo(riesgoId) : produccionKind ? listarDocumentosProduccion(produccionKind, idRegistro) : oficinaKind ? listarDocumentosOficina(oficinaKind, idRegistro) : listarDocumentos(tipoRegistro, idRegistro)));
+      setDocumentos(await (riesgoId ? listarDocumentosRiesgo(riesgoId) : produccionKind ? listarDocumentosProduccion(produccionKind, idRegistro) : oficinaKind ? listarDocumentosOficina(oficinaKind, idRegistro) : medicoKind ? listarDocumentosMedico(idRegistro) : listarDocumentos(tipoRegistro, idRegistro)));
     } catch (err) {
       setError(err instanceof HttpError ? err.message : 'No fue posible cargar los documentos.');
     } finally {
       setCargando(false);
     }
-  }, [tipoRegistro, idRegistro, riesgoId, produccionKind, oficinaKind]);
+  }, [tipoRegistro, idRegistro, riesgoId, produccionKind, oficinaKind, medicoKind]);
 
   useEffect(() => { cargar(); }, [cargar]);
   useEffect(() => () => revokePreviewUrl(), [revokePreviewUrl]);
@@ -94,7 +94,7 @@ export function DocumentosPanel({ tipoRegistro, idRegistro, riesgoId, produccion
     setSubiendo(true);
     setError(null);
     try {
-      await (riesgoId ? subirDocumentoRiesgo(riesgoId, archivo, categoria || undefined) : produccionKind ? subirDocumentoProduccion(produccionKind, idRegistro, archivo, categoria || undefined) : oficinaKind ? subirDocumentoOficina(oficinaKind, idRegistro, archivo, categoria || undefined) : subirDocumento(tipoRegistro, idRegistro, archivo, categoria || undefined));
+      await (riesgoId ? subirDocumentoRiesgo(riesgoId, archivo, categoria || undefined) : produccionKind ? subirDocumentoProduccion(produccionKind, idRegistro, archivo, categoria || undefined) : oficinaKind ? subirDocumentoOficina(oficinaKind, idRegistro, archivo, categoria || undefined) : medicoKind ? subirDocumentoMedico(idRegistro, archivo, categoria || undefined) : subirDocumento(tipoRegistro, idRegistro, archivo, categoria || undefined));
       if (inputArchivoRef.current) inputArchivoRef.current.value = '';
       setCategoria('');
       await cargar();
@@ -111,6 +111,7 @@ export function DocumentosPanel({ tipoRegistro, idRegistro, riesgoId, produccion
     return riesgoId ? descargarDocumentoRiesgo(riesgoId, documento.id_archivo)
       : produccionKind ? descargarDocumentoProduccion(produccionKind, idRegistro, documento.id_archivo)
       : oficinaKind ? descargarDocumentoOficina(oficinaKind, idRegistro, documento.id_archivo)
+      : medicoKind ? descargarDocumentoMedico(idRegistro, documento.id_archivo)
       : descargarDocumento(documento.id_archivo);
   }
 
@@ -151,7 +152,7 @@ export function DocumentosPanel({ tipoRegistro, idRegistro, riesgoId, produccion
     setEliminando(true);
     setError(null);
     try {
-      await (riesgoId ? eliminarDocumentoRiesgo(riesgoId, documentoEliminar.id_archivo, { expected_version: documentoEliminar.version, motivo: motivoEliminacion }) : produccionKind ? eliminarDocumentoProduccion(produccionKind, idRegistro, documentoEliminar.id_archivo, { expected_version: documentoEliminar.version, motivo: motivoEliminacion }) : oficinaKind ? eliminarDocumentoOficina(oficinaKind, idRegistro, documentoEliminar.id_archivo, { expected_version: documentoEliminar.version, motivo: motivoEliminacion }) : eliminarDocumento(documentoEliminar.id_archivo, { expected_version: documentoEliminar.version, motivo: motivoEliminacion }));
+      await (riesgoId ? eliminarDocumentoRiesgo(riesgoId, documentoEliminar.id_archivo, { expected_version: documentoEliminar.version, motivo: motivoEliminacion }) : produccionKind ? eliminarDocumentoProduccion(produccionKind, idRegistro, documentoEliminar.id_archivo, { expected_version: documentoEliminar.version, motivo: motivoEliminacion }) : oficinaKind ? eliminarDocumentoOficina(oficinaKind, idRegistro, documentoEliminar.id_archivo, { expected_version: documentoEliminar.version, motivo: motivoEliminacion }) : medicoKind ? eliminarDocumentoMedico(idRegistro, documentoEliminar.id_archivo, { expected_version: documentoEliminar.version, motivo: motivoEliminacion }) : eliminarDocumento(documentoEliminar.id_archivo, { expected_version: documentoEliminar.version, motivo: motivoEliminacion }));
       setDocumentoEliminar(null); setMotivoEliminacion('');
       await cargar();
       notify('Documento eliminado correctamente.');

@@ -168,11 +168,11 @@ class RiesgosTrabajoMigrationTests(unittest.TestCase):
             try:
                 config = Config("alembic.ini")
                 command.upgrade(config, "0019_destinos_jerarquicos_formularios")
-                command.upgrade(config, "head")
+                command.upgrade(config, "0020_indice_casos_riesgos")
                 self.assertIn("ix_casos_tipo_estado_fecha_apertura", {row["name"] for row in inspect(engine).get_indexes("casos")})
                 command.downgrade(config, "0019_destinos_jerarquicos_formularios")
                 self.assertNotIn("ix_casos_tipo_estado_fecha_apertura", {row["name"] for row in inspect(engine).get_indexes("casos")})
-                command.upgrade(config, "head")
+                command.upgrade(config, "0020_indice_casos_riesgos")
                 self.assertIn("ix_casos_tipo_estado_fecha_apertura", {row["name"] for row in inspect(engine).get_indexes("casos")})
             finally:
                 db_session.engine = original

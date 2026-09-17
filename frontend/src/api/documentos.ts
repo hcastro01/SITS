@@ -67,3 +67,12 @@ export const eliminarDocumentoOficina = (kind: OfficeKind, recordId: string, idA
   post<Documento>(`${officeDocumentsPath(kind, recordId)}/${encodeURIComponent(idArchivo)}/eliminacion`, datos);
 export const descargarDocumentoOficina = (kind: OfficeKind, recordId: string, idArchivo: string): Promise<BlobResponse> =>
   getForBlob(`${officeDocumentsPath(kind, recordId)}/${encodeURIComponent(idArchivo)}/contenido`);
+
+const medicalDocumentsPath = (recordId: string) => `/medico/atenciones/${encodeURIComponent(recordId)}/documentos`;
+export const listarDocumentosMedico = (recordId: string) => get<Documento[]>(medicalDocumentsPath(recordId));
+export function subirDocumentoMedico(recordId: string, archivo: File, categoriaDocumento?: string): Promise<Documento> {
+  const formData = new FormData(); if (categoriaDocumento) formData.append('categoria_documento', categoriaDocumento); formData.append('archivo', archivo);
+  return postForm<Documento>(medicalDocumentsPath(recordId), formData);
+}
+export const eliminarDocumentoMedico = (recordId: string, idArchivo: string, datos: { expected_version: number; motivo: string }) => post<Documento>(`${medicalDocumentsPath(recordId)}/${encodeURIComponent(idArchivo)}/eliminacion`, datos);
+export const descargarDocumentoMedico = (recordId: string, idArchivo: string): Promise<BlobResponse> => getForBlob(`${medicalDocumentsPath(recordId)}/${encodeURIComponent(idArchivo)}/contenido`);
