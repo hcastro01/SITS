@@ -19,6 +19,7 @@ from app.services.security_seed import seed_security
 
 PDF_BYTES = b"%PDF-1.4\n%dummy pdf content for tests\n%%EOF"
 JPEG_BYTES = b"\xff\xd8\xff\xe0" + b"\x00" * 32
+PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
 WEBP_BYTES = b"RIFF" + (16).to_bytes(4, "little") + b"WEBPVP8 " + b"\x00" * 8
 WRONG_SIGNATURE_JPEG = PDF_BYTES  # contenido de PDF con nombre .jpg
 
@@ -112,6 +113,30 @@ class DocumentosServiceTests(unittest.TestCase):
                                   contenido=b"RIFF" + b"\x00" * 20)
             self.assertEqual(ctx.exception.code, "FILE_SIGNATURE_MISMATCH")
 
+    def test_upload_accepts_the_approved_blob_formats(self):
+        archivos = (
+            ("evidencia.pdf", "application/pdf", PDF_BYTES),
+            ("foto.jpg", "image/jpeg", JPEG_BYTES),
+            ("foto.png", "image/png", PNG_BYTES),
+            ("foto.webp", "image/webp", WEBP_BYTES),
+        )
+        with Session(self.engine) as session, session.begin():
+            ts = self._user(session, "ts@example.com")
+            for nombre, mime, contenido in archivos:
+                with self.subTest(nombre=nombre):
+                    documento = upload_documento(session, ts, tipo_registro="PERSONAS", id_registro="p1",
+                                                  nombre_archivo=nombre, mime_type=mime, contenido=contenido)
+                    self.assertEqual(documento.mime_type, mime)
+                    self.assertEqual(zlib.decompress(documento.contenido_comprimido), contenido)
+
+    def test_upload_rejects_mime_extension_inconsistency(self):
+        with Session(self.engine) as session, session.begin():
+            ts = self._user(session, "ts@example.com")
+            with self.assertRaises(AppError) as ctx:
+                upload_documento(session, ts, tipo_registro="PERSONAS", id_registro="p1",
+                                  nombre_archivo="foto.jpg", mime_type="application/pdf", contenido=JPEG_BYTES)
+            self.assertEqual(ctx.exception.code, "INVALID_FILE_TYPE")
+
     def test_response_attachment_round_trip_and_ownership(self):
         with Session(self.engine) as session, session.begin():
             owner = self._user(session, "ts@example.com")
@@ -180,6 +205,19 @@ class DocumentosServiceTests(unittest.TestCase):
             ts = self._user(session, "ts@example.com")
             _documento, contenido = download_documento(session, ts, id_archivo)
             self.assertEqual(contenido, PDF_BYTES)
+
+    def test_download_rejects_corrupted_historical_content_without_raw_zlib_error(self):
+        with Session(self.engine) as session, session.begin():
+            ts = self._user(session, "ts@example.com")
+            documento = upload_documento(session, ts, tipo_registro="PERSONAS", id_registro="p1",
+                                          nombre_archivo="reporte.pdf", mime_type="application/pdf", contenido=PDF_BYTES)
+            documento.contenido_comprimido = b"contenido historico invalido"
+            id_archivo = documento.id_archivo
+        with Session(self.engine) as session, session.begin():
+            ts = self._user(session, "ts@example.com")
+            with self.assertRaises(AppError) as ctx:
+                download_documento(session, ts, id_archivo)
+            self.assertEqual(ctx.exception.code, "DOCUMENT_CONTENT_CORRUPTED")
 
     def test_download_denies_sensitive_document_without_sensitive_permission(self):
         with Session(self.engine) as session, session.begin():

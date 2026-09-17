@@ -22,6 +22,11 @@ export class HttpError extends Error {
   }
 }
 
+export interface BlobResponse {
+  blob: Blob;
+  filename: string | null;
+}
+
 function notifySessionExpired(status: number): void {
   if (status === 401) window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
 }
@@ -102,6 +107,29 @@ export async function postForBlob(path: string, body?: unknown): Promise<Blob> {
     throw new HttpError(response.status, apiError);
   }
   return response.blob();
+}
+
+function filenameFromDisposition(value: string | null): string | null {
+  if (!value) return null;
+  const encoded = value.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  if (encoded) {
+    try { return decodeURIComponent(encoded); } catch { return null; }
+  }
+  return value.match(/filename="?([^";]+)"?/i)?.[1] ?? null;
+}
+
+/** Descarga autenticada de contenido privado sin convertirlo a texto/base64. */
+export async function getForBlob(path: string): Promise<BlobResponse> {
+  const response = await fetch(`${baseUrl}${path}`, { method: 'GET', credentials: 'include' });
+  if (!response.ok) {
+    notifySessionExpired(response.status);
+    let body: ApiErrorBody;
+    try { body = await response.json(); } catch {
+      body = { ok: false, code: `HTTP_${response.status}`, message: response.statusText, correlationId: '' };
+    }
+    throw new HttpError(response.status, body);
+  }
+  return { blob: await response.blob(), filename: filenameFromDisposition(response.headers.get('Content-Disposition')) };
 }
 
 export async function checkService(signal: AbortSignal): Promise<void> {

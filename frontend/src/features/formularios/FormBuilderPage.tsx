@@ -5,11 +5,14 @@ import {
   type FormDefinition, type FormQuestion, type FormSection, type SearchSource,
 } from '../../api/formBuilder';
 import { HttpError } from '../../api/client';
+import { canAccess } from '../../api/auth';
+import { useAuth } from '../../app/AuthContext';
 import { useFeedback } from '../../components/FeedbackProvider';
 import { useUnsavedChanges } from '../../components/useUnsavedChanges';
 import { DynamicFormRenderer, type FormValues } from './DynamicFormRenderer';
 import { FormResponsesPanel } from './FormResponsesPanel';
 import { QuestionEditor } from './QuestionEditor';
+import { HierarchicalDestinationPicker } from './HierarchicalDestinationPicker';
 
 type Tab = 'configuracion' | 'preguntas' | 'vista-previa' | 'respuestas';
 const DESTINATIONS = [
@@ -29,6 +32,8 @@ export function FormBuilderPage() {
   const { id = '' } = useParams();
   const location = useLocation(); const navigate = useNavigate();
   const { notify, confirm } = useFeedback();
+  const { usuario } = useAuth();
+  const canEditDestinations = canAccess(usuario, 'FORMULARIOS', 'edit');
   const [definition, setDefinition] = useState<FormDefinition | null>(null);
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
   const [sources, setSources] = useState<SearchSource[]>([]);
@@ -170,11 +175,12 @@ export function FormBuilderPage() {
     {tab === 'configuracion' && <section className="panel builder-settings"><h3>Configuración general</h3>
       <div className="builder-grid"><label className="builder-field builder-field--wide">Nombre<input value={definition.nombre} onChange={(e) => update({ nombre: e.target.value })} /></label>
         <label className="builder-field builder-field--wide">Descripción<textarea value={definition.descripcion ?? ''} onChange={(e) => update({ descripcion: e.target.value || null })} /></label></div>
-      <fieldset className="destination-picker"><legend>Mostrar formulario en</legend><p>Seleccione uno o varios módulos donde estará disponible al publicarse.</p>
+      <fieldset className="destination-picker"><legend>Destinos textuales históricos</legend><p>Se conservan por compatibilidad. No se reclasifican automáticamente.</p>
         <div>{DESTINATIONS.map(([value, label]) => <label key={value} className={definition.destinos.includes(value) ? 'is-selected' : ''}>
           <input type="checkbox" checked={definition.destinos.includes(value)} onChange={(e) => update({ destinos: e.target.checked ? [...definition.destinos, value] : definition.destinos.filter((item) => item !== value) })} />
           <strong>{label}</strong><small>{value === 'GENERAL' ? 'Sin contexto específico' : `Dentro de ${label.toLowerCase()}`}</small>
         </label>)}</div></fieldset>
+      <HierarchicalDestinationPicker formId={id} canEdit={canEditDestinations} onSaved={(ids) => setDefinition((current) => current ? { ...current, destinos_jerarquicos: ids } : current)} />
       <label className="toggle-card"><input type="checkbox" checked={definition.permite_multiples_respuestas} onChange={(e) => update({ permite_multiples_respuestas: e.target.checked })} />
         <span><strong>Permitir múltiples respuestas por contexto</strong><small>Útil para seguimientos periódicos. Desactivado mantiene una respuesta o borrador por usuario y contexto.</small></span></label>
       <div className="button-row"><button type="button" disabled={saving || !dirty} onClick={() => void save()}>Guardar configuración</button>

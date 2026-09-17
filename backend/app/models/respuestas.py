@@ -37,6 +37,9 @@ class EnvioFormulario(MetadatosComunes, Base):
     contexto_tipo: Mapped[str | None] = mapped_column(String, index=True)
     contexto_id: Mapped[str | None] = mapped_column(String, index=True)
     contexto_creado_dinamicamente: Mapped[bool] = mapped_column(Boolean, default=False)
+    id_destino_respuesta: Mapped[str | None] = mapped_column(
+        ForeignKey("destinos_formulario.id_destino"), index=True,
+    )
     numero_secuencial: Mapped[int | None] = mapped_column(Integer)
     codigo_respuesta: Mapped[str | None] = mapped_column(String(21))
 
@@ -71,3 +74,20 @@ class RespuestaFormulario(MetadatosComunes, Base):
     valor_fecha: Mapped[str | None] = mapped_column(String)
     valor_booleano: Mapped[bool | None] = mapped_column(Boolean(create_constraint=True))
     valor_opcion: Mapped[str | None] = mapped_column(String)
+
+
+class RespuestaDocumento(Base):
+    """Vínculo repetible entre una respuesta concreta y su Documento BLOB."""
+
+    __tablename__ = "respuesta_documentos"
+    __table_args__ = (
+        UniqueConstraint("id_detalle_respuesta", "id_archivo"),
+        Index("ix_respuesta_documentos_detalle", "id_detalle_respuesta"),
+        Index("ix_respuesta_documentos_archivo", "id_archivo"),
+    )
+
+    id_respuesta_documento: Mapped[str] = mapped_column(String, primary_key=True)
+    id_detalle_respuesta: Mapped[str] = mapped_column(
+        ForeignKey("respuestas_formulario.id_detalle_respuesta"), nullable=False,
+    )
+    id_archivo: Mapped[str] = mapped_column(ForeignKey("documentos.id_archivo"), nullable=False)

@@ -109,9 +109,9 @@ export function EntityDetailPage({ config }: { config: EntityPageConfig }) {
         )}
       </section>
 
-      <DocumentosPanel tipoRegistro={config.tipoRegistro} idRegistro={id} />
+      {config.integrations !== false && <><DocumentosPanel tipoRegistro={config.tipoRegistro} idRegistro={id} produccionKind={config.produccionKind} oficinaKind={config.oficinaKind} />
 
-      <ContextFormsPanel contextType={config.tipoRegistro} contextId={id} />
+      <ContextFormsPanel contextType={config.tipoRegistro} contextId={id} produccionKind={config.produccionKind} oficinaKind={config.oficinaKind} /></>}
 
       <section className="panel">
         <h2>Historial</h2>

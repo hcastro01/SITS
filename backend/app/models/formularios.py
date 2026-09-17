@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.security import Base, MetadatosComunes
@@ -21,18 +21,43 @@ class Formulario(MetadatosComunes, Base):
     version_publicada: Mapped[int] = mapped_column(Integer, default=0)
 
 
+class DestinoFormulario(MetadatosComunes, Base):
+    """Catálogo de destinos funcionales, independiente de la navegación UI."""
+
+    __tablename__ = "destinos_formulario"
+    __table_args__ = (
+        UniqueConstraint("codigo"),
+        Index("ix_destinos_formulario_activo_orden", "activo", "orden"),
+        CheckConstraint("nivel IN ('MACROPROCESO', 'PROCESO', 'SUBPROCESO')", name="destino_formulario_nivel"),
+        CheckConstraint("version >= 1", name="version_positive"),
+    )
+
+    id_destino: Mapped[str] = mapped_column(String, primary_key=True)
+    codigo: Mapped[str] = mapped_column(String, nullable=False)
+    nombre: Mapped[str] = mapped_column(String, nullable=False)
+    nivel: Mapped[str] = mapped_column(String, nullable=False)
+    padre_id_destino: Mapped[str | None] = mapped_column(
+        ForeignKey("destinos_formulario.id_destino"), index=True,
+    )
+    orden: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class FormularioDestino(MetadatosComunes, Base):
     """Asignación relacional de un formulario a uno o varios módulos SITS."""
 
     __tablename__ = "formulario_destinos"
     __table_args__ = (
         UniqueConstraint("id_formulario", "modulo"),
+        Index("ux_formulario_destinos_formulario_catalogo", "id_formulario", "id_destino_catalogo", unique=True),
         CheckConstraint("version >= 1", name="version_positive"),
     )
 
     id_destino: Mapped[str] = mapped_column(String, primary_key=True)
     id_formulario: Mapped[str] = mapped_column(ForeignKey("formularios.id_formulario"), index=True, nullable=False)
     modulo: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    id_destino_catalogo: Mapped[str | None] = mapped_column(
+        ForeignKey("destinos_formulario.id_destino"), index=True,
+    )
 
 
 class SeccionFormulario(MetadatosComunes, Base):

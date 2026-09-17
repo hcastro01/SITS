@@ -61,6 +61,23 @@ class Permission(MetadatosComunes, Base):
     puede_exportar: Mapped[bool] = mapped_column(Boolean(create_constraint=True), default=False)
 
 
+class ModuloSistema(MetadatosComunes, Base):
+    """Nodo de navegación administrado para la estructura de SITS."""
+
+    __tablename__ = "modulos"
+    __table_args__ = (
+        CheckConstraint("version >= 1", name="version_positive"),
+    )
+
+    id_modulo: Mapped[str] = mapped_column(String, primary_key=True)
+    nombre: Mapped[str] = mapped_column(String, nullable=False)
+    permiso: Mapped[str | None] = mapped_column(String, index=True)
+    ruta: Mapped[str | None] = mapped_column(String)
+    icono: Mapped[str | None] = mapped_column(String)
+    padre_id_modulo: Mapped[str | None] = mapped_column(ForeignKey("modulos.id_modulo"), index=True)
+    orden: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class User(MetadatosComunes, Base):
     __tablename__ = "usuarios"
     __table_args__ = (CheckConstraint("version >= 1", name="version_positive"),)

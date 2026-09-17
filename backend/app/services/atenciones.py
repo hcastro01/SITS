@@ -39,10 +39,12 @@ def _rechazar_campos_desconocidos(campos: dict) -> None:
 
 
 def create_atencion(session: Session, user: AuthenticatedUser, *, motivo_auditoria: str,
-                     correlation_id: str, **campos) -> Atencion:
+                     correlation_id: str, authorization_module: str = MODULE,
+                     contexto_operativo: str | None = None, **campos) -> Atencion:
     _rechazar_campos_desconocidos(campos)
-    authorize(user, MODULE, "create")
-    record = Atencion(id_atencion=str(uuid4()), **creation_metadata(user.correo), **campos)
+    authorize(user, authorization_module, "create")
+    record = Atencion(id_atencion=str(uuid4()), contexto_operativo=contexto_operativo,
+                      **creation_metadata(user.correo), **campos)
     session.add(record)
     session.flush()
     log_change(session, "atenciones", record.id_atencion, "CREATE", {}, _snapshot(record),
@@ -51,9 +53,10 @@ def create_atencion(session: Session, user: AuthenticatedUser, *, motivo_auditor
 
 
 def update_atencion(session: Session, user: AuthenticatedUser, id_atencion: str, *,
-                     expected_version: int | None, motivo_auditoria: str, correlation_id: str, **campos) -> Atencion:
+                     expected_version: int | None, motivo_auditoria: str, correlation_id: str,
+                     authorization_module: str = MODULE, **campos) -> Atencion:
     _rechazar_campos_desconocidos(campos)
-    authorize(user, MODULE, "edit")
+    authorize(user, authorization_module, "edit")
     record = get_active(session, Atencion, id_atencion, Atencion.id_atencion)
     before = _snapshot(record)
     bump_for_update(record, user.correo, expected_version, **campos)
@@ -63,8 +66,9 @@ def update_atencion(session: Session, user: AuthenticatedUser, id_atencion: str,
 
 
 def soft_delete_atencion(session: Session, user: AuthenticatedUser, id_atencion: str, *,
-                          expected_version: int | None, motivo: str, correlation_id: str) -> Atencion:
-    authorize(user, MODULE, "delete")
+                          expected_version: int | None, motivo: str, correlation_id: str,
+                          authorization_module: str = MODULE) -> Atencion:
+    authorize(user, authorization_module, "delete")
     record = get_active(session, Atencion, id_atencion, Atencion.id_atencion)
     check_expected_version(record, expected_version)
     before = _snapshot(record)

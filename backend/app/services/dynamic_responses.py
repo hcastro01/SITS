@@ -11,17 +11,20 @@ from sqlalchemy.orm import Session
 from app.core.errors import AppError
 from app.core.permissions import AuthenticatedUser, authorize, can
 from app.core.time import utc_now_iso
-from app.models import EnvioFormulario, Formulario, FormularioDestino, FormularioVersion, Persona, RespuestaFormulario
+from app.models import EnvioFormulario, Formulario, FormularioDestino, FormularioVersion, Persona, RespuestaDocumento, RespuestaFormulario
 from app.services.audit import log_change
 from app.services.form_builder import ensure_published_version, get_definition
 from app.services.form_search import search_options
 from app.services.records import apply_soft_delete, check_expected_version, creation_metadata, get_active, mark_updated
 from app.services.response_codes import assign_response_code
+from app.services.form_destinations import validate_response_destination
 from app.services.response_contexts import (
     CONTEXT_MODELS, authorize_response_action, create_dynamic_context,
     delete_generated_context_if_orphaned, resolve_person_id, response_actions,
 )
 from app.services.sensitivity import is_sensitive_record
+from app.services.documentos import MIME_BY_EXTENSION, upload_documento
+from app.services.documentos import MAX_FILE_BYTES, MAX_FILES_PER_RECORD
 
 VALUE_FIELDS = ("valor_texto", "valor_numero", "valor_fecha", "valor_booleano", "valor_opcion")
 SELECTION_TYPES = {"SI_NO", "SELECCION_UNICA", "LISTA_DESPLEGABLE", "SELECCION_MULTIPLE", "CASILLAS"}
@@ -79,12 +82,17 @@ def dynamic_state(definition: dict, answer_values: dict[str, list]) -> tuple[dic
 
 
 def _validate_context(session: Session, user: AuthenticatedUser, form_id: str,
-                      context_type: str | None, context_id: str | None) -> tuple[str, str | None]:
+                      context_type: str | None, context_id: str | None, *,
+                      context_authorization_module: str | None = None,
+                      required_destination_id: str | None = None) -> tuple[str, str | None]:
     normalized = (context_type or "GENERAL").strip().upper()
-    destination = session.scalar(select(FormularioDestino).where(
-        FormularioDestino.id_formulario == form_id, FormularioDestino.modulo == normalized,
-        FormularioDestino.activo.is_(True), FormularioDestino.eliminado.is_(False),
-    ))
+    destination_conditions = [FormularioDestino.id_formulario == form_id,
+        FormularioDestino.activo.is_(True), FormularioDestino.eliminado.is_(False)]
+    if required_destination_id:
+        destination_conditions.append(FormularioDestino.id_destino_catalogo == required_destination_id)
+    else:
+        destination_conditions.append(FormularioDestino.modulo == normalized)
+    destination = session.scalar(select(FormularioDestino).where(*destination_conditions))
     if destination is None:
         raise AppError("FORM_CONTEXT_NOT_ALLOWED", "El formulario no está disponible en este módulo.", 403)
     if normalized == "GENERAL":
@@ -96,12 +104,12 @@ def _validate_context(session: Session, user: AuthenticatedUser, form_id: str,
         raise AppError("INVALID_FORM_CONTEXT", "El contexto del formulario no es válido.", 422)
     model, id_field = model_info
     record = get_active(session, model, context_id, getattr(model, id_field))
-    authorize(user, normalized, "read", sensitive=is_sensitive_record(session, record))
+    authorize(user, context_authorization_module or normalized, "read", sensitive=is_sensitive_record(session, record))
     return normalized, context_id
 
 
 def _validate_answers(session: Session, user: AuthenticatedUser, definition: dict,
-                      answers: list[dict], *, draft: bool) -> dict[str, list]:
+                      answers: list[dict], *, draft: bool, attachments: list[dict] | None = None) -> dict[str, list]:
     questions = {q["id_pregunta"]: q for q in definition["preguntas"]}
     values: dict[str, list] = defaultdict(list)
     for answer in answers:
@@ -109,6 +117,14 @@ def _validate_answers(session: Session, user: AuthenticatedUser, definition: dic
         if unknown or answer.get("id_pregunta") not in questions:
             raise AppError("INVALID_ANSWER", "La respuesta contiene una pregunta o campo no permitido.", 422)
         values[answer["id_pregunta"]].append(_answer_value(answer))
+    attachments_by_question: dict[str, list[dict]] = defaultdict(list)
+    for attachment in attachments or []:
+        question_id = attachment.get("id_pregunta")
+        question = questions.get(question_id)
+        if question is None or (question.get("tipo") or "").upper() not in {"ARCHIVO", "FOTOGRAFIA"}:
+            raise AppError("INVALID_ATTACHMENT", "El adjunto no corresponde a una pregunta de archivo válida.", 422)
+        attachments_by_question[question_id].append(attachment)
+        values[question_id].append("__archivo__")
     visible, required, _ = dynamic_state(definition, values)
     for question_id, question in questions.items():
         if (question.get("tipo") or "").upper() != "BUSQUEDA":
@@ -165,8 +181,19 @@ def _validate_answers(session: Session, user: AuthenticatedUser, definition: dic
             raise AppError("INVALID_EMAIL", f"Ingrese un correo válido en «{question['etiqueta']}».", 422)
         if question_type == "PORCENTAJE" and any(float(v) < 0 or float(v) > 100 for v in question_values):
             raise AppError("INVALID_PERCENTAGE", "El porcentaje debe estar entre 0 y 100.", 422)
-        if question_type in {"ARCHIVO", "FOTOGRAFIA"} and config.get("max_files") and len(question_values) > int(config["max_files"]):
-            raise AppError("TOO_MANY_FILES", f"«{question['etiqueta']}» supera la cantidad máxima de archivos.", 422)
+        if question_type in {"ARCHIVO", "FOTOGRAFIA"}:
+            files = attachments_by_question.get(question_id, [])
+            max_files = min(int(config.get("max_files") or 1), MAX_FILES_PER_RECORD)
+            if len(files) > max_files:
+                raise AppError("TOO_MANY_FILES", f"«{question['etiqueta']}» supera la cantidad máxima de archivos.", 422)
+            for item in files:
+                configured_mb = config.get("max_size_mb")
+                question_limit = int(float(configured_mb) * 1024 * 1024) if configured_mb not in (None, "") else MAX_FILE_BYTES
+                effective_limit = min(question_limit, MAX_FILE_BYTES)
+                if len(item.get("contenido", b"")) > effective_limit:
+                    raise AppError("FILE_TOO_LARGE", f"«{question['etiqueta']}» supera el tamaño máximo permitido.", 422)
+                if question_type == "FOTOGRAFIA" and item.get("mime_type") not in {"image/jpeg", "image/png", "image/webp"}:
+                    raise AppError("INVALID_FILE_TYPE", f"«{question['etiqueta']}» solo admite JPEG, PNG o WEBP.", 422)
     return values
 
 
@@ -241,13 +268,20 @@ def save_dynamic_response(session: Session, user: AuthenticatedUser, form_id: st
                           context_id: str | None = None, response_id: str | None = None,
                           expected_version: int | None = None, correlation_id: str = "",
                           create_context: bool = False, person_id: str | None = None,
-                          edit_registered: bool = False) -> EnvioFormulario:
+                          edit_registered: bool = False, response_destination_id: str | None = None,
+                          context_authorization_module: str | None = None,
+                          required_destination_id: str | None = None,
+                          attachments: list[dict] | None = None) -> EnvioFormulario:
     authorize(user, "RESPUESTAS", "edit" if edit_registered else "create")
     form = session.get(Formulario, form_id)
     if form is None or form.eliminado or not form.activo:
         raise AppError("FORM_NOT_FOUND", "Formulario no encontrado.", 404)
-    if not answers and not draft:
+    attachments = attachments or []
+    if not answers and not attachments and not draft:
         raise AppError("EMPTY_RESPONSE", "El formulario no contiene respuestas para guardar.", 422)
+    if required_destination_id and response_destination_id != required_destination_id:
+        raise AppError("FORM_DESTINATION_NOT_ALLOWED", "El destino de respuesta no corresponde al Riesgo de trabajo.", 403)
+    response_destination = validate_response_destination(session, form_id, response_destination_id)
     response = _find_response_by_identity(
         session, user, form, response_id=response_id, client_key=client_key,
     )
@@ -267,7 +301,11 @@ def save_dynamic_response(session: Session, user: AuthenticatedUser, form_id: st
             session, user, normalized_requested, person_id, correlation_id,
         )
         inferred_type = normalized_requested
-    normalized_type, normalized_id = _validate_context(session, user, form_id, inferred_type, inferred_id)
+    normalized_type, normalized_id = _validate_context(
+        session, user, form_id, inferred_type, inferred_id,
+        context_authorization_module=context_authorization_module,
+        required_destination_id=required_destination_id,
+    )
     if response is None:
         response = _find_response(session, user, form, response_id=None, client_key=None,
                                   context_type=normalized_type, context_id=normalized_id)
@@ -286,7 +324,7 @@ def save_dynamic_response(session: Session, user: AuthenticatedUser, form_id: st
         raise AppError("FORBIDDEN", "No puede continuar el borrador de otro usuario.", 403)
     definition = _version_definition(session, response) if response is not None else None
     definition = definition or get_definition(session, form_id)
-    _validate_answers(session, user, definition, answers, draft=draft)
+    _validate_answers(session, user, definition, answers, draft=draft, attachments=attachments)
     version = (session.get(FormularioVersion, response.id_version_formulario)
                if response is not None and response.id_version_formulario else None)
     version = version or ensure_published_version(session, form, user)
@@ -299,6 +337,7 @@ def save_dynamic_response(session: Session, user: AuthenticatedUser, form_id: st
             estado=new_state, fecha_respuesta=utc_now_iso(),
             id_registro_proceso=normalized_id, contexto_tipo=normalized_type,
             contexto_id=normalized_id, contexto_creado_dinamicamente=context_created,
+            id_destino_respuesta=response_destination.id_destino if response_destination else None,
             **creation_metadata(user.correo),
         )
         session.add(response)
@@ -307,6 +346,11 @@ def save_dynamic_response(session: Session, user: AuthenticatedUser, form_id: st
     else:
         if expected_version is not None:
             check_expected_version(response, expected_version)
+        existing_attachments = session.scalar(select(RespuestaDocumento.id_respuesta_documento).join(
+            RespuestaFormulario, RespuestaFormulario.id_detalle_respuesta == RespuestaDocumento.id_detalle_respuesta,
+        ).where(RespuestaFormulario.id_respuesta == response.id_respuesta, RespuestaFormulario.eliminado.is_(False)))
+        if existing_attachments is not None:
+            raise AppError("FORM_RESPONSE_WITH_ATTACHMENTS_IMMUTABLE", "No se puede editar una respuesta que contiene adjuntos.", 409)
         for detail in session.scalars(select(RespuestaFormulario).where(
             RespuestaFormulario.id_respuesta == response.id_respuesta,
             RespuestaFormulario.eliminado.is_(False),
@@ -318,21 +362,39 @@ def save_dynamic_response(session: Session, user: AuthenticatedUser, form_id: st
             detail.motivo_eliminacion = "Nueva versión de respuesta"
         response.estado = new_state
         response.fecha_respuesta = utc_now_iso()
+        if response_destination is not None:
+            response.id_destino_respuesta = response_destination.id_destino
         if not response.id_version_formulario:
             response.id_version_formulario = version.id_version_formulario
         mark_updated(response, user.correo)
         audit_action = "UPDATE"
     if new_state == "REGISTRADO":
         assign_response_code(session, response)
+    details_by_question: dict[str, list[RespuestaFormulario]] = defaultdict(list)
     for answer in answers:
         values = {field: answer[field] for field in VALUE_FIELDS if field in answer}
-        session.add(RespuestaFormulario(id_detalle_respuesta=str(uuid4()),
+        detail = RespuestaFormulario(id_detalle_respuesta=str(uuid4()),
                     id_respuesta=response.id_respuesta, id_pregunta=answer["id_pregunta"],
-                    **creation_metadata(user.correo), **values))
+                    **creation_metadata(user.correo), **values)
+        session.add(detail); details_by_question[answer["id_pregunta"]].append(detail)
+    for question_id in {item["id_pregunta"] for item in attachments}:
+        detail = RespuestaFormulario(id_detalle_respuesta=str(uuid4()), id_respuesta=response.id_respuesta,
+            id_pregunta=question_id, **creation_metadata(user.correo))
+        session.add(detail); details_by_question[question_id].append(detail)
+    session.flush()
+    for attachment in attachments:
+        detail = details_by_question[attachment["id_pregunta"]][0]
+        document = upload_documento(session, user, tipo_registro="RESPUESTAS_FORMULARIO",
+            id_registro=response.id_respuesta, nombre_archivo=attachment["nombre_archivo"],
+            mime_type=attachment["mime_type"], contenido=attachment["contenido"],
+            categoria_documento=f"FORMULARIO:{attachment['id_pregunta']}", correlation_id=correlation_id)
+        session.add(RespuestaDocumento(id_respuesta_documento=str(uuid4()),
+            id_detalle_respuesta=detail.id_detalle_respuesta, id_archivo=document.id_archivo))
     log_change(session, "envios_formulario", response.id_respuesta, audit_action, {},
                {"id_formulario": form_id, "estado": new_state, "contexto_tipo": normalized_type,
-                "contexto_id": normalized_id, "cantidad_respuestas": len(answers),
-                "codigo_respuesta": response.codigo_respuesta},
+                "contexto_id": normalized_id, "cantidad_respuestas": len(answers), "cantidad_adjuntos": len(attachments),
+                "codigo_respuesta": response.codigo_respuesta,
+                "id_destino_respuesta": response.id_destino_respuesta},
                user.correo, ("Edición de respuesta definitiva" if edit_registered else
                               "Guardado de borrador" if draft else "Envío final de formulario"),
                correlation_id, sensitive_record=True)
@@ -349,7 +411,8 @@ def serialize_response(
             "usuario_respuesta": response.usuario_respuesta, "contexto_tipo": response.contexto_tipo,
             "contexto_id": response.contexto_id, "version": response.version,
             "id_version_formulario": response.id_version_formulario,
-            "contexto_creado_dinamicamente": response.contexto_creado_dinamicamente}
+            "contexto_creado_dinamicamente": response.contexto_creado_dinamicamente,
+            "id_destino_respuesta": response.id_destino_respuesta}
     if user is not None:
         data["acciones"] = response_actions(session, user, response)
     if include_answers:
@@ -357,8 +420,13 @@ def serialize_response(
             RespuestaFormulario.id_respuesta == response.id_respuesta,
             RespuestaFormulario.eliminado.is_(False),
         )))
+        links = defaultdict(list)
+        from app.models import Documento
+        for link, document in session.execute(select(RespuestaDocumento, Documento).join(Documento, Documento.id_archivo == RespuestaDocumento.id_archivo).where(RespuestaDocumento.id_detalle_respuesta.in_([d.id_detalle_respuesta for d in details]), Documento.eliminado.is_(False))):
+            links[link.id_detalle_respuesta].append({"id_archivo": document.id_archivo, "nombre_archivo": document.nombre_archivo, "mime_type": document.mime_type, "tamano_bytes": document.tamano_bytes})
         data["respuestas"] = [{"id_pregunta": d.id_pregunta,
-            **{field: getattr(d, field) for field in VALUE_FIELDS if getattr(d, field) is not None}}
+            **{field: getattr(d, field) for field in VALUE_FIELDS if getattr(d, field) is not None},
+            **({"adjuntos": links[d.id_detalle_respuesta]} if links[d.id_detalle_respuesta] else {})}
             for d in details]
     return data
 

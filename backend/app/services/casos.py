@@ -97,10 +97,10 @@ def _snapshot(record, campos) -> dict:
 
 
 def create_caso(session: Session, user: AuthenticatedUser, *, motivo_auditoria: str,
-                 correlation_id: str, **campos) -> Caso:
+                 correlation_id: str, authorization_module: str = CASOS_MODULE, **campos) -> Caso:
     _rechazar_desconocidos(campos, CAMPOS_CASO)
     sensible = is_sensitive_caso(session, campos.get("nivel_sensibilidad"))
-    authorize(user, CASOS_MODULE, "create", sensitive=sensible)
+    authorize(user, authorization_module, "create", sensitive=sensible)
     record = Caso(id_caso=str(uuid4()), codigo_caso=_generar_codigo_caso(),
                   **creation_metadata(user.correo), **campos)
     session.add(record)
@@ -111,12 +111,13 @@ def create_caso(session: Session, user: AuthenticatedUser, *, motivo_auditoria: 
 
 
 def update_caso(session: Session, user: AuthenticatedUser, id_caso: str, *,
-                 expected_version: int | None, motivo_auditoria: str, correlation_id: str, **campos) -> Caso:
+                 expected_version: int | None, motivo_auditoria: str, correlation_id: str,
+                 authorization_module: str = CASOS_MODULE, **campos) -> Caso:
     _rechazar_desconocidos(campos, CAMPOS_CASO)
     record = get_active(session, Caso, id_caso, Caso.id_caso)
     sensible_antes = is_sensitive_caso(session, record.nivel_sensibilidad)
     sensible_despues = is_sensitive_caso(session, campos.get("nivel_sensibilidad", record.nivel_sensibilidad))
-    authorize(user, CASOS_MODULE, "edit", sensitive=sensible_antes or sensible_despues)
+    authorize(user, authorization_module, "edit", sensitive=sensible_antes or sensible_despues)
     before = _snapshot(record, CAMPOS_CASO)
     bump_for_update(record, user.correo, expected_version, **campos)
     log_change(session, "casos", id_caso, "UPDATE", before, _snapshot(record, CAMPOS_CASO),
@@ -138,18 +139,22 @@ def soft_delete_caso(session: Session, user: AuthenticatedUser, id_caso: str, *,
     return record
 
 
-def _ensure_caso_editable(session: Session, user: AuthenticatedUser, id_caso: str) -> tuple[Caso, bool]:
+def _ensure_caso_editable(
+    session: Session, user: AuthenticatedUser, id_caso: str, *, authorization_module: str = CASOS_MODULE,
+) -> tuple[Caso, bool]:
     """Equivalente a CaseService.gs:67-72 (ensureCase)."""
     caso = get_active(session, Caso, id_caso, Caso.id_caso)
     sensible = is_sensitive_caso(session, caso.nivel_sensibilidad)
-    authorize(user, CASOS_MODULE, "edit", sensitive=sensible)
+    authorize(user, authorization_module, "edit", sensitive=sensible)
     return caso, sensible
 
 
-def list_seguimientos(session: Session, user: AuthenticatedUser, id_caso: str) -> list[Seguimiento]:
+def list_seguimientos(
+    session: Session, user: AuthenticatedUser, id_caso: str, *, authorization_module: str = CASOS_MODULE,
+) -> list[Seguimiento]:
     caso = get_active(session, Caso, id_caso, Caso.id_caso)
     sensible = is_sensitive_caso(session, caso.nivel_sensibilidad)
-    authorize(user, CASOS_MODULE, "read", sensitive=sensible)
+    authorize(user, authorization_module, "read", sensitive=sensible)
     authorize(user, "SEGUIMIENTOS", "read", sensitive=sensible)
     return list(session.scalars(
         select(Seguimiento).where(
@@ -158,10 +163,12 @@ def list_seguimientos(session: Session, user: AuthenticatedUser, id_caso: str) -
     ))
 
 
-def list_compromisos(session: Session, user: AuthenticatedUser, id_caso: str) -> list[Compromiso]:
+def list_compromisos(
+    session: Session, user: AuthenticatedUser, id_caso: str, *, authorization_module: str = CASOS_MODULE,
+) -> list[Compromiso]:
     caso = get_active(session, Caso, id_caso, Caso.id_caso)
     sensible = is_sensitive_caso(session, caso.nivel_sensibilidad)
-    authorize(user, CASOS_MODULE, "read", sensitive=sensible)
+    authorize(user, authorization_module, "read", sensitive=sensible)
     authorize(user, "COMPROMISOS", "read", sensitive=sensible)
     return list(session.scalars(
         select(Compromiso).where(
@@ -171,9 +178,10 @@ def list_compromisos(session: Session, user: AuthenticatedUser, id_caso: str) ->
 
 
 def add_seguimiento(session: Session, user: AuthenticatedUser, id_caso: str, *,
-                     correlation_id: str, motivo_auditoria: str = "Seguimiento", **campos) -> Seguimiento:
+                     correlation_id: str, motivo_auditoria: str = "Seguimiento",
+                     authorization_module: str = CASOS_MODULE, **campos) -> Seguimiento:
     _rechazar_desconocidos(campos, CAMPOS_SEGUIMIENTO)
-    caso, sensible = _ensure_caso_editable(session, user, id_caso)
+    caso, sensible = _ensure_caso_editable(session, user, id_caso, authorization_module=authorization_module)
     authorize(user, "SEGUIMIENTOS", "create", sensitive=sensible)
     seguimiento = Seguimiento(id_seguimiento=str(uuid4()), id_caso=id_caso,
                                **creation_metadata(user.correo), **campos)
@@ -211,9 +219,10 @@ def add_derivacion(session: Session, user: AuthenticatedUser, id_caso: str, *,
 
 
 def add_compromiso(session: Session, user: AuthenticatedUser, id_caso: str, *,
-                    correlation_id: str, motivo_auditoria: str = "Compromiso", **campos) -> Compromiso:
+                    correlation_id: str, motivo_auditoria: str = "Compromiso",
+                    authorization_module: str = CASOS_MODULE, **campos) -> Compromiso:
     _rechazar_desconocidos(campos, CAMPOS_COMPROMISO)
-    _caso, sensible = _ensure_caso_editable(session, user, id_caso)
+    _caso, sensible = _ensure_caso_editable(session, user, id_caso, authorization_module=authorization_module)
     authorize(user, "COMPROMISOS", "create", sensitive=sensible)
     campos.setdefault("fecha_creacion_compromiso", utc_now_iso())
     compromiso = Compromiso(id_compromiso=str(uuid4()), id_caso=id_caso,
@@ -228,12 +237,13 @@ def add_compromiso(session: Session, user: AuthenticatedUser, id_caso: str, *,
 
 def close_caso(session: Session, user: AuthenticatedUser, id_caso: str, *,
                expected_version: int | None, correlation_id: str,
-               motivo_auditoria: str = "Cierre de caso", **campos) -> Cierre:
+               motivo_auditoria: str = "Cierre de caso", authorization_module: str = CASOS_MODULE,
+               **campos) -> Cierre:
     """Equivalente a CaseService.gs:124-154 (close). Cierre + actualización del caso padre
     en una sola transacción: si algo falla aquí, no queda un cierre sin reflejar en el
     estado del caso (a diferencia del legacy, sin transacciones reales entre hojas)."""
     _rechazar_desconocidos(campos, CAMPOS_CIERRE)
-    caso, sensible = _ensure_caso_editable(session, user, id_caso)
+    caso, sensible = _ensure_caso_editable(session, user, id_caso, authorization_module=authorization_module)
     if (caso.estado_caso or "").strip().upper() == "CERRADO":
         raise AppError("CASE_ALREADY_CLOSED", "El caso ya se encuentra cerrado.", 409)
     cierre = Cierre(id_cierre=str(uuid4()), id_caso=id_caso, **creation_metadata(user.correo), **campos)

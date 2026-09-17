@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { get, HttpError, post, SESSION_EXPIRED_EVENT } from './client';
+import { get, getForBlob, HttpError, post, SESSION_EXPIRED_EVENT } from './client';
 
 function mockFetchOnce(status: number, body: unknown, ok = status >= 200 && status < 300) {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
@@ -53,5 +53,16 @@ describe('cliente HTTP', () => {
     await expect(get('/privado')).rejects.toBeInstanceOf(HttpError);
     expect(listener).toHaveBeenCalledOnce();
     window.removeEventListener(SESSION_EXPIRED_EVENT, listener);
+  });
+
+  it('recupera archivos privados como Blob y conserva el filename RFC 5987', async () => {
+    const blob = new Blob(['contenido'], { type: 'application/pdf' });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true, status: 200, blob: () => Promise.resolve(blob),
+      headers: new Headers({ 'Content-Disposition': "attachment; filename*=UTF-8''informe%20seguro.pdf" }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(getForBlob('/documentos/d1/contenido')).resolves.toEqual({ blob, filename: 'informe seguro.pdf' });
+    expect(fetchMock).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ method: 'GET', credentials: 'include' }));
   });
 });

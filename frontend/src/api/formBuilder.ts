@@ -1,4 +1,4 @@
-import { get, patch, post, put } from './client';
+import { get, patch, post, postForm, put } from './client';
 
 export const FORM_DESTINATIONS = ['GENERAL', 'CASOS', 'ATENCIONES', 'NOVEDADES', 'RECORRIDOS', 'PERSONAS'] as const;
 export type FormDestination = typeof FORM_DESTINATIONS[number];
@@ -70,6 +70,8 @@ export interface FormDefinition {
   activo: boolean;
   eliminado: boolean;
   destinos: FormDestination[];
+  /** IDs del catálogo jerárquico; los textos de `destinos` son el legado compatible. */
+  destinos_jerarquicos?: string[];
   total_preguntas: number;
   total_respuestas: number;
   secciones: FormSection[];
@@ -80,6 +82,27 @@ export interface FormDefinition {
   };
 }
 
+export interface FormDestinationNode {
+  id_destino: string;
+  codigo: string;
+  nombre: string;
+  nivel: 'MACROPROCESO' | 'PROCESO' | 'SUBPROCESO';
+  padre_id_destino: string | null;
+  activo: boolean;
+  orden: number;
+  hijos: FormDestinationNode[];
+}
+
+export interface FormDestinationAssignment {
+  id_asignacion: string;
+  id_formulario: string;
+  id_destino_catalogo: string;
+  activo: boolean;
+  eliminado: boolean;
+  version: number;
+  destino: FormDestinationNode;
+}
+
 export interface FormAnswer {
   id_pregunta: string;
   valor_texto?: string;
@@ -87,7 +110,10 @@ export interface FormAnswer {
   valor_fecha?: string;
   valor_booleano?: boolean;
   valor_opcion?: string;
+  adjuntos?: Array<{ id_archivo: string; nombre_archivo: string; mime_type: string; tamano_bytes: number }>;
 }
+
+export interface FormAttachment { id_pregunta: string; file: File; }
 
 export interface FormResponse {
   id_respuesta: string;
@@ -102,6 +128,7 @@ export interface FormResponse {
   version: number;
   id_version_formulario?: string | null;
   contexto_creado_dinamicamente?: boolean;
+  id_destino_respuesta?: string | null;
   id_persona?: string | null;
   persona?: string | null;
   acciones?: ResponseActions;
@@ -170,6 +197,11 @@ export interface SearchResult {
 }
 
 export const listFormDefinitions = () => get<FormDefinition[]>('/formularios');
+export const listDestinationTree = () => get<FormDestinationNode[]>('/formularios/destinos');
+export const listFormDestinations = (id: string, includeInactive = false) =>
+  get<FormDestinationAssignment[]>(`/formularios/${id}/destinos${includeInactive ? '?incluir_inactivos=true' : ''}`);
+export const syncFormDestinations = (id: string, destinationIds: string[]) =>
+  put<FormDestinationAssignment[]>(`/formularios/${id}/destinos`, { destino_ids: destinationIds });
 export const getFormDefinition = (id: string) => get<FormDefinition>(`/formularios/${id}`);
 export const createFormDefinition = (data: Record<string, unknown>) => post<FormDefinition>('/formularios', data);
 export const saveFormDefinition = (id: string, data: Record<string, unknown>) =>
@@ -195,9 +227,24 @@ export const searchFormOptions = (
 export const listContextForms = (type: string, id: string) =>
   get<ContextForm[]>(`/formularios/contexto/${encodeURIComponent(type)}/${encodeURIComponent(id)}`);
 export const listFormResponses = (id: string, query = '') => get<FormResponse[]>(`/formularios/${id}/respuestas${query ? `?q=${encodeURIComponent(query)}` : ''}`);
+export const listDestinationResponses = (destinationId: string) =>
+  get<FormResponse[]>(`/formularios/destinos/${encodeURIComponent(destinationId)}/respuestas`);
 export const getFormResponse = (id: string) => get<FormResponse>(`/formularios/respuestas/${id}`);
 export const saveFormResponse = (id: string, data: Record<string, unknown>) =>
   post<FormResponse>(`/formularios/${id}/respuestas`, data);
+export const saveFormResponseMultipart = (path: string, data: Record<string, unknown>, attachments: FormAttachment[]) => {
+  const form = new FormData(); form.append('payload', JSON.stringify(data));
+  attachments.forEach(({ id_pregunta, file }) => form.append(`archivo:${id_pregunta}`, file));
+  return postForm<FormResponse>(path, form);
+};
+export const listProductionContextForms = (kind: 'atenciones' | 'recorridos' | 'novedades', recordId: string) =>
+  get<ContextForm[]>(`/produccion/${kind}/${encodeURIComponent(recordId)}/formularios`);
+export const saveProductionFormResponse = (kind: 'atenciones' | 'recorridos' | 'novedades', recordId: string, formId: string, data: Record<string, unknown>) =>
+  post<FormResponse>(`/produccion/${kind}/${encodeURIComponent(recordId)}/formularios/${encodeURIComponent(formId)}/respuestas`, data);
+export const listOfficeContextForms = (kind: 'atenciones' | 'beneficios' | 'prestamos' | 'seguro', recordId: string) =>
+  get<ContextForm[]>(`/oficina/${kind}/${encodeURIComponent(recordId)}/formularios`);
+export const saveOfficeFormResponse = (kind: 'atenciones' | 'beneficios' | 'prestamos' | 'seguro', recordId: string, formId: string, data: Record<string, unknown>) =>
+  post<FormResponse>(`/oficina/${kind}/${encodeURIComponent(recordId)}/formularios/${encodeURIComponent(formId)}/respuestas`, data);
 export const deleteFormResponse = (id: string, expectedVersion: number, motivo: string) =>
   post<FormResponse>(`/formularios/respuestas/${id}/eliminacion`, { expected_version: expectedVersion, motivo });
 export const listAvailableForms = (module: string) =>

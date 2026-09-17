@@ -53,9 +53,9 @@ class EntityService:
         }
 
     def create(self, session: Session, user: AuthenticatedUser, *, motivo_auditoria: str,
-               correlation_id: str, **campos):
+               correlation_id: str, authorization_module: str | None = None, **campos):
         self._rechazar_desconocidos(campos)
-        authorize(user, self.modulo, "create")
+        authorize(user, authorization_module or self.modulo, "create")
         record = self.model(**{self.id_field: str(uuid4())}, **creation_metadata(user.correo), **campos)
         session.add(record)
         session.flush()
@@ -64,9 +64,10 @@ class EntityService:
         return record
 
     def update(self, session: Session, user: AuthenticatedUser, id_value: str, *,
-               expected_version: int | None, motivo_auditoria: str, correlation_id: str, **campos):
+               expected_version: int | None, motivo_auditoria: str, correlation_id: str,
+               authorization_module: str | None = None, **campos):
         self._rechazar_desconocidos(campos)
-        authorize(user, self.modulo, "edit")
+        authorize(user, authorization_module or self.modulo, "edit")
         record = get_active(session, self.model, id_value, self._id_column())
         check_expected_version(record, expected_version)
         before = self._snapshot(record)
@@ -78,8 +79,9 @@ class EntityService:
         return record
 
     def soft_delete(self, session: Session, user: AuthenticatedUser, id_value: str, *,
-                     expected_version: int | None, motivo: str, correlation_id: str):
-        authorize(user, self.modulo, "delete")
+                    expected_version: int | None, motivo: str, correlation_id: str,
+                    authorization_module: str | None = None):
+        authorize(user, authorization_module or self.modulo, "delete")
         record = get_active(session, self.model, id_value, self._id_column())
         check_expected_version(record, expected_version)
         before = self._snapshot(record)

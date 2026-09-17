@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 import app.db.session as db_session
 from app.db.session import build_engine
 from app.models import Base, Permission, Role, User
-from app.services.security_seed import ACTION_TO_FIELD, seed_security
+from app.services.security_seed import ACTION_TO_FIELD, MODULES, ROLES, seed_security
 
 
 class BootstrapTests(unittest.TestCase):
@@ -48,7 +48,7 @@ class BootstrapTests(unittest.TestCase):
             seed_security(session)
         with Session(self.engine) as session:
             self.assertEqual(session.scalar(select(func.count()).select_from(Role)), 5)
-            self.assertEqual(session.scalar(select(func.count()).select_from(Permission)), 90)
+            self.assertEqual(session.scalar(select(func.count()).select_from(Permission)), len(MODULES) * len(ROLES))
             self.assertEqual(session.scalar(select(func.count()).select_from(User)), 0)
             self.assertFalse(session.get(Permission, "ROLE_ADMIN:CASOS").puede_eliminar)
             sensitive = session.scalars(select(Permission).where(Permission.puede_sensible)).all()

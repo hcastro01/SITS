@@ -1,7 +1,9 @@
+import asyncio
 import threading
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 
 from alembic import command
 from alembic.config import Config
@@ -153,10 +155,15 @@ class ResponseCodeTests(unittest.TestCase):
 
     def test_api_ignores_client_code_and_returns_backend_code(self):
         with Session(self.engine) as session, session.begin():
-            result = responder(self.form_id, {
+            payload = {
                 "borrador": False, "respuestas": self._answer(), "id_envio_cliente": "api",
                 "codigo_respuesta": "TTHH_RRLL_99999999999", "numero_secuencial": 99_999_999_999,
-            }, db=session, user=resolve_current_user(session, "ts1@example.com"))
+            }
+            async def json():
+                return payload
+            request = SimpleNamespace(headers={}, json=json, state=SimpleNamespace(correlation_id="api"))
+            result = asyncio.run(responder(self.form_id, request, db=session,
+                                           user=resolve_current_user(session, "ts1@example.com")))
             self.assertEqual(result["codigo_respuesta"], "TTHH_RRLL_00000000001")
             self.assertEqual(result["numero_secuencial"], 1)
 

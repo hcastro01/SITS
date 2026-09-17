@@ -1,0 +1,563 @@
+# Avance técnico por bloques — SITS
+
+Actualizado: 15 de septiembre de 2026.
+
+## Contexto verificado
+
+- Rama actual: `feature/sits-expansion` (se conserva; no se cambió de rama).
+- Plan reutilizado: `MIGRACION_FASE_1.md`. Su encabezado aún declara la Fase 1 como propuesta y no identifica un bloque en curso.
+- La especificación vigente es `Prompt_Codex_SITS_Ejecucion_Por_Bloques.md`; sustituye la navegación anterior descrita en `docs/SITS_EXPANSION_SPEC.md` cuando haya conflicto.
+- Hay cambios locales preparados, que no fueron modificados: modelo `ModuloSistema`, migración `0013_catalogo_modulos`, semilla `seed_module_catalog` y su llamada desde `backend/app/start.py`.
+- Al inicio del bloque, esos cambios representaban la navegación anterior (por ejemplo, «Gestión Operativa» y «Módulos próximos») y el `Layout.tsx` era plano. El resultado de este bloque se registra más abajo.
+- La migración `0013_catalogo_modulos` depende de `0012_integracion_modulos`; esto coincide con el head de migraciones inspeccionado. Antes de aplicarla deberá validarse contra el modelo completo de metadatos y mediante una base temporal.
+- No hay Python disponible en PATH (`py`, `python` y `python3` no están instalados), por lo que en este entorno no se ejecutaron pruebas backend.
+
+## Bloque completado
+
+**Fase 1 — Catálogo de navegación y sidebar jerárquico** (autorizado el 15 de septiembre de 2026).
+
+### Implementado
+
+- El sidebar reutiliza `Layout.tsx` y ahora presenta el árbol de Trabajo Social, Repositorio de formularios y Administración. Los grupos se despliegan y contraen, conservan la navegación móvil y el modo colapsado.
+- Una ruta hija canónica de Producción deja expandidos Trabajo Social y Producción. El elemento activo sigue marcado mediante `NavLink`.
+- Se añadieron rutas canónicas para Inicio y los listados existentes de Producción: `/trabajo-social/inicio`, `/trabajo-social/produccion/atenciones`, `/trabajo-social/produccion/recorridos` y `/trabajo-social/produccion/novedades`. Las rutas anteriores `/`, `/atenciones`, `/recorridos` y `/novedades` se conservan.
+- Casos, Personas y Búsqueda mantienen sus rutas compatibles existentes, pero ya no aparecen como accesos principales del sidebar.
+- Los subprocesos que aún no tienen persistencia ni pantalla propia se muestran sin enlace: no redirigen a datos de otro proceso ni aparentan estar implementados. Los accesos Formularios reutilizan el repositorio central existente.
+- La migración `0013_catalogo_modulos` incluye el campo heredado `motivo_eliminacion`; el modelo y la tabla coinciden. La semilla define el árbol nuevo de forma aditiva e idempotente y añade sólo los permisos de los módulos nuevos.
+
+### Archivos modificados o creados
+
+- `frontend/src/app/Layout.tsx`, `frontend/src/styles.css`, `frontend/src/app/App.tsx` y `frontend/src/app/Layout.test.ts`.
+- `backend/app/models/security.py`, `backend/app/services/security_seed.py`, `backend/migrations/versions/0013_catalogo_modulos.py` y `backend/tests/test_navigation_catalog.py`.
+- Este documento de avance.
+
+### Pruebas ejecutadas
+
+- `frontend: npm test` — aprobado.
+- `frontend: npm run build` — aprobado; TypeScript y Vite completaron el build de producción.
+- `git diff --check` y `git diff --cached --check` — aprobados, sin errores de espacios.
+
+### Pruebas no ejecutadas
+
+- `docker compose run --rm --no-deps backend python -m unittest tests.test_navigation_catalog` no se pudo iniciar porque el daemon de Docker Desktop no está activo (`dockerDesktopLinuxEngine` no existe). No hay intérprete Python local disponible. No se ejecutó ninguna migración ni se modificó una base de datos.
+
+## Próximo bloque recomendado
+
+Esperar autorización explícita para el siguiente bloque. No avanzar automáticamente a Fase 2.
+
+## Fase 2 — Actividades
+
+En curso: se confirmó que Compromisos y Seguimientos dependen de Casos y no se reutilizaron. Se creó `Actividad` independiente, con responsable y autor como FK de usuario, Persona opcional, auditoría, versión y archivado lógico.
+
+- Migración nueva: `0014_actividades`, posterior a `0013_catalogo_modulos`; no ejecutada.
+- API: `/api/v1/actividades` para listado paginado, creación, detalle, edición y archivado; `/opciones` entrega usuarios activos y Personas.
+- Frontend: tabla y registro en las rutas de Actividades. Adjuntos/BLOB y la integración global de destinos de Formularios siguen pendientes de sus bloques específicos.
+- Validación realizada: `npm run build` y `npm test` (38 pruebas existentes aprobadas). Las pruebas backend no se ejecutaron por la limitación documentada de Python/Docker.
+- Pendientes de Fase 2 completados: filtros combinables por responsable, estado, tipo, fecha desde/hasta y Mis actividades; la tabla conserva filtros al paginar y muestra total/páginas calculadas desde la respuesta backend.
+- Revalidación: `npm run build`, `npm test` (9 archivos, 38 pruebas) y `git diff --check` aprobados. Python sigue siendo el alias de Microsoft Store y Docker no devolvió un servidor activo; no se ejecutaron pruebas backend ni migraciones.
+- Cierre de pruebas Fase 2: se añadieron `frontend/src/features/actividades/ActividadesPage.test.tsx` y `backend/tests/test_actividades.py`. Docker ya pudo crear una red y un contenedor de prueba; el primer comando falló porque la prueba aún no estaba incluida en la imagen. La ejecución Vitest con las nuevas pruebas quedó bloqueada antes de reportar resultados (el intento sin límite de workers informó un fallo de asignación de memoria).
+- La suite aislada de Actividades quedó corregida (mocks hoisted y aserciones sobre `URLSearchParams`): 4 pruebas aprobadas con un worker. El build posterior detectó sólo nulabilidad estática en esas aserciones y se corrigió; queda pendiente su ejecución final junto con la reconstrucción y prueba backend de la imagen.
+- Cierre final: imagen backend reconstruida y `test_actividades.py` visible/ejecutado en Docker (1/1 aprobado). `alembic upgrade 0014_actividades` se ejecutó contra `sqlite:////tmp/activities-test.db` dentro de un contenedor desechable. La suite aislada frontend Actividades pasó 4/4; la suite completa no alcanzó a finalizar en esta ejecución.
+- Cierre técnico reanudado: `npm test` volvió a agotarse por memoria del entorno antes de informar resultados. Con un worker, los 10 archivos se ejecutaron de forma aislada: 42/42 pruebas aprobadas (incluidas Actividades 4/4). `npm run build` aprobó. Se amplió `backend/tests/test_actividades.py` para cubrir creación, sesión/autorización, responsable, persona, filtros, listado, edición, finalización, archivado y vencimiento. Su ejecución y la validación nueva de 0014 quedaron pendientes: Docker Desktop no pudo iniciar (`Docker Desktop is unable to start`) y el Python local no tiene Alembic instalado (`ModuleNotFoundError: alembic`). La sintaxis de la prueba nueva fue validada con `py_compile`.
+- Cierre final: Docker Desktop operativo; imagen backend reconstruida para incluir los 8 casos de Actividades. `tests.test_actividades` aprobó 8/8. La suite backend ejecutó 208 pruebas: 206 aprobadas y 2 fallos ajenos a Actividades por expectativas heredadas de 90 permisos frente a los 125 del catálogo vigente (`test_admin_service` y `test_bootstrap`). Se corrigió la declaración ORM del índice compuesto `ix_actividades_estado_fecha_objetivo` para que coincida con 0014; la comprobación de metadatos ya aprueba. Sobre `/tmp/phase2-0014.db` dentro de un contenedor desechable, 0014 hizo upgrade con estructura e índice verificados, downgrade a 0013 y upgrade final correctamente. Frontend: los 10 archivos se ejecutaron secuencialmente con un worker (42/42) y build aprobado; se evitó el OOM de `npm test` paralelo.
+- Cierre validado: las dos expectativas heredadas de permisos fueron actualizadas de 90 a 125, el valor real de `len(MODULES) * len(ROLES)` (25 módulos por 5 roles), sin modificar el seed ni la lógica de autorización. Las dos pruebas y Actividades aprobaron 10/10; la suite backend completa aprobó 208/208. Se mantienen aprobados frontend 42/42, build, ciclo temporal de 0014 y `git diff --check`.
+
+### Cierre formal de Fase 2
+
+**FASE 2 VALIDADA.** Backend completo 208/208; Actividades backend 8/8; frontend completo 42/42; build frontend aprobado; migración `0014_actividades` validada mediante upgrade, downgrade y upgrade final sobre SQLite temporal; `git diff --check` aprobado. No existen pendientes técnicos conocidos dentro del alcance de la Fase 2.
+
+## Revisión técnica de Fase 1
+
+Resultado: **FASE 1 VALIDADA — lista para pasar a Fase 2.**
+
+### Correcciones de la revisión
+
+- Cada destino del árbol tiene ahora una ruta canónica. Los listados ya existentes de Producción reutilizan sus componentes actuales; Formularios reutiliza el repositorio único existente; los destinos sin flujo operativo usan una vista base honesta y no consultan ni muestran datos de otro proceso.
+- Se sincronizaron las rutas del catálogo `MODULOS_ARQUITECTURA` con las rutas del sidebar.
+- En móvil, abrir el menú muestra los niveles hijos incluso si el sidebar se había colapsado previamente en escritorio.
+
+### Inventario de rutas de la jerarquía
+
+| Destino | Ruta | Estado |
+|---|---|---|
+| Inicio | `/trabajo-social/inicio` | Dashboard existente |
+| Actividades / Tabla | `/trabajo-social/actividades` | Vista base |
+| Actividades / Registrar | `/trabajo-social/actividades/registrar` | Vista base |
+| Actividades / Formularios | `/trabajo-social/actividades/formularios` | Repositorio único |
+| Departamento Médico / Riesgos | `/trabajo-social/departamento-medico/riesgos` | Vista base |
+| Departamento Médico / Ausentismos | `/trabajo-social/departamento-medico/ausentismos` | Vista base |
+| Departamento Médico / Accidentes | `/trabajo-social/departamento-medico/accidentes` | Vista base |
+| Departamento Médico / Formularios | `/trabajo-social/departamento-medico/formularios` | Repositorio único |
+| Producción / Atenciones | `/trabajo-social/produccion/atenciones` | Listado existente |
+| Producción / Recorridos | `/trabajo-social/produccion/recorridos` | Listado existente |
+| Producción / Novedades | `/trabajo-social/produccion/novedades` | Listado existente |
+| Producción / Formularios | `/trabajo-social/produccion/formularios` | Repositorio único |
+| Oficina / Beneficios | `/trabajo-social/oficina/beneficios` | Vista base |
+| Oficina / Atenciones | `/trabajo-social/oficina/atenciones` | Vista base |
+| Oficina / Préstamos | `/trabajo-social/oficina/prestamos` | Vista base |
+| Oficina / Seguro | `/trabajo-social/oficina/seguro` | Vista base |
+| Oficina / Formularios | `/trabajo-social/oficina/formularios` | Repositorio único |
+| Repositorio de formularios | `/formularios` | Existente |
+| Usuarios | `/admin/usuarios` | Existente |
+| Roles y permisos | `/admin/permisos` | Existente |
+
+Las rutas históricas `/`, `/atenciones`, `/recorridos`, `/novedades`, `/casos`, `/personas` y `/busqueda` permanecen declaradas. No se eliminaron enlaces internos. No existían breadcrumbs en el `Layout` anterior, por lo que no hubo ninguno que conservar o modificar.
+
+### Validación estática y pruebas
+
+- Revisados modelo, semilla, referencias padre-hijo, identificadores `sits-*`, `revision`, `down_revision`, `upgrade()` y `downgrade()` de `0013_catalogo_modulos`.
+- La migración crea exclusivamente la tabla nueva `modulos` y sus índices sobre `0012_integracion_modulos`; no modifica migraciones anteriores ni elimina datos. La semilla pobladora es aditiva y sólo inserta IDs inexistentes.
+- `npm test`: 9 archivos, 38 pruebas aprobadas.
+- `npm run build`: aprobado.
+- `git diff --check` y `git diff --cached --check`: aprobados; sólo quedaron advertencias de normalización LF/CRLF.
+- La prueba backend sigue sin ejecutarse: Python no está disponible localmente y el daemon Docker no estaba activo. No se reintentó ni se ejecutó una migración.
+
+## Fase 3 — Bloque 2: importación de Ausentismos
+
+**BLOQUE 2 FASE 3 VALIDADO.** Se implementó la importación XLSX de Ausentismos con lotes e incidencias persistentes, análisis/previsualización sin inserciones y confirmación transaccional TODO-O-NADA. El historial, detalle y errores paginados están disponibles bajo `/api/v1/importaciones/ausentismos`.
+
+- Migración `0016_lotes_importacion_ausentismo` validada en SQLite temporal mediante upgrade, downgrade a `0015_ausentismos` y upgrade final.
+- Pruebas específicas de importación: 18/18 aprobadas.
+- Suite backend: 234/234 aprobadas.
+
+Próximo bloque previsto: frontend del flujo de importación de Ausentismos.
+
+## Fase 3 — Bloque 3: frontend de importación de Ausentismos
+
+**BLOQUE 3 FASE 3 VALIDADO.** La ruta de Ausentismos ahora consume los endpoints reales de importación para analizar XLSX, consultar incidencias paginadas, confirmar mediante el identificador del lote e inspeccionar historial/detalle. No se modificó el backend, migraciones ni permisos globales.
+
+- Pruebas específicas de Ausentismos frontend: 7/7 aprobadas.
+- Suite frontend completa: 49/49 aprobadas en 11 archivos, ejecutados secuencialmente con un worker para evitar el OOM conocido de la ejecución paralela.
+- Build frontend y `git diff --check`: aprobados.
+
+Pendientes reales dentro de Fase 3: ninguno para este bloque. Siguiente bloque previsto: tabla operativa de registros de Ausentismos; requiere autorización explícita.
+
+## Fase 3 — Bloque 4A: backend de registros operativos de Ausentismos
+
+**BLOQUE 4A FASE 3 VALIDADO.** Se agregó la consulta operativa individual sin implementar frontend. Los Ausentismos confirmados desde XLSX conservan en adelante un vínculo verificable con su lote; los históricos no se reclasifican y devuelven autor, lote y origen como `null` cuando no existen.
+
+- Endpoints protegidos por `AUSENTISMO:read`: `GET /api/v1/ausentismos` y `GET /api/v1/ausentismos/{ausentismo_id}`.
+- Listado paginado por `limite` y `offset`, con total; ordena por `fecha_inicio` descendente e `id_ausentismo` descendente. Filtros combinables: nombre, cédula textual, área actual de Persona, tipo, fecha desde/hasta, `lote_id` y origen verificable `IMPORTACION_XLSX`.
+- El contrato devuelve solo datos operativos: Persona, cédula, área, fechas, tipo, motivo, observación, fecha de registro, lote y autor del lote cuando la relación real existe. No devuelve BLOB ni información médica adicional.
+- Migración `0017_registros_operativos_ausentismos`: agrega `ausentismos.lote_id` opcional con FK e índice, posterior a `0016`; validada en SQLite temporal mediante upgrade, downgrade a `0016` y upgrade final.
+- Pruebas HTTP específicas nuevas: 4/4 aprobadas; cubren listado, paginación, total, detalle, no encontrado, Persona/cédula/área, filtros combinables, lote, origen, autor y permisos. Regresión de importación: 18/18 aprobadas, incluida la asignación de `lote_id` al confirmar.
+- Suite backend completa: 238/238 aprobadas. `git diff --check`: aprobado.
+
+Pendientes reales dentro de Bloque 4A: ninguno. Siguiente bloque previsto: frontend de registros operativos de Ausentismos; requiere autorización explícita. No se inició Bloque 4B.
+
+## Fase 3 — Bloque 4B: frontend de registros operativos de Ausentismos
+
+**BLOQUE 4B FASE 3 VALIDADO.** La pestaña Registros consulta Ausentismos individuales; ya no presenta lotes confirmados como si fueran registros operativos. Importar XLSX y el Historial de cargas conservan sus flujos separados.
+
+- Cliente nuevo `frontend/src/api/ausentismos.ts` conectado a `GET /api/v1/ausentismos` y `GET /api/v1/ausentismos/{ausentismo_id}`.
+- Tabla responsive con Persona, cédula textual, área actual, tipo, fechas, motivo, registrado por, origen y acción de detalle. Los datos no verificables se presentan como “Sin información”, sin inventar autor, origen ni área histórica.
+- Filtros server-side combinables: nombre, cédula, área, tipo, fecha desde/hasta, origen y lote; incluye limpiar filtros y reinicia el offset al aplicarlos.
+- Paginación compatible con `items`, `total`, `limite` y `offset`, con rango actual, anterior/siguiente y conservación de filtros.
+- El detalle usa el Modal accesible existente y muestra observación, lote y metadatos reales. Al confirmar una importación, la consulta de Registros se refresca.
+- Pruebas específicas de Ausentismos frontend: 12/12 aprobadas. Suite frontend completa: 54/54 aprobadas en 11 archivos con un worker. `npm run build` y `git diff --check`: aprobados.
+
+Pendientes reales dentro de Bloque 4B: ninguno. Siguiente bloque previsto: Bloque 5 — integración y cierre de Ausentismos; requiere autorización explícita. No se inició Bloque 5.
+
+## Fase 3 — Bloque 5: integración y cierre de Ausentismos
+
+**FASE 3 — AUSENTISMOS COMPLETADA.** Se cerró la integración de los bloques 1 a 4B sin iniciar módulos nuevos ni modificar la matriz global de permisos.
+
+- Bloque 1: análisis y reglas canónicas de importación de Ausentismos.
+- Bloque 2: importación XLSX persistente, lotes, incidencias, confirmación transaccional y historial.
+- Bloque 3: frontend de análisis, confirmación e historial de cargas.
+- Bloque 4A: API de registros individuales, filtros, detalle y trazabilidad lote/autor/origen.
+- Bloque 4B: tabla frontend de registros individuales, filtros server-side, paginación y detalle operativo.
+- Integración validada en SQLite temporal: XLSX válido crea Ausentismos vinculados al lote y a su autor; errores y duplicados bloquean confirmación sin inserciones parciales; la doble confirmación es rechazada. Registros y detalle exponen lote, autor y origen verificables; los históricos sin procedencia permanecen en `null` y la UI muestra “Sin información”.
+- Migraciones verificadas: `0015_ausentismos` → `0016_lotes_importacion_ausentismo` → `0017_registros_operativos_ausentismos` → head, con tablas, FK e índice `ix_ausentismos_lote_id`; downgrade a 0016 y upgrade final aprobados en SQLite temporal.
+- Pruebas específicas de integración backend existentes: 22/22 aprobadas (`test_importaciones_ausentismos` y `test_ausentismos_operativos`). Suite backend completa: 238/238 aprobadas.
+- Frontend: 54/54 pruebas aprobadas en 11 archivos con un worker; `npm run build` aprobado. La regresión de navegación y sidebar está cubierta por la suite existente.
+- `git diff --check`: aprobado.
+
+Pendientes reales de Ausentismos en Fase 3: ninguno. No se inició Fase 4.
+
+## Módulo actual posterior a Fase 3 — Accidentes
+
+**ACCIDENTES COMPLETADA Y COMMITTEADA EN `5491b66`.** Se implementó el módulo de Accidentes del Departamento Médico sin renumerar el histórico previo. Esta denominación identifica el siguiente bloque funcional tras el cierre de Fase 3; la numeración futura deberá continuar desde este punto de forma explícita.
+
+- Backend: registro manual, listado paginado, detalle, edición, filtros combinables, vínculo con Persona, estados, clasificación y autorización por módulo.
+- Importación XLSX: análisis previo sin crear Accidentes, validación de columnas y archivo, incidencias persistentes, duplicados dentro del archivo y contra la base, confirmación atómica, bloqueo de doble confirmación e historial de lotes.
+- Frontend: pantalla integrada en Departamento Médico para registros, filtros, paginación, detalle, registro manual, análisis XLSX, confirmación e historial de importaciones.
+- Migración `0018_accidentes`: validada en SQLite temporal.
+- Permisos: validados en backend; usuario sin permiso recibe rechazo de autorización.
+- Pruebas específicas de Accidentes: 2/2 aprobadas. Validación funcional controlada: aprobada.
+- Frontend: 54/54 pruebas aprobadas; build de producción aprobado.
+- Suite backend global: 231/240 aprobadas y 1 error de teardown. Los 9 fallos y el error también ocurren en el baseline `3a79689bb05af52fbda4d80b105554fee8ac9e6f` (229/238 y 1 error), por lo que son preexistentes y no atribuibles a Accidentes.
+- `git diff --check`: aprobado.
+
+## Fase 5 — Repositorio central y asignación de Formularios
+
+### Bloque 1 — Auditoría y diseño técnico
+
+**Estado: VALIDADO.**
+
+- Documento técnico: `docs/SITS_FASE5_FORMULARIOS_DISENO.md`.
+- Arquitectura reutilizable verificada: Formulario, FormularioDestino, FormularioVersion, EnvioFormulario, RespuestaFormulario, constructor visual, renderizador dinámico, integraciones por módulo/contexto, códigos, auditoría y permisos existentes.
+- Gaps identificados: destinos planos por módulo, ausencia de catálogo Macroproceso → Proceso → Subproceso y ausencia de un destino real persistido por respuesta.
+- Modelo objetivo acordado: catálogo jerárquico de destinos, asignaciones permitidas por plantilla sin duplicarla y destino real nullable por envío, separado del contexto existente.
+- Compatibilidad: los formularios, envíos, IDs, versiones, códigos, Personas, auditoría y contextos históricos permanecen sin reclasificación automática; los ambiguos quedan sin clasificación nueva.
+- Siguiente bloque: implementación backend/modelo de destinos de formularios, incluida nueva migración posterior a `0018_accidentes`, sin iniciar todavía frontend jerárquico.
+
+Fase 5 no está completada: este registro cierra únicamente su Bloque 1.
+
+### Bloque 2 — Backend/modelo de destinos jerárquicos
+
+**Estado: VALIDADO.**
+
+- Se creó `DestinoFormulario` / `destinos_formulario`, catálogo autorreferente con macroproceso, procesos y subprocesos funcionales; no incluye elementos de interfaz.
+- La migración `0019_destinos_jerarquicos_formularios`, posterior a `0018_accidentes`, agregó el catálogo, FKs e índices, una referencia nullable desde `formulario_destinos` y `id_destino_respuesta` nullable en `envios_formulario`.
+- `formulario_destinos` conserva el campo textual histórico y ahora admite varias asignaciones jerárquicas sin duplicar la plantilla; el retiro es lógico y no afecta respuestas previas.
+- Las respuestas nuevas validan destino existente, activo, subproceso de Trabajo Social y asignado a la plantilla; el destino real se devuelve y una respuesta no se consulta bajo otro destino.
+- La semilla de 16 destinos es aditiva e idempotente. No se realizó backfill ni reclasificación histórica.
+- Endpoints backend añadidos bajo `/api/v1/formularios` para árbol, destinos activos, asignaciones por plantilla y respuestas por destino.
+- Validación: pruebas relacionadas 46/46, suite backend completa 247/247, `alembic check` sobre SQLite temporal sin operaciones nuevas, ciclo SQLite 0018 → 0019 → 0018 → 0019 aprobado y `git diff --check` pendiente de la comprobación final del bloque.
+
+Fase 5 no está completada: el siguiente bloque será el frontend jerárquico, filtros/vistas por rama y regresión integral.
+
+### Bloque 3 — Frontend del Repositorio central y gestión visual de destinos jerárquicos
+
+**Estado: VALIDADO.**
+
+- El único acceso sigue siendo el Repositorio central de Formularios; se reutilizan `FormulariosAdminPage` y `FormBuilderPage`, sin crear otro motor, constructor ni repositorios por módulo.
+- El repositorio carga el árbol real desde `/formularios/destinos`, presenta los destinos de cada plantilla con nombres legibles y filtra por macroproceso, proceso y subproceso mediante IDs del catálogo.
+- El constructor carga asignaciones desde `/formularios/{id_formulario}/destinos` y las sincroniza por PUT con IDs reales. Permite varios subprocesos en una plantilla, retiro lógico, loading, error, guardado sin doble envío y refresco tras éxito.
+- Los textos heredados siguen visibles como «Destino histórico sin clasificación jerárquica» y no se infieren ni reclasifican.
+- La gestión visual respeta `FORMULARIOS:edit`; lectura, errores 401/403 y estado vacío se comunican sin sustituir la autorización backend.
+- Validación frontend específica: 26/26 aprobadas. Regresión frontend completa: 77/77 aprobadas en 13 archivos con un worker; build y `git diff --check` aprobados.
+
+Fase 5 no está completada: el siguiente bloque previsto es la vista contextual por rama; no se inició en este bloque.
+
+### Bloque 4 — Vistas contextuales de Formularios por rama
+
+**Estado: VALIDADO.**
+
+- Las rutas existentes de Formularios de Actividades, Departamento Médico, Producción y Oficina reutilizan una única vista contextual configurable; no se crearon rutas paralelas, plantillas nuevas ni repositorios por módulo.
+- El catálogo real resuelve cada rama por código estable y filtra exclusivamente asignaciones jerárquicas explícitas a sus subprocesos autorizados. No hay herencia desde procesos ni inferencia desde nombres, rutas, destinos textuales históricos o formularios sin destino.
+- El filtro Todos realiza la unión sin duplicados por formulario; los filtros específicos preservan el comportamiento multidestino. Las asignaciones de otras ramas no se muestran.
+- La vista conserva loading, estados vacíos, errores HTTP incluidos 401/403, acceso al Repositorio central y administración solo con `FORMULARIOS:edit`. El destino real de la respuesta no se modificó.
+- Validación frontend específica: 5/5 aprobadas. Regresión frontend completa: 82/82 aprobadas en 14 archivos. Build y `git diff --check` aprobados.
+
+Fase 5 no está completada: el siguiente bloque previsto es Bloque 5 — destino real de respuesta y respuestas contextualizadas; no se inició en este bloque.
+
+### Bloque 5 — Destino real de respuesta y respuestas contextualizadas
+
+**Estado: VALIDADO.**
+
+- `DynamicResponsePage` reutiliza el motor y renderizador existentes y envía `id_destino_respuesta` con el request de respuesta cuando corresponde.
+- Un único destino jerárquico activo se selecciona automáticamente y se muestra con ruta legible. En vistas contextuales se conserva el subproceso ya determinado; desde Todos, un formulario multidestino exige elegir exactamente un destino permitido, activo y compatible con la rama.
+- Formularios y respuestas históricas sin clasificación jerárquica conservan `id_destino_respuesta = null`; no hay inferencia desde texto, contexto, Persona, URL ni nombres. La edición conserva el destino original.
+- La vista contextual consulta las respuestas solo por el endpoint existente del subproceso seleccionado; no mezcla respuestas de otros destinos ni históricos sin destino.
+- Validación frontend específica: 24/24 aprobadas. Regresión frontend completa: 101/101 aprobadas en 15 archivos. Build y `git diff --check` aprobados. No hubo cambios backend; las pruebas backend específicas no se ejecutaron porque el entorno Python local no tiene `pytest` disponible.
+
+### Bloque 6 — Integración, regresión y cierre
+
+**Estado: VALIDADO Y COMPLETADO.**
+
+- Se confirmó que el Repositorio central sigue siendo único: las vistas de Actividades, Departamento Médico, Producción y Oficina son filtros contextuales de las mismas plantillas, sin repositorios ni duplicación física por rama.
+- La integración existente cubre una plantilla asignada a Recorridos y Novedades de planta: una respuesta enviada a Recorridos persiste `id_destino_respuesta` de Recorridos, se lista allí y no bajo Novedades; tras el retiro lógico, el histórico se conserva y nuevos envíos a Recorridos se rechazan. La misma validación de asignación, aislamiento y retiro se aplica a los demás subprocesos explícitos.
+- Se verificaron catálogo real, códigos únicos, relación padre-hijo, 16 destinos activos e idempotencia. En SQLite temporal y desechable: `0018_accidentes → 0019_destinos_jerarquicos_formularios → head`, tabla `destinos_formulario`, FK autorreferente `padre_id_destino`, FKs de asignación/respuesta, índice `ix_envios_formulario_id_destino_respuesta` y segunda siembra sin duplicados.
+- Históricos con destinos textuales o respuestas sin destino jerárquico permanecen sin clasificación nueva. Persona, contexto, versiones/snapshots, códigos/correlativos, idempotencia y auditoría se preservan por las pruebas de integración de Formularios.
+- Seguridad: las pruebas reutilizan los permisos de `FORMULARIOS`, `RESPUESTAS` y el módulo contextual; la autorización de administración de destinos rechaza al usuario sin `FORMULARIOS:edit`. La regresión API conserva cobertura de autenticación, 401 y 403.
+- Validación backend: 52/52 pruebas específicas de Formularios y 247/247 en la suite completa mediante `python -m unittest discover -s tests` dentro de Docker.
+- Validación frontend: 52/52 específicas de Fase 5, 101/101 en la suite completa con un worker y build de producción aprobado.
+- Regresión de navegación, Actividades, Ausentismos y Accidentes incluida en las suites completas. `git diff --check` aprobado.
+
+### Cierre formal de Fase 5
+
+**FASE 5 — REPOSITORIO CENTRAL Y ASIGNACIÓN DE FORMULARIOS COMPLETADA.**
+
+- Bloque 1: auditoría y diseño técnico.
+- Bloque 2: backend y migración 0019 de destinos jerárquicos.
+- Bloque 3: Repositorio central y administración visual de destinos.
+- Bloque 4: vistas contextuales sin duplicación ni herencia implícita.
+- Bloque 5: respuestas con destino real contextualizado.
+- Bloque 6: integración, regresión y cierre.
+
+Pendientes reales de Fase 5: ninguno. No se inició Fase 6, Producción funcional completa ni Oficina funcional completa.
+
+## Fase 6 — Riesgos de trabajo
+
+### Bloque 1 — Auditoría y diseño técnico
+
+**Estado: VALIDADO.**
+
+- Se auditó la arquitectura existente de Casos, Persona, seguimientos, compromisos, documentos, auditoría, permisos, Formularios, Accidentes y Ausentismos.
+- Decisión técnica: Riesgos de trabajo será una especialización explícita de `Caso` mediante `tipo_caso=RIESGOS_TRABAJO`, no una copia de Accidentes ni una nueva tabla de casos. No se reclasifican Casos históricos.
+- El modelo base ya conserva Persona, responsable, estados, seguimiento, compromisos, cierre, versionado, historial, documentos y auditoría. El Bloque 2 deberá incorporar scope de Riesgos y autorización contextual sin contaminar el listado de Casos.
+- El destino jerárquico de Formularios `RIESGOS_TRABAJO` ya existe; las respuestas futuras usarán el Caso como contexto real y el destino real de respuesta, sin repositorio paralelo.
+- No se encontró relación real que justifique una FK hacia Accidentes o Ausentismos. Cualquier vínculo futuro será opcional, explícito y no inferirá históricos.
+- Se verificó `0019_destinos_jerarquicos_formularios` como cabeza Alembic. No se requiere migración de tabla por el modelo elegido; un posible índice compuesto se evaluará con el query real del Bloque 2.
+- Documento técnico: `docs/SITS_FASE6_RIESGOS_TRABAJO_DISENO.md`.
+
+Fase 6 no está completada. El siguiente bloque autorizado será únicamente el Bloque 2 — backend/modelo operativo de Riesgos de trabajo.
+
+### Bloque 2 — Backend operativo de Riesgos de trabajo
+
+**Estado: VALIDADO.**
+
+- Se reutilizó `Caso` sin tabla paralela: el endpoint `/api/v1/riesgos-trabajo` fuerza y valida `tipo_caso=RIESGOS_TRABAJO` en creación, listado, detalle, edición, seguimientos, compromisos, cierre e historial.
+- El listado tiene filtros server-side combinables por Persona/nombre, cédula textual, área, estado, responsable y rango de fecha, con paginación real. Casos de otro tipo reciben 404 mediante el scope de Riesgos y no aparecen en el listado.
+- `RIESGOS_TRABAJO` se usa como permiso contextual: un usuario con ese scope puede operar Riesgos sin adquirir acceso a la API genérica de Casos. Persona, seguimiento, compromisos, cierre, auditoría, Formularios y Documentos se reutilizan.
+- Migración `0020_indice_casos_riesgos`: índice compuesto `tipo_caso`, `estado_caso`, `fecha_apertura`, justificado por el patrón de consulta. Ciclo SQLite temporal `0019 → 0020 → 0019 → 0020` aprobado; no hay backfill ni nueva tabla.
+- Pruebas específicas Riesgos: 4/4 aprobadas. Regresión Casos/Formularios: 23/23. Suite backend completa: 251/251. `git diff --check` aprobado.
+- Accidentes y Ausentismos permanecen independientes; no se crearon FKs ni automatismos. No se implementó frontend ni Bloque 3.
+
+Fase 6 no está completada. El siguiente bloque autorizado será únicamente el Bloque 3 — frontend operativo de Riesgos de trabajo.
+
+### Bloque 3 — Frontend operativo de Riesgos de trabajo
+
+**Estado: VALIDADO.**
+
+- La ruta existente de Departamento Médico / Riesgos reemplaza su vista base por una tabla operativa que consume exclusivamente `/api/v1/riesgos-trabajo`; no consulta ni filtra Casos genéricos en el navegador.
+- Incluye registro con Persona del maestro mediante búsqueda, responsable seleccionado desde la infraestructura reutilizable, filtros server-side combinables, paginación, detalle básico, edición versionada y cierre. `tipo_caso` no se expone ni se edita en la interfaz.
+- La tabla no mezcla Accidentes ni Ausentismos. Mantiene estados de carga, vacío, error, 401/403 y protección ante doble envío. Seguimientos, compromisos, Formularios, Documentos e Historial visual quedan expresamente para el Bloque 4.
+- Validación frontend: Riesgos 7/7; suite frontend 108/108 ejecutada en grupos seriales (un worker, por límite del entorno); build y `git diff --check` aprobados.
+
+Fase 6 no está completada. El siguiente bloque autorizado será únicamente el Bloque 4 — integraciones operativas de Riesgos de trabajo.
+
+### Bloque 4 — Integraciones del detalle de Riesgos de trabajo
+
+**Estado: VALIDADO.**
+
+- El detalle integrado conserva resumen, seguimientos, compromisos, Formularios, Documentos e Historial. Se agregaron wrappers de Riesgos: Formularios resuelve el destino activo del catálogo por código `RIESGOS_TRABAJO`, lista únicamente asignaciones a ese destino y fuerza su `id_destino_respuesta`; Documentos valida primero el Caso Riesgo y delega al almacenamiento/servicio existente con el permiso contextual.
+- Las rutas contextuales rechazan un Caso genérico (404), incluidas Formularios, Documentos, Compromisos e Historial. La prueba backend específica cubre esos contratos y aprobó 5/5; el build frontend aprobó.
+- Formularios y Documentos se validaron mediante paneles reales: destino exclusivo Riesgos, exclusión Accidentes/Ausentismos/otras ramas, multidestino único, respuesta contextual con destino real, Persona/contexto, metadata, permisos, loading, vacío, error, 401/403 y doble envío. Frontend específico 37/37; suite serial completa 121/121 (18 archivos); build aprobado.
+- Backend: Riesgos 5/5, regresión Formularios Fase 5 46/46 y suite completa 252/252. El único fallo previo fue un test de Actividades dependiente de `date.today()` en UTC frente a la regla de producción en `America/Guayaquil`; se ajustó exclusivamente la prueba para usar esa misma zona horaria. La regla de negocio no cambió; el fallo se reprodujo 3/3 también en `2252487`.
+- Fase 6 no está completada. El siguiente bloque autorizado será únicamente el Bloque 5 — integración, regresión y cierre de Fase 6.
+
+### Bloque 5 — Integración, regresión y cierre
+
+**FASE 6 — RIESGOS DE TRABAJO COMPLETADA.**
+
+- Flujo integrado validado en SQLite temporal: crea el Riesgo con Persona real, autor de sesión, responsable, `tipo_caso=RIESGOS_TRABAJO`; lista, filtros combinables, paginación, detalle, edición versionada, cierre, seguimientos, compromisos, Formularios, respuesta con destino real, Documentos e Historial operan bajo el mismo Caso.
+- El scope contextual rechaza un Caso genérico con 404 en detalle, edición/cierre, Seguimientos, Compromisos, Formularios, Documentos e Historial; el listado no lo incluye. La prueba cubre autenticación (401), separación de `RIESGOS_TRABAJO` frente a `CASOS` (403) y permisos contextuales sin cambiar la matriz global.
+- Migración `0020_indice_casos_riesgos`: ciclo SQLite temporal `0019 → 0020 → 0019 → 0020` con índice `ix_casos_tipo_estado_fecha_apertura` y `alembic check` aprobados. No agrega columnas, datos ni BLOB.
+- Regresión ejecutada: backend completo 252/252; frontend Riesgos 20/20, frontend completo serial 121/121 (18 archivos) y build aprobado. Actividades conserva las cuatro reglas de vencimiento en `America/Guayaquil`; Accidentes, Ausentismos y Formularios permanecen independientes y cubiertos por las suites.
+- `git diff --check` aprobado. No se hizo commit, push, ni se inició Fase 7. Pendientes reales de Fase 6: ninguno.
+
+## ROADMAP VIGENTE A PARTIR DE `5491b66`
+
+Esta sección es la única fuente de verdad para el orden de trabajo futuro de SITS. El histórico anterior se conserva como evidencia de su ejecución; `docs/SITS_EXPANSION_SPEC.md` no se usa como roadmap vigente.
+
+| Módulo | Estado | Commit de cierre | Siguiente acción |
+|---|---|---|---|
+| Navegación y estructura | COMPLETADA | `98e512d` | Ninguna; conservar y validar en regresiones. |
+| Actividades | COMPLETADA | `98e512d` | Ninguna; conservar y validar en regresiones. |
+| Ausentismos | COMPLETADA | `3a79689` | Ninguna; conservar y validar en regresiones. |
+| Accidentes | COMPLETADA | `5491b66` | Ninguna; conservar y validar en regresiones. |
+| Repositorio central y asignación de Formularios | SIGUIENTE | — | Definir y ejecutar el bloque transversal de Formularios. |
+| Riesgos de trabajo | COMPLETADA | Sin commit (instrucción de Bloque 5) | Ninguna; conservar y validar en regresiones. |
+| Producción | EN CURSO — Bloque 1 validado | — | Esperar autorización para Bloque 2: backend contextual de Atenciones y contratos de Producción. |
+| Oficina | PENDIENTE | — | Implementar Beneficios, Atenciones, Préstamos, Seguro y Formularios. |
+| Imágenes y adjuntos BLOB | PENDIENTE | — | Definir integración reutilizable para módulos que lo requieran. |
+| Administración | PENDIENTE | — | Revisar Usuarios y Roles y permisos. |
+| Dashboard | PENDIENTE | — | Definir indicadores soportados por datos implementados. |
+| Integración final, regresión y cierre | PENDIENTE | — | Ejecutar al completar los módulos anteriores. |
+
+Orden funcional de ejecución:
+
+1. Navegación y estructura — COMPLETADA.
+2. Actividades — COMPLETADA.
+3. Ausentismos — COMPLETADA.
+4. Accidentes — COMPLETADA.
+5. Repositorio central y asignación de Formularios — SIGUIENTE.
+6. Riesgos de trabajo.
+7. Producción: Atenciones, Recorridos, Novedades de planta y Formularios.
+8. Oficina: Beneficios, Atenciones, Préstamos, Seguro y Formularios.
+9. Imágenes y adjuntos BLOB.
+10. Administración: Usuarios; Roles y permisos.
+11. Dashboard.
+12. Integración final, regresión y cierre.
+
+## Fase 7 — Producción
+
+### Bloque 1 — Auditoría y diseño técnico
+
+**Estado: VALIDADO.**
+
+- Atenciones, Recorridos y Novedades tienen modelos, APIs, auditoría, documentos y frontend existentes; no son placeholders. Atenciones usa servicio dedicado y Recorridos/Novedades usan `EntityService`.
+- Las rutas de Producción son funcionales pero Atenciones, Recorridos y Novedades aún reutilizan los listados históricos transversales. `Novedades de planta` es una etiqueta de presentación de `Novedad`, no una tabla nueva.
+- Gap real: Atenciones no tiene discriminador Producción/Oficina. El diseño propone evaluar un contexto operativo explícito, nullable y no inferido; los históricos ambiguos deben permanecer sin clasificación y conservar su acceso transversal.
+- Persona es opcional en los tres modelos actuales; autor, responsable y Persona permanecen conceptos distintos. Área de Persona, cuando existe, es el área actual y no determina el proceso.
+- Formularios reutiliza destinos jerárquicos de Producción; respuestas, Documentos, Historial y auditoría se integrarán mediante infraestructura existente, sin motor de Formularios ni BLOB paralelos.
+- Cabeza Alembic verificada: `0020_indice_casos_riesgos`. No se creó migración. Documento técnico: `docs/SITS_FASE7_PRODUCCION_DISENO.md`.
+
+Fase 7 no está completada. El siguiente bloque autorizado será únicamente el Bloque 2 — backend operativo de Producción.
+
+### Bloque 2 — Backend contextual de Producción
+
+**Estado: VALIDADO.**
+
+- Se añadió el scope aditivo `PRODUCCION` y los wrappers `/api/v1/produccion/atenciones`, `/recorridos` y `/novedades`. Un usuario exclusivo de Producción no obtiene acceso a las APIs transversales de Atenciones, Recorridos o Novedades.
+- Migración `0021_contexto_operativo_atenciones`: columna nullable de valores `PRODUCCION`/`OFICINA` e índice `ix_atenciones_contexto_fecha`, sin backfill. La ruta contextual fuerza `PRODUCCION`; históricos `NULL` y futuras Atenciones `OFICINA` quedan fuera y reciben 404 en detalle/edición contextual.
+- Recorridos y Novedades se reutilizan como procesos de Producción mediante wrappers y `EntityService`; no se crearon tablas, columnas ni entidad paralela para Novedades de planta. Persona sigue opcional y autor, responsable y Persona permanecen separados.
+- Los listados contextuales aplican filtros server-side y paginación con `items`, `total`, `limite`, `offset`. Formularios, respuestas, Documentos y BLOB no se modificaron; auditoría, historial, versión y baja lógica se reutilizan.
+- Validación focalizada: Producción 3/3 y regresión Atenciones/Casos/Admin/Bootstrap 36/36 aprobadas. Suite backend completa: 255/255 aprobadas, sin fallos ni errores. Ciclo SQLite temporal `0020 → 0021 → 0020 → 0021` y `alembic check` aprobados.
+
+Fase 7 no está completada. El siguiente bloque autorizado será únicamente el Bloque 3 — frontend operativo de Producción.
+
+### Bloque 3 — Frontend contextual de Producción
+
+**Estado: VALIDADO.**
+
+- Las rutas `Trabajo Social / Producción / Atenciones`, `Recorridos` y `Novedades de planta` consumen exclusivamente `/api/v1/produccion/atenciones`, `/recorridos` y `/novedades`; los listados y rutas históricas se conservaron sin cambios de contrato.
+- Atenciones de Producción no expone `contexto_operativo` y solo obtiene registros del wrapper contextual, que excluye `NULL` y `OFICINA`; creación y edición permanecen sometidas al contexto forzado por backend. Persona es opcional y usa la búsqueda existente cuando se selecciona.
+- Tablas contextuales reutilizan los componentes existentes, muestran trazabilidad real separada (Persona, responsable y registrado por), filtros server-side, paginación, estados de carga/vacío/error y enlaces de detalle contextuales. Recorridos conserva Persona opcional; Novedades se presenta como “Novedades de planta”, sin entidad paralela.
+- Formularios de Producción continúa en su ruta ya implementada; no se modificaron Formularios, respuestas, Documentos, BLOB ni backend.
+- Prueba focalizada frontend de Producción: 3/3 aprobadas. Regresión frontend: 124/124 en 19 archivos con `--maxWorkers=1`. `npm run build` y `git diff --check` aprobados.
+- Validación visual manual confirmada en `http://127.0.0.1:8081`: desktop `1440x900`, tablet `768x1024` y móvil `390x844`. Sidebar, navegación, Atenciones, Recorridos, Novedades de planta, Formularios, filtros, tablas, paginación y modales/formularios fueron correctos; no se observaron solapamientos, controles fuera de pantalla ni bloqueos visuales.
+
+Fase 7 no está completada. El siguiente bloque es Bloque 4 — Integraciones de Producción y requiere autorización explícita; no se inició.
+
+### Bloque 4 — Integraciones de Producción
+
+**Estado: VALIDADO.**
+
+- Atenciones, Recorridos y Novedades de planta obtienen únicamente formularios publicados asignados al destino jerárquico real correspondiente. La respuesta se guarda por un wrapper contextual que fuerza registro, contexto y `id_destino_respuesta`; no crea registros operativos ni duplica plantillas multidestino.
+- Atenciones mantiene su scope `PRODUCCION` y excluye históricos `NULL` y `OFICINA`. Persona sigue siendo opcional y separada de responsable, autor y usuario respondedor. Historial reutiliza auditoría existente.
+- Formularios exige `PRODUCCION` y `FORMULARIOS`; respuestas exige además `RESPUESTAS`. Los wrappers documentales contextuales validan primero el registro y su scope (`PRODUCCION` para Atenciones; entidad existente para Recorridos y Novedades) y luego delegan a la infraestructura existente con `PRODUCCION` + `DOCUMENTOS`. No se alteró BLOB, tablas ni rutas transversales.
+- Validación focalizada: frontend 35/35; backend Producción 7/7, incluyendo destinos concretos, multidestino, históricos, permisos y Documentos. Suite frontend: 124/124 en 19 archivos con un worker. Suite backend completa: 259/259. `npm run build` y `git diff --check` aprobados.
+- No se inició el Bloque 5 ni se realizó commit o push. El siguiente bloque, con autorización explícita, es Bloque 5 — Integración, regresión y cierre de Producción.
+
+### Bloque 5 — Integración, regresión y cierre de Producción
+
+**FASE 7 — PRODUCCIÓN COMPLETADA.**
+
+- Bloques 1–5 cerrados: arquitectura final, backend y frontend contextual, integraciones, regresión y cierre documental.
+- Atenciones usa `contexto_operativo` explícito: las creadas desde Producción quedan en `PRODUCCION`; las históricas `NULL` y las de `OFICINA` se excluyen y rechazan por ID contextual. No hay inferencia, backfill ni reclasificación.
+- Recorridos reutiliza `Recorrido`; Novedades de planta reutiliza `Novedad`. Persona sigue opcional donde el modelo lo permite y permanece separada de responsable, autor y usuario que responde formularios.
+- Formularios usa asignación explícita a `PRODUCCION_ATENCIONES`, `RECORRIDOS` y `NOVEDADES_PLANTA`; respuestas guardan el ID real del destino y una plantilla multidestino permanece única, sin mezclar respuestas ni crear registros operativos automáticamente.
+- Documentos contextuales validan registro y scope antes de delegar a la infraestructura existente; BLOB, almacenamiento y APIs documentales transversales no cambiaron. Historial y auditoría reutilizan la infraestructura existente.
+- Migración `0021_contexto_operativo_atenciones` validada en SQLite temporal: `0020 → 0021 → 0020 → 0021`, columna nullable, históricos `NULL`, restricción e índice `ix_atenciones_contexto_fecha`; `alembic check` aprobado.
+- Regresión: backend completo 259/259; backend focalizado Producción 7/7; frontend completo 124/124 en 19 suites con un worker; frontend focalizado 50/50; `npm run build` y `git diff --check` aprobados. Las suites abarcan navegación, Actividades, Ausentismos, Accidentes, Riesgos de trabajo y Formularios.
+- Se conserva la validación visual manual previa en desktop 1440x900, tablet 768x1024 y móvil 390x844. La inspección automatizada focalizada de Formularios, Documentos y respuestas del Bloque 4 no se pudo completar porque Chrome agotó el tiempo de automatización al solicitar foco.
+- No se hizo commit ni push. Los artefactos ajenos no rastreados se preservaron.
+
+## Siguiente fase planificada
+
+**FASE 8 — OFICINA**
+
+Subprocesos previstos: Beneficios, Atenciones, Préstamos, Seguro y Formularios.
+
+No se inició Fase 8.
+
+## Fase 8 — Oficina
+
+### Bloque 1 — Auditoría y diseño técnico
+
+**Estado: VALIDADO.**
+
+- Auditoría completada sin modificar código funcional, migraciones, permisos ni rutas.
+- Beneficios, Préstamos y Seguro no tienen modelo, servicio, API, frontend ni reglas de negocio operativas; sólo existen permisos, navegación y destinos explícitos de Formularios. Sus campos y reglas no definidos quedan documentados, sin inferencias.
+- Atenciones de Oficina reutilizará `Atencion` y `contexto_operativo="OFICINA"`; no habrá tabla ni discriminador paralelo, backfill o clasificación de históricos `NULL`. Producción mantiene su aislamiento `PRODUCCION`.
+- Formularios reutiliza el repositorio central y los destinos existentes `BENEFICIOS`, `OFICINA_ATENCIONES`, `PRESTAMOS` y `SEGURO`. Respuestas no crean registros operativos automáticamente.
+- La cabeza Alembic verificada es `0021_contexto_operativo_atenciones`; Atenciones Oficina no requiere migración. Cualquier entidad futura será aditiva y requerirá definición funcional explícita.
+- Documento técnico: `docs/SITS_FASE8_OFICINA_DISENO.md`.
+- Fase 8 no está completada. El siguiente bloque autorizado es únicamente el Bloque 2 — Backend de Oficina.
+
+### Bloque 2 — Backend de Oficina
+
+**Estado: VALIDADO.**
+
+- **2A — Atenciones Oficina + scope OFICINA: VALIDADO.** Wrapper `/api/v1/oficina/atenciones` reutiliza `Atencion`, fuerza `OFICINA` y aísla `PRODUCCION` e históricos `NULL`; scope aditivo sin elevar permisos transversales. Pruebas focalizadas Oficina/Producción: 9/9; suite backend: 261/261; `alembic check` aprobado sobre head `0021_contexto_operativo_atenciones`.
+- **2B — Beneficios / Préstamos / Seguro: VALIDADO.** Entidades operativas independientes bajo `/api/v1/oficina`, con `persona_id` nullable/FK, autor desde sesión, responsable nullable, CRUD, baja lógica, auditoría, filtros y paginación comunes. Beneficios limita TIA/FARMACIA y Activación/Bloqueo/Anulación; Préstamos limita Préstamo/Anticipo sin lógica financiera; Seguro limita sus seis gestiones, incluido Dependiente sin estructura adicional. Migración `0022_beneficios_prestamos_seguros` aditiva, reversible y validada en SQLite temporal. Pruebas nuevas 2B: 4/4; regresión Oficina/Producción: 9/9; suite backend completa: 265/265, sin fallos ni errores. No se implementaron frontend, BLOB, Formularios profundos ni Bloque 3.
+- Siguiente: **BLOQUE 3 — Frontend Oficina.** No se inició en este subbloque.
+
+### Bloque 3 — Frontend de Oficina
+
+**Estado: VALIDADO.**
+
+- Las rutas existentes de Beneficios, Atenciones, Préstamos y Seguro dejaron de ser placeholders y reutilizan `EntityListPage`, `EntityFormModal`, `EntityDetailPage` y una configuración única por contrato real. Consumen exclusivamente `/api/v1/oficina/{beneficios,atenciones,prestamos,seguro}`; Atenciones no expone ni permite editar `contexto_operativo`.
+- Beneficios expone sólo TIA/FARMACIA y ACTIVACION/BLOQUEO/ANULACION; Préstamos sólo PRESTAMO/ANTICIPO, sin campos financieros; Seguro sólo sus seis gestiones, con DEPENDIENTE sin campos adicionales. Persona es opcional en las tres entidades nuevas, se busca con el componente común y puede limpiarse; Persona, responsable y registrado por se muestran por separado.
+- Los filtros y la paginación son server-side y coinciden con cada endpoint. Estados loading, vacío, 401 y 403 se mantienen diferenciados. Formularios de Oficina sigue siendo el repositorio contextual existente; no se añadieron Formularios embebidos, Documentos contextuales, BLOB ni cambios backend.
+- Pruebas focalizadas Oficina/Producción: 7/7. Suite frontend serial: 128/128 en 20 archivos con un worker. `npm run build` y `git diff --check` aprobados. Validación visual manual APROBADA en `/trabajo-social/oficina/beneficios`, `/trabajo-social/oficina/atenciones`, `/trabajo-social/oficina/prestamos`, `/trabajo-social/oficina/seguro` y `/trabajo-social/oficina/formularios`, en desktop (1440x900), tablet (768x1024) y móvil (390x844): navegación, sidebar, filtros, paginación, formularios/modales, tablas y responsive correctos, sin errores visuales bloqueantes.
+- Fase 8 no está completada. Siguiente: **BLOQUE 4 — Integraciones de Oficina.**
+
+### Bloque 4 — Integraciones de Oficina
+
+**Estado: VALIDADO.**
+
+- Los detalles contextuales de Beneficios, Atenciones, Préstamos y Seguro reutilizan los paneles existentes de Formularios y Documentos. Los wrappers fuerzan el registro, contexto y destino hoja real; las respuestas multidestino conservan `id_destino_respuesta` y no crean registros operativos automáticamente.
+- Documentos valida primero el registro contextual y el scope `OFICINA`; Atenciones de Oficina excluye `PRODUCCION` e históricos `NULL`. No se creó BLOB, almacenamiento, repositorio de Formularios, historial ni API paralela.
+- Validación final: backend completo `267/267` en 83.144 s (exit 0; sin fallos ni errores; sólo `ResourceWarning` de conexiones SQLite sin cerrar), frontend serial `128/128` en `20/20` suites (exit 0), focalizadas Bloque 4 backend `4/4` y frontend `4/4`, y build frontend (exit 0).
+- La suite completa cubre regresión de Producción mediante `test_produccion.py` y `ProduccionEntities.test.tsx`, y Fase 5 mediante las pruebas del repositorio/destinos/respuestas contextualizadas, incluyendo `DynamicResponsePage.destination.test.tsx` y `test_respuestas_formulario_service.py`. `alembic heads` confirmó `0022_beneficios_prestamos_seguros`; `alembic check` aprobó sobre SQLite temporal y `git diff --check` aprobó.
+- Fase 8 no está completada. Siguiente: **BLOQUE 5 — Integración, regresión y cierre.**
+
+### Bloque 5 — Integración, regresión y cierre de Oficina
+
+**FASE 8 — OFICINA COMPLETADA.**
+
+- Bloques 1–5 cerrados: arquitectura, backend contextual, frontend reutilizable, integraciones de Formularios/Documentos y regresión final. Beneficios, Atenciones, Préstamos y Seguro conservan exclusivamente sus contratos aprobados; no se agregaron tipos, campos financieros, pólizas, BLOB ni motores paralelos.
+- Atenciones fuerza `contexto_operativo="OFICINA"`; Producción conserva exclusivamente `PRODUCCION` y los históricos `NULL` no se reclasifican ni entran a rutas contextuales. El scope `OFICINA` sigue aditivo y no concede Producción, APIs transversales, Formularios globales ni Documentos globales.
+- Formularios usa sólo los destinos hoja explícitos `BENEFICIOS`, `OFICINA_ATENCIONES`, `PRESTAMOS` y `SEGURO`; respuestas contextualizadas fijan registro/destino real, preservan multidestino sin duplicar plantillas y no crean registros operativos. Documentos valida registro y scope antes de delegar; historial y auditoría reutilizan la infraestructura única existente.
+- Persona permanece nullable en Beneficios, Préstamos y Seguro; Persona, responsable, autor y usuario respondedor siguen separados. La migración `0022_beneficios_prestamos_seguros` fue validada en SQLite temporal mediante `0021 → 0022 → 0021 → 0022`, con `alembic check` aprobado.
+- Regresión final: backend `267/267` (exit 0; 78.955 s; sin fallos ni errores; sólo `ResourceWarning` SQLite no bloqueantes), frontend serial `128/128` en `20/20` suites (exit 0), focalizadas backend `43/43` y frontend `24/24`, build y `git diff --check` aprobados. Las suites incluyen navegación, Actividades, Ausentismos, Accidentes, Riesgos, Producción, repositorio de Formularios, destinos jerárquicos, respuestas e historial.
+- Se conserva la validación visual manual previa de las rutas Oficina en desktop, tablet y móvil. La revisión visual focalizada nueva no se ejecutó porque el navegador no estuvo disponible por un error de política de cabeceras; no se infiere evidencia adicional.
+
+## Siguiente fase planificada
+
+**FASE 9 — IMÁGENES Y ADJUNTOS BLOB.**
+
+### Bloque 1 — Auditoría y diseño técnico
+
+**Estado: VALIDADO.**
+
+- Auditoría documentada en `docs/SITS_FASE9_BLOB_DISENO.md`, sin cambios funcionales, migraciones, commit ni push.
+- `Documento` ya usa BLOB real: `contenido_comprimido: LargeBinary` desde `0008_documentos`; SQLite no almacena rutas, URLs ni base64 para documentos. No se autoriza un segundo sistema ni una migración 0023 duplicada.
+- Se diseñó el endurecimiento futuro de límites configurables, MIME/firma, headers privados, preview autenticado y la integración transaccional de ARCHIVO/FOTOGRAFIA de Formularios mediante la infraestructura única.
+- Riesgos, Producción y Oficina mantienen sus wrappers y validación de scope antes de descargar o modificar Documentos. Formularios actualmente muestra inputs de archivo pero aún no persiste sus `File`; esa brecha queda delimitada para Bloque 4.
+- `alembic heads` verificó `0022_beneficios_prestamos_seguros`. Fase 9 no está completada; el siguiente bloque requiere autorización explícita: **Bloque 2 — Backend / endurecimiento BLOB**.
+
+### Bloque 2 — Backend BLOB / endurecimiento
+
+**BLOQUE 2 FASE 9 VALIDADO — BACKEND BLOB ENDURECIDO.**
+
+- Se reutilizó `Documento.contenido_comprimido` (`LargeBinary`) y el round-trip zlib existente: los bytes se comprimen antes de persistir y se descomprimen sólo en la descarga. No se creó tabla, storage, base64, URL pública ni migración `0023`.
+- La política centralizada en `Settings` conserva el límite compatible de 10 MiB y 10 documentos activos por registro. La whitelist explícita quedó restringida a PDF, JPEG, PNG y WEBP, con correspondencia exacta extensión--MIME y firmas de los cuatro formatos.
+- Los listados continúan serializando sólo metadata; el BLOB sólo se recupera desde el endpoint de contenido autenticado. Las descargas genéricas y contextuales añaden `Cache-Control: private, no-store`, `Pragma: no-cache`, `X-Content-Type-Options: nosniff` y `attachment` con nombre saneado RFC 5987.
+- Se preservaron permisos, baja lógica, auditoría y los wrappers anti-acceso-horizontal de Riesgos, Producción y Oficina. Contenido histórico corrupto o no recuperable se rechaza con error controlado, sin exponer una excepción zlib.
+- Validación: focalizadas Documentos/Riesgos/Producción/Oficina `48/48`; backend completo reconstruido `273/273` (exit 0); `alembic heads` = `0022_beneficios_prestamos_seguros`; SQLite temporal `upgrade head && alembic check` aprobado; `git diff --check` aprobado.
+
+Siguiente bloque autorizado sólo bajo nueva instrucción: **Bloque 3 — Frontend de carga, descarga y preview.**
+
+### Bloque 3 — Frontend de carga, descarga y preview
+
+**BLOQUE 3 FASE 9 VALIDADO — FRONTEND DOCUMENTOS.**
+
+- `DocumentosPanel` ahora limita informativamente la selección a PDF, JPEG, PNG y WEBP, máximo 10 MiB y 10 documentos activos; el backend continúa siendo la autoridad para formato, firma, permisos, scope y persistencia.
+- El listado consume únicamente metadata (`nombre_archivo`, MIME, tamaño, fecha y autor). La descarga usa el cliente autenticado existente para obtener `Blob`, conserva el filename de `Content-Disposition`, activa una descarga temporal y revoca su object URL.
+- Preview autenticado de PDF e imágenes mediante Blob URL dentro de `Modal`; las URLs se revocan al cerrar, sustituir preview o desmontar. Riesgos, Producción, Oficina y la ruta genérica mantienen sus endpoints contextuales.
+- Validación: nuevas focalizadas Cliente/Documentos `10/10`; regresión Riesgos/Producción/Oficina `27/27`; frontend serial completo `133/133` en 21 archivos con un worker; `npm run build` (TypeScript + Vite) y `git diff --check` aprobados.
+
+No se modificó backend, no se integraron Formularios y no se inició Bloque 4. El siguiente bloque requiere autorización explícita: **Bloque 4 — Formularios y módulos contextuales.**
+
+### Bloque 4 — Formularios y módulos contextuales
+
+Cerrado en `4d48319`: los adjuntos `ARCHIVO` y `FOTOGRAFIA` se envían como `multipart/form-data` con un payload JSON y partes `archivo:<id_pregunta>`. La migración `0023_respuesta_documentos` agrega el puente repetible detalle de respuesta–Documento; los bytes siguen exclusivamente en el BLOB documental existente. El servicio guarda envío, detalles, documentos y vínculos con `flush()` en la misma transacción de la petición, sin commits parciales.
+
+**BLOQUE 4 FASE 9 VALIDADO — ADJUNTOS TRANSACCIONALES DE FORMULARIOS.**
+
+- `backend/tests/test_form_response_attachments.py` aporta 10 pruebas: compatibilidad histórica, formatos, trazabilidad por pregunta, límites efectivos, rollback total de `envios_formulario`/`respuestas_formulario`/`respuesta_documentos`/`documentos`, bloqueo de edición, usuario autenticado sin permisos y descarga que exige el vínculo exacto. Documento de otra respuesta, sin vínculo o dado de baja se rechazan sin exponer el BLOB.
+- El acceso a adjuntos se autoriza primero por respuesta/contexto y después por el puente; conocer `id_archivo` no permite cruzar respuestas. La respuesta contextual diferente devuelve `FORM_ATTACHMENT_NOT_FOUND`; el usuario `ROLE_CONSULTA` recibe `FORBIDDEN` con la semántica central existente.
+- La suite backend fue ejecutada en ocho grupos sobre imagen reconstruida que contiene `0023_respuesta_documentos`: 39 archivos, `283/283` PASS, `0` FAIL, exit `0` por grupo. Las dos regresiones de integración descubiertas se corrigieron de forma acotada: el parser manual multipart transforma `ValidationError` en 422 y el test directo del router espera su interfaz async.
+- La suite frontend se ejecutó en 11 grupos aislados (`--pool=threads --maxWorkers=1`): 22 archivos, `136/136` PASS, `0` FAIL, exit `0` por grupo. El proceso global parecía no terminar porque Vitest arrancaba un worker aislado por archivo; no era un handle abierto. `--no-isolate` se descartó porque contamina el estado de pruebas. La regresión de Riesgos se corrigió actualizando el mock a `saveFormResponseMultipart`.
+- Alembic temporal `upgrade head` y `alembic check`, typecheck TypeScript, Vite build y `git diff --check` aprobaron. No existe script de lint configurado.
+
+No se hizo push.
+
+### Bloque 5 — Regresión, migración y cierre
+
+**FASE 9 — IMÁGENES Y ADJUNTOS BLOB COMPLETADA.**
+
+- Base de cierre: Bloque 2 `eda107e`, Bloque 3 `f975cf8` y Bloque 4 `4d48319`. No se introdujeron funcionalidades nuevas durante el Bloque 5.
+- SQLite temporal limpia: `alembic upgrade head` y `alembic check` aprobaron en `0023_respuesta_documentos`; el downgrade a `0022_beneficios_prestamos_seguros` aprobó; el upgrade final volvió a `0023_respuesta_documentos` y `alembic check` continuó sin operaciones pendientes. La tabla `respuesta_documentos` conserva FK a `respuestas_formulario.id_detalle_respuesta` y `documentos.id_archivo`, unicidad detalle--documento e índices `ix_respuesta_documentos_detalle` e `ix_respuesta_documentos_archivo`.
+- Regresión completa: backend `283/283` en 98.536 s (exit 0); frontend aislado con `--pool=threads --maxWorkers=1`, `22/22` archivos y `136/136` pruebas (exit 0). Las pruebas cubren Documentos, Formularios, adjuntos, permisos, Riesgos, Producción y Oficina; no se usó `--no-isolate`.
+- Typecheck `tsc -b`, build TypeScript/Vite y `git diff --check` aprobaron. No existe script lint configurado.
+- Se confirma una única arquitectura documental: Formularios reutiliza `Documento` y el puente `respuesta_documentos`; `valor_*` permanece escalar, los listados no exponen BLOB y las Blob URL son temporales y se revocan.
+- Deuda conocida no bloqueante: BLOB en SQLite aumenta I/O y tamaño de backups, conserva límites de concurrencia/bloqueo y no recupera espacio inmediatamente tras baja lógica; carga/descarga usa memoria dentro de límites; no hay antivirus/análisis profundo; históricos sin puente no se infieren; editar una respuesta con adjuntos continúa restringido para preservar atomicidad. No se detectó defecto bloqueante.
+
+No se creó commit ni se hizo push para el Bloque 5.

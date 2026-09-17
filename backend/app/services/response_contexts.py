@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.errors import AppError
 from app.core.permissions import AuthenticatedUser, authorize, can
 from app.core.time import ecuador_now
-from app.models import Atencion, Caso, EnvioFormulario, Novedad, Persona, Recorrido
+from app.models import Atencion, Beneficio, Caso, DestinoFormulario, EnvioFormulario, Novedad, Persona, Prestamo, Recorrido, Seguro
 from app.services.atenciones import create_atencion, soft_delete_atencion
 from app.services.casos import create_caso, soft_delete_caso
 from app.services.novedades import novedades
@@ -17,6 +17,9 @@ from app.services.sensitivity import is_sensitive_record
 CONTEXT_MODELS = {
     "CASOS": (Caso, "id_caso"),
     "ATENCIONES": (Atencion, "id_atencion"),
+    "BENEFICIOS": (Beneficio, "id_beneficio"),
+    "PRESTAMOS": (Prestamo, "id_prestamo"),
+    "SEGUROS": (Seguro, "id_seguro"),
     "NOVEDADES": (Novedad, "id_novedad"),
     "RECORRIDOS": (Recorrido, "id_recorrido"),
     "PERSONAS": (Persona, "id_persona"),
@@ -91,7 +94,14 @@ def response_action_allowed(session: Session, user: AuthenticatedUser, response:
     normalized = (response.contexto_tipo or "GENERAL").strip().upper()
     if normalized == "GENERAL":
         return True
-    if not can(user, normalized, action):
+    if normalized in {"BENEFICIOS", "PRESTAMOS", "SEGUROS"}:
+        authorization_module = "OFICINA"
+    elif normalized == "ATENCIONES" and response.id_destino_respuesta:
+        destination = session.get(DestinoFormulario, response.id_destino_respuesta)
+        authorization_module = "OFICINA" if destination and destination.codigo == "OFICINA_ATENCIONES" else normalized
+    else:
+        authorization_module = normalized
+    if not can(user, authorization_module, action):
         return False
     try:
         record = get_context_record(session, normalized, response.contexto_id or "", include_deleted=True)
