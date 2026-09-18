@@ -86,14 +86,21 @@ export function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [loggingOut, setLoggingOut] = useState(false);
-  const activeAncestors = activeAncestorIds(navigation, location.pathname);
   const showNestedNavigation = !collapsed || mobileOpen;
   const userInitial = usuario?.nombre?.trim().charAt(0).toUpperCase() || 'U';
   const trabajoSocial = navigation[0];
   const inicio = trabajoSocial.children?.find((node) => node.id === 'inicio');
   const trabajoSocialGroups = trabajoSocial.children?.filter((node) => node.id !== 'inicio') ?? [];
 
-  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
+  useEffect(() => {
+    setMobileOpen(false);
+    const routeAncestors = activeAncestorIds(navigation, location.pathname);
+    setExpanded((current) => {
+      const next = new Set(current);
+      routeAncestors.forEach((id) => next.add(id));
+      return next;
+    });
+  }, [location.pathname]);
 
   function toggleNode(id: string) {
     setExpanded((current) => {
@@ -106,7 +113,7 @@ export function Layout() {
   function renderNode(node: NavigationNode, depth = 0): ReactNode {
     if (!isVisible(node, usuario)) return null;
     const hasChildren = Boolean(node.children?.some((child) => isVisible(child, usuario)));
-    const isExpanded = expanded.has(node.id) || activeAncestors.has(node.id);
+    const isExpanded = expanded.has(node.id);
     const indent = { '--nav-depth': depth } as CSSProperties;
 
     if (hasChildren) {
