@@ -30,7 +30,7 @@ export const navigation: readonly NavigationNode[] = [
       { id: 'accidentes', label: 'Accidentes', icon: '⚠', permission: 'ACCIDENTES', to: '/trabajo-social/departamento-medico/accidentes' },
       { id: 'medico-formularios', label: 'Formularios', icon: '▤', permission: 'FORMULARIOS', to: '/trabajo-social/departamento-medico/formularios' },
     ] },
-    { id: 'produccion', label: 'Producción', icon: '◫', children: [
+    { id: 'produccion', label: 'Producción', icon: '▥', children: [
       { id: 'produccion-atenciones', label: 'Atenciones', icon: '+', permission: 'ATENCIONES', to: '/trabajo-social/produccion/atenciones' },
       { id: 'produccion-recorridos', label: 'Recorridos', icon: '↗', permission: 'RECORRIDOS', to: '/trabajo-social/produccion/recorridos' },
       { id: 'produccion-novedades', label: 'Novedades de planta', icon: '!', permission: 'NOVEDADES', to: '/trabajo-social/produccion/novedades' },
@@ -70,16 +70,28 @@ function isVisible(node: NavigationNode, usuario: ReturnType<typeof useAuth>['us
   return !node.children && Boolean(node.permission && canAccess(usuario, node.permission, 'read'));
 }
 
+function SearchIcon() {
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>;
+}
+
+function BellIcon() {
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></svg>;
+}
+
 export function Layout() {
   const { usuario, logout } = useAuth();
   const { notify } = useFeedback();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set(['trabajo-social']));
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [loggingOut, setLoggingOut] = useState(false);
   const activeAncestors = activeAncestorIds(navigation, location.pathname);
   const showNestedNavigation = !collapsed || mobileOpen;
+  const userInitial = usuario?.nombre?.trim().charAt(0).toUpperCase() || 'U';
+  const trabajoSocial = navigation[0];
+  const inicio = trabajoSocial.children?.find((node) => node.id === 'inicio');
+  const trabajoSocialGroups = trabajoSocial.children?.filter((node) => node.id !== 'inicio') ?? [];
 
   useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
@@ -104,7 +116,7 @@ export function Layout() {
           <span className="nav-icon" aria-hidden="true">{node.icon}</span><span className="nav-label">{node.label}</span>
           <span className="nav-disclosure" aria-hidden="true">{isExpanded ? '⌄' : '›'}</span>
         </button>
-        {showNestedNavigation && isExpanded && <ul id={`nav-group-${node.id}`} className="sidebar-tree">
+        {showNestedNavigation && isExpanded && <ul id={`nav-group-${node.id}`} className="sidebar-tree sidebar-tree-nested">
           {node.children?.map((child) => renderNode(child, depth + 1))}
         </ul>}
       </li>;
@@ -133,33 +145,64 @@ export function Layout() {
   }
 
   return (
-    <div className={`page app-shell${collapsed ? ' sidebar-collapsed' : ''}${mobileOpen ? ' mobile-nav-open' : ''}`}>
+    <div className={`page app-shell ui-shell-v2${collapsed ? ' sidebar-collapsed' : ''}${mobileOpen ? ' mobile-nav-open' : ''}`}>
       <header className="topbar">
         <button type="button" className="mobile-menu-button" aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'} aria-expanded={mobileOpen}
                 aria-controls="sidebar-navigation" onClick={() => setMobileOpen((open) => !open)}>☰</button>
-        <Link to="/" className="brand">
-          <SongaBrand compact />
+        <Link to="/busqueda" className="topbar-search" aria-label="Abrir búsqueda consolidada">
+          <SearchIcon />
+          <span>Buscar personas, casos, actividades...</span>
         </Link>
-        <div className="header-user">
-          <span><strong>{usuario?.nombre}</strong><small>{usuario?.rol_nombre}</small></span>
-          <button className="logout-button" onClick={() => void handleLogout()} disabled={loggingOut} title="Cerrar sesión">
-            {loggingOut ? 'Saliendo…' : 'Salir'}
-          </button>
+        <div className="topbar-actions">
+          <span className="topbar-notification" aria-label="Centro de notificaciones"><BellIcon /></span>
+          <span className="topbar-divider" aria-hidden="true" />
+          <span className="user-avatar" aria-hidden="true">{userInitial}</span>
+          <div className="header-user">
+            <span><strong>{usuario?.nombre}</strong><small>{usuario?.rol_nombre}</small></span>
+            <button className="logout-button" onClick={() => void handleLogout()} disabled={loggingOut} title="Cerrar sesión">
+              {loggingOut ? 'Saliendo…' : 'Salir'}
+            </button>
+          </div>
         </div>
       </header>
+
       <button className="sidebar-backdrop" type="button" aria-label="Cerrar menú" onClick={() => setMobileOpen(false)} />
+
       <aside id="sidebar-navigation" className="sidebar" aria-label="Navegación principal">
+        <div className="sidebar-brand-block">
+          <Link to="/" className="sidebar-brand-link"><SongaBrand inverse /></Link>
+        </div>
+        <nav>
+          <ul className="sidebar-tree sidebar-tree-root">
+            {inicio ? renderNode(inicio) : null}
+            {isVisible(trabajoSocial, usuario) && (
+              <li className="sidebar-section-heading" aria-hidden={collapsed && !mobileOpen}>
+                <span className="nav-icon" aria-hidden="true">⌂</span>
+                <span className="nav-label">Trabajo Social</span>
+                <span className="nav-disclosure" aria-hidden="true">⌄</span>
+              </li>
+            )}
+            {trabajoSocialGroups.map((node) => renderNode(node))}
+            {navigation.slice(1).map((node) => renderNode(node))}
+          </ul>
+        </nav>
+        <div className="sidebar-purpose">
+          <p>“Juntos transformamos vidas”</p>
+          <span />
+          <strong>SONGA</strong>
+          <small>Trabajo con propósito</small>
+        </div>
         <button type="button" className="sidebar-toggle" onClick={() => setCollapsed((value) => !value)}
                 aria-label={collapsed ? 'Expandir menú' : 'Contraer menú'} aria-expanded={!collapsed}>
           <span aria-hidden="true">{collapsed ? '›' : '‹'}</span><span className="nav-label">Contraer menú</span>
         </button>
-        <nav><ul className="sidebar-tree sidebar-tree-root">{navigation.map((node) => renderNode(node))}</ul></nav>
       </aside>
+
       <main className="app-main">
         <Outlet />
       </main>
       <footer className="app-footer">
-        <span>SONGA · Sistema Integral de Gestión de Trabajo Social</span><span>Hora oficial: Ecuador continental</span>
+        <span>SONGA · Trabajo Social · Sistema Integral de Gestión</span><span>Hora oficial: Ecuador continental</span>
       </footer>
     </div>
   );
