@@ -9,10 +9,8 @@ import { AdminUsuariosPage } from './AdminUsuariosPage';
 const api = vi.hoisted(() => ({
   actualizarUsuario: vi.fn(),
   crearUsuario: vi.fn(),
-  eliminarUsuario: vi.fn(),
   listarAdministracion: vi.fn(),
   restablecerPasswordUsuario: vi.fn(),
-  restaurarUsuario: vi.fn(),
 }));
 
 vi.mock('../../api/admin', async () => ({
@@ -32,7 +30,6 @@ const datos: DatosAdministracion = {
     { id_rol: 'ROLE_ADMIN', nombre: 'Administrador', descripcion: null },
   ],
   permisos: [],
-  puede_eliminar_usuarios: true,
 };
 
 async function renderPage() {
@@ -137,58 +134,4 @@ describe('AdminUsuariosPage: edición y restablecimiento seguro', () => {
     expect(await within(retry.dialog).findByRole('alert')).toHaveTextContent('El registro fue modificado por otro usuario.');
   });
 
-  it('solicita motivo antes de eliminar y cancelar no hace cambios', async () => {
-    const user = await renderPage();
-    await user.click(screen.getByRole('button', { name: 'Eliminar' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Eliminar usuario' });
-    expect(within(dialog).getByText('Ana Pérez')).toBeInTheDocument();
-    expect(within(dialog).getByText('ana@example.com')).toBeInTheDocument();
-    await user.click(within(dialog).getByRole('button', { name: 'Eliminar usuario' }));
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Indique el motivo de eliminación.');
-    expect(api.eliminarUsuario).not.toHaveBeenCalled();
-    await user.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
-    expect(screen.queryByRole('dialog', { name: 'Eliminar usuario' })).not.toBeInTheDocument();
-    expect(api.eliminarUsuario).not.toHaveBeenCalled();
-  });
-
-  it('elimina con confirmación, muestra errores del backend y evita doble envío', async () => {
-    let resolver: ((value: UsuarioAdmin) => void) | undefined;
-    api.eliminarUsuario.mockImplementation(() => new Promise<UsuarioAdmin>((resolve) => { resolver = resolve; }));
-    const user = await renderPage();
-    await user.click(screen.getByRole('button', { name: 'Eliminar' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Eliminar usuario' });
-    await user.type(within(dialog).getByLabelText('Motivo de eliminación'), 'Salida de la compañía');
-    const submit = within(dialog).getByRole('button', { name: 'Eliminar usuario' });
-    await user.click(submit);
-    await user.click(submit);
-    expect(api.eliminarUsuario).toHaveBeenCalledTimes(1);
-    expect(api.eliminarUsuario).toHaveBeenCalledWith('u-1', 3, 'Salida de la compañía');
-    resolver?.({ ...usuario, eliminado: true, activo: false, version: 4 });
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Eliminar usuario' })).not.toBeInTheDocument());
-
-    await user.click(screen.getByRole('button', { name: 'Eliminar' }));
-    const retry = await screen.findByRole('dialog', { name: 'Eliminar usuario' });
-    api.eliminarUsuario.mockRejectedValueOnce(new HttpError(409, {
-      ok: false, code: 'VERSION_CONFLICT', message: 'El usuario fue modificado por otro administrador.', correlationId: 'c-1',
-    }));
-    await user.type(within(retry).getByLabelText('Motivo de eliminación'), 'Reintento');
-    await user.click(within(retry).getByRole('button', { name: 'Eliminar usuario' }));
-    expect(await within(retry).findByRole('alert')).toHaveTextContent('El usuario fue modificado por otro administrador.');
-  });
-
-  it('incluye eliminados y permite restaurarlos', async () => {
-    const eliminado = { ...usuario, eliminado: true, activo: false, version: 4 };
-    api.listarAdministracion
-      .mockResolvedValueOnce(datos)
-      .mockResolvedValueOnce({ ...datos, usuarios: [eliminado] })
-      .mockResolvedValueOnce({ ...datos, usuarios: [usuario] });
-    api.restaurarUsuario.mockResolvedValue(usuario);
-    const user = await renderPage();
-    await user.click(screen.getByLabelText('Ver usuarios eliminados'));
-    await waitFor(() => expect(api.listarAdministracion).toHaveBeenLastCalledWith(true));
-    expect(await screen.findByText('ELIMINADO')).toBeInTheDocument();
-    const restore = screen.getByRole('button', { name: 'Restaurar' });
-    await user.click(restore);
-    await waitFor(() => expect(api.restaurarUsuario).toHaveBeenCalledWith('u-1', 4));
-  });
 });

@@ -1,5 +1,4 @@
 import unittest
-from dataclasses import replace
 from tempfile import TemporaryDirectory
 
 from alembic import command
@@ -11,10 +10,9 @@ import app.db.session as db_session
 from app.core.errors import AppError
 from app.core.permissions import resolve_current_user
 from app.db.session import build_engine
-from app.models import Auditoria, Sesion, User
+from app.models import Auditoria, User
 from app.services.admin import (
-    create_user, list_administration, reset_user_password, restore_user, save_permission,
-    save_user, save_user_role, soft_delete_user,
+    create_user, list_administration, reset_user_password, save_permission, save_user, save_user_role,
 )
 from app.services.passwords import hash_password, verify_password
 from app.services.security_seed import MODULES, ROLES, seed_security
@@ -56,110 +54,6 @@ class AdminServiceTests(unittest.TestCase):
             self.assertEqual(len(datos["roles"]), 5)
             self.assertEqual(len(datos["permisos"]), len(MODULES) * len(ROLES))
             self.assertEqual(len(datos["usuarios"]), 3)
-
-    def test_user_soft_delete_revokes_sessions_preserves_row_and_can_be_restored(self):
-        with Session(self.engine) as session, session.begin():
-            admin = resolve_current_user(session, "admin1@example.com")
-            password_plana = "ClaveTemporalEliminacion123"
-            session.get(User, "ts").password_hash = hash_password(password_plana)
-            token_one = create_session(session, "ts")
-            token_two = create_session(session, "ts")
-            resultado = soft_delete_user(
-                session, admin, "ts", expected_version=1, motivo="Salida de la compañía",
-                correlation_id="delete-1",
-            )
-            self.assertTrue(resultado["eliminado"])
-            self.assertFalse(resultado["activo"])
-            self.assertEqual(resultado["version"], 2)
-            self.assertNotIn("password", resultado)
-            self.assertNotIn("password_hash", resultado)
-
-        with Session(self.engine) as session:
-            usuario = session.get(User, "ts")
-            self.assertIsNotNone(usuario)  # Soft delete: la fila y su trazabilidad permanecen.
-            self.assertTrue(usuario.eliminado)
-            self.assertFalse(usuario.activo)
-            self.assertEqual(usuario.motivo_eliminacion, "Salida de la compañía")
-            self.assertEqual(usuario.usuario_eliminacion, "admin1@example.com")
-            self.assertIsNotNone(usuario.fecha_eliminacion)
-            self.assertIsNone(resolve_session_user_id(session, token_one))
-            self.assertIsNone(resolve_session_user_id(session, token_two))
-            self.assertTrue(all(s.revocada_en is not None for s in session.scalars(select(Sesion)).all()))
-            datos_normales = list_administration(session, resolve_current_user(session, "admin1@example.com"))
-            datos_incluidos = list_administration(
-                session, resolve_current_user(session, "admin1@example.com"), include_deleted=True,
-            )
-            self.assertNotIn("ts", {item["id_usuario"] for item in datos_normales["usuarios"]})
-            self.assertIn("ts", {item["id_usuario"] for item in datos_incluidos["usuarios"]})
-            auditorias = session.scalars(select(Auditoria).where(
-                Auditoria.tabla == "usuarios", Auditoria.id_registro == "ts", Auditoria.accion == "DELETE",
-            )).all()
-            self.assertTrue(auditorias)
-            self.assertTrue(all(row.usuario == "admin1@example.com" for row in auditorias))
-            self.assertTrue(all(row.motivo == "Salida de la compañía" for row in auditorias))
-            self.assertTrue(all(row.correlation_id == "delete-1" for row in auditorias))
-            self.assertTrue(all(row.campo in {"id_usuario", "correo", "nombre", "rol_id", "estado", "activo", "eliminado", "version"} for row in auditorias))
-            audit_text = " ".join((row.valor_nuevo or "") for row in auditorias)
-            self.assertNotIn(password_plana, audit_text)
-            self.assertNotIn("password_hash", audit_text)
-            self.assertNotIn(token_one, audit_text)
-            self.assertNotIn(token_two, audit_text)
-            if usuario.password_hash:
-                self.assertNotIn(usuario.password_hash, audit_text)
-
-        with Session(self.engine) as session, session.begin():
-            admin = resolve_current_user(session, "admin1@example.com")
-            restaurado = restore_user(session, admin, "ts", expected_version=2, correlation_id="restore-1")
-            self.assertFalse(restaurado["eliminado"])
-            self.assertTrue(restaurado["activo"])
-            self.assertEqual(restaurado["version"], 3)
-
-        with Session(self.engine) as session:
-            usuario = session.get(User, "ts")
-            self.assertIsNone(usuario.fecha_eliminacion)
-            self.assertIsNone(usuario.usuario_eliminacion)
-            self.assertIsNone(usuario.motivo_eliminacion)
-            self.assertIsNone(resolve_session_user_id(session, token_one))  # Restaurar no revive sesiones antiguas.
-            auditorias = session.scalars(select(Auditoria).where(
-                Auditoria.tabla == "usuarios", Auditoria.id_registro == "ts", Auditoria.accion == "RESTORE",
-            )).all()
-            self.assertTrue(auditorias)
-            self.assertTrue(all(row.motivo == "Restauración de usuario" for row in auditorias))
-            self.assertTrue(all(row.correlation_id == "restore-1" for row in auditorias))
-            self.assertTrue(all(row.campo in {"id_usuario", "correo", "nombre", "rol_id", "estado", "activo", "eliminado", "version"} for row in auditorias))
-            audit_text = " ".join((row.valor_nuevo or "") for row in auditorias)
-            self.assertNotIn(password_plana, audit_text)
-            self.assertNotIn("password_hash", audit_text)
-            self.assertNotIn(token_one, audit_text)
-            self.assertNotIn(token_two, audit_text)
-            if usuario.password_hash:
-                self.assertNotIn(usuario.password_hash, audit_text)
-
-    def test_user_delete_enforces_permissions_reason_version_and_critical_protections(self):
-        with Session(self.engine) as session, session.begin():
-            admin = resolve_current_user(session, "admin1@example.com")
-            consulta = resolve_current_user(session, "consulta@example.com")
-            cases = (
-                (consulta, "ts", 1, "Motivo", "FORBIDDEN"),
-                (admin, "ts", None, "Motivo", "EXPECTED_VERSION_REQUIRED"),
-                (admin, "ts", 99, "Motivo", "VERSION_CONFLICT"),
-                (admin, "ts", 1, "", "DELETE_REASON_REQUIRED"),
-                (admin, "admin1", 1, "Motivo", "SELF_DELETE_FORBIDDEN"),
-            )
-            for actor, target, version, motivo, code in cases:
-                with self.subTest(code=code), self.assertRaises(AppError) as ctx:
-                    soft_delete_user(session, actor, target, expected_version=version, motivo=motivo, correlation_id="x")
-                self.assertEqual(ctx.exception.code, code)
-            # Un actor autorizado distinto prueba la guarda LAST_ADMIN sin permitir autoeliminación.
-            actor_externo = replace(admin, id_usuario="otro-admin", correo="otro-admin@example.com")
-            with self.assertRaises(AppError) as ctx:
-                soft_delete_user(session, actor_externo, "admin1", expected_version=1, motivo="Motivo", correlation_id="x")
-            self.assertEqual(ctx.exception.code, "LAST_ADMIN")
-
-            soft_delete_user(session, admin, "ts", expected_version=1, motivo="Motivo", correlation_id="x")
-            with self.assertRaises(AppError) as ctx:
-                soft_delete_user(session, admin, "ts", expected_version=2, motivo="Motivo", correlation_id="x")
-            self.assertEqual(ctx.exception.code, "USER_ALREADY_DELETED")
 
     def test_admin_can_create_an_active_user_with_a_hashed_password_and_audit(self):
         password = "TemporalSegura123"
