@@ -34,6 +34,7 @@ export interface DatosAdministracion {
   usuarios: UsuarioAdmin[];
   roles: RolAdmin[];
   permisos: PermisoAdmin[];
+  puede_eliminar_usuarios: boolean;
 }
 
 export interface CrearUsuarioPayload {
@@ -51,8 +52,8 @@ export interface ActualizarUsuarioPayload {
   expected_version: number;
 }
 
-export function listarAdministracion(): Promise<DatosAdministracion> {
-  return get<DatosAdministracion>('/admin/usuarios');
+export function listarAdministracion(incluirEliminados = false): Promise<DatosAdministracion> {
+  return get<DatosAdministracion>(`/admin/usuarios${incluirEliminados ? '?incluir_eliminados=true' : ''}`);
 }
 
 export function crearUsuario(payload: CrearUsuarioPayload): Promise<UsuarioAdmin> {
@@ -67,6 +68,14 @@ export function restablecerPasswordUsuario(
   idUsuario: string, password: string, expectedVersion: number,
 ): Promise<UsuarioAdmin> {
   return put<UsuarioAdmin>(`/admin/usuarios/${idUsuario}/password`, { password, expected_version: expectedVersion });
+}
+
+export function eliminarUsuario(idUsuario: string, expectedVersion: number, motivo: string): Promise<UsuarioAdmin> {
+  return post<UsuarioAdmin>(`/admin/usuarios/${idUsuario}/eliminacion`, { expected_version: expectedVersion, motivo });
+}
+
+export function restaurarUsuario(idUsuario: string, expectedVersion: number): Promise<UsuarioAdmin> {
+  return post<UsuarioAdmin>(`/admin/usuarios/${idUsuario}/restauracion`, { expected_version: expectedVersion });
 }
 
 export function actualizarPermiso(

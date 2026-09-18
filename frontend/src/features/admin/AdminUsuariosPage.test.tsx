@@ -9,8 +9,10 @@ import { AdminUsuariosPage } from './AdminUsuariosPage';
 const api = vi.hoisted(() => ({
   actualizarUsuario: vi.fn(),
   crearUsuario: vi.fn(),
+  eliminarUsuario: vi.fn(),
   listarAdministracion: vi.fn(),
   restablecerPasswordUsuario: vi.fn(),
+  restaurarUsuario: vi.fn(),
 }));
 
 vi.mock('../../api/admin', async () => ({
@@ -30,6 +32,7 @@ const datos: DatosAdministracion = {
     { id_rol: 'ROLE_ADMIN', nombre: 'Administrador', descripcion: null },
   ],
   permisos: [],
+  puede_eliminar_usuarios: true,
 };
 
 async function renderPage() {
@@ -132,6 +135,57 @@ describe('AdminUsuariosPage: edición y restablecimiento seguro', () => {
     await retry.user.type(within(retry.dialog).getByLabelText('Nombre completo'), 'Ana Tres');
     await retry.user.click(within(retry.dialog).getByRole('button', { name: 'Guardar cambios' }));
     expect(await within(retry.dialog).findByRole('alert')).toHaveTextContent('El registro fue modificado por otro usuario.');
+  });
+
+  it('oculta acciones de lifecycle cuando no existe permiso delete', async () => {
+    api.listarAdministracion.mockResolvedValue({ ...datos, puede_eliminar_usuarios: false });
+    render(<FeedbackProvider><AdminUsuariosPage /></FeedbackProvider>);
+    await screen.findByText(usuario.correo);
+    expect(screen.queryByRole('button', { name: 'Eliminar' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Ver usuarios eliminados')).not.toBeInTheDocument();
+  });
+
+  it('requiere motivo, permite cancelar y evita doble envío al eliminar', async () => {
+    let resolver: ((value: UsuarioAdmin) => void) | undefined;
+    api.eliminarUsuario.mockImplementation(() => new Promise<UsuarioAdmin>((resolve) => { resolver = resolve; }));
+    const user = await renderPage();
+    await user.click(screen.getByRole('button', { name: 'Eliminar' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Eliminar usuario' });
+    await user.click(within(dialog).getByRole('button', { name: 'Eliminar usuario' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Indique el motivo de eliminación.');
+    expect(api.eliminarUsuario).not.toHaveBeenCalled();
+    await user.type(within(dialog).getByLabelText('Motivo de eliminación'), 'Salida de prueba');
+    const submit = within(dialog).getByRole('button', { name: 'Eliminar usuario' });
+    await user.click(submit);
+    await user.click(submit);
+    expect(api.eliminarUsuario).toHaveBeenCalledTimes(1);
+    expect(api.eliminarUsuario).toHaveBeenCalledWith('u-1', 3, 'Salida de prueba');
+    resolver?.({ ...usuario, eliminado: true, activo: false, version: 4 });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Eliminar usuario' })).not.toBeInTheDocument());
+  });
+
+  it('cierra la eliminación al cancelar sin llamar a la API', async () => {
+    const user = await renderPage();
+    await user.click(screen.getByRole('button', { name: 'Eliminar' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Eliminar usuario' });
+    await user.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByRole('dialog', { name: 'Eliminar usuario' })).not.toBeInTheDocument();
+    expect(api.eliminarUsuario).not.toHaveBeenCalled();
+  });
+
+  it('muestra eliminados con badge y permite restaurarlos', async () => {
+    const eliminado = { ...usuario, eliminado: true, activo: false, version: 4 };
+    api.listarAdministracion
+      .mockResolvedValueOnce(datos)
+      .mockResolvedValueOnce({ ...datos, usuarios: [eliminado] })
+      .mockResolvedValueOnce(datos);
+    api.restaurarUsuario.mockResolvedValue(usuario);
+    const user = await renderPage();
+    await user.click(screen.getByLabelText('Ver usuarios eliminados'));
+    await waitFor(() => expect(api.listarAdministracion).toHaveBeenLastCalledWith(true));
+    expect(await screen.findByText('ELIMINADO')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Restaurar' }));
+    await waitFor(() => expect(api.restaurarUsuario).toHaveBeenCalledWith('u-1', 4));
   });
 
 });

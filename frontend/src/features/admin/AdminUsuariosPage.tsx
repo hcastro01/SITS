@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import {
-  actualizarUsuario, crearUsuario, listarAdministracion, restablecerPasswordUsuario,
+  actualizarUsuario, crearUsuario, eliminarUsuario, listarAdministracion, restaurarUsuario, restablecerPasswordUsuario,
   type DatosAdministracion, type UsuarioAdmin,
 } from '../../api/admin';
 import { HttpError } from '../../api/client';
@@ -28,10 +28,17 @@ export function AdminUsuariosPage() {
   const [formulario, setFormulario] = useState(FORMULARIO_INICIAL);
   const [creando, setCreando] = useState(false);
   const [errorCreacion, setErrorCreacion] = useState<string | null>(null);
-  async function cargar() {
+  const [incluirEliminados, setIncluirEliminados] = useState(false);
+  const [usuarioEliminando, setUsuarioEliminando] = useState<UsuarioAdmin | null>(null);
+  const [motivoEliminacion, setMotivoEliminacion] = useState('');
+  const [eliminando, setEliminando] = useState(false);
+  const [restaurandoId, setRestaurandoId] = useState<string | null>(null);
+  const [errorEliminacion, setErrorEliminacion] = useState<string | null>(null);
+
+  async function cargar(incluir = incluirEliminados) {
     setError(null);
     try {
-      setDatos(await listarAdministracion());
+      setDatos(await listarAdministracion(incluir));
     } catch (err) {
       setError(err instanceof HttpError ? err.message : 'No fue posible cargar la administración.');
     } finally {
@@ -52,6 +59,62 @@ export function AdminUsuariosPage() {
     setModalAbierto(false);
     setFormulario(FORMULARIO_INICIAL);
     setErrorCreacion(null);
+  }
+
+  function abrirEliminacion(usuario: UsuarioAdmin) {
+    setUsuarioEliminando(usuario);
+    setMotivoEliminacion('');
+    setErrorEliminacion(null);
+  }
+
+  function cerrarEliminacion() {
+    if (eliminando) return;
+    setUsuarioEliminando(null);
+    setMotivoEliminacion('');
+    setErrorEliminacion(null);
+  }
+
+  async function handleEliminar(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!usuarioEliminando) return;
+    const motivo = motivoEliminacion.trim();
+    if (!motivo) {
+      setErrorEliminacion('Indique el motivo de eliminación.');
+      return;
+    }
+    setEliminando(true);
+    setErrorEliminacion(null);
+    try {
+      await eliminarUsuario(usuarioEliminando.id_usuario, usuarioEliminando.version, motivo);
+      await cargar();
+      setUsuarioEliminando(null);
+      setMotivoEliminacion('');
+      notify('Usuario eliminado. Su historial y trazabilidad se conservaron.');
+    } catch (err) {
+      setErrorEliminacion(err instanceof HttpError ? err.message : 'No fue posible eliminar el usuario.');
+    } finally {
+      setEliminando(false);
+    }
+  }
+
+  async function handleRestaurar(usuario: UsuarioAdmin) {
+    setRestaurandoId(usuario.id_usuario);
+    setError(null);
+    try {
+      await restaurarUsuario(usuario.id_usuario, usuario.version);
+      await cargar();
+      notify('Usuario restaurado correctamente.');
+    } catch (err) {
+      setError(err instanceof HttpError ? err.message : 'No fue posible restaurar el usuario.');
+    } finally {
+      setRestaurandoId(null);
+    }
+  }
+
+  async function cambiarIncluirEliminados(incluir: boolean) {
+    setIncluirEliminados(incluir);
+    setCargando(true);
+    await cargar(incluir);
   }
 
   async function handleCrear(event: FormEvent<HTMLFormElement>) {
@@ -100,12 +163,14 @@ export function AdminUsuariosPage() {
         <button type="button" onClick={abrirModal}>+ Crear usuario</button>
       </header>
       {error && <p className="form-error" role="alert">{error}</p>}
-      <section className="module-table-card"><div className="module-table-card-heading"><div><h3>Usuarios registrados</h3><p>Los cambios se guardan por usuario y conservan su trazabilidad.</p></div><span className="badge">{datos.usuarios.length} usuarios</span></div><div className="table-scroll"><table className="data-table module-data-table admin-data-table">
+      <section className="module-table-card"><div className="module-table-card-heading"><div><h3>Usuarios registrados</h3><p>Los cambios se guardan por usuario y conservan su trazabilidad.</p></div><div className="admin-user-list-controls">{datos.puede_eliminar_usuarios && <label className="checkbox-label"><input type="checkbox" checked={incluirEliminados} onChange={(event) => cambiarIncluirEliminados(event.target.checked)} />Ver usuarios eliminados</label>}<span className="badge">{datos.usuarios.length} usuarios</span></div></div><div className="table-scroll"><table className="data-table module-data-table admin-data-table">
         <thead><tr><th>Correo</th><th>Nombre</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead>
         <tbody>
           {datos.usuarios.map((usuario) => (
             <FilaUsuario key={usuario.id_usuario} usuario={usuario} roles={datos.roles}
-              onEditar={() => setUsuarioEditando(usuario)} />
+              puedeEliminar={datos.puede_eliminar_usuarios}
+              onEditar={() => setUsuarioEditando(usuario)} onEliminar={() => abrirEliminacion(usuario)}
+              onRestaurar={() => handleRestaurar(usuario)} restaurando={restaurandoId === usuario.id_usuario} />
           ))}
         </tbody>
       </table></div></section>
@@ -175,22 +240,45 @@ export function AdminUsuariosPage() {
           }}
         />
       )}
+      {usuarioEliminando && (
+        <Modal titulo="Eliminar usuario" onClose={cerrarEliminacion} closeOnBackdrop={!eliminando} size="small">
+          <form className="admin-user-form module-form" onSubmit={handleEliminar} noValidate>
+            {errorEliminacion && <p className="form-error" role="alert">{errorEliminacion}</p>}
+            <p className="dialog-message">El usuario perderá acceso al sistema, pero su información histórica y trazabilidad se conservarán.</p>
+            <dl className="admin-user-summary"><div><dt>Nombre</dt><dd>{usuarioEliminando.nombre}</dd></div><div><dt>Correo</dt><dd>{usuarioEliminando.correo}</dd></div><div><dt>Rol</dt><dd>{datos.roles.find((rol) => rol.id_rol === usuarioEliminando.rol_id)?.nombre ?? usuarioEliminando.rol_id}</dd></div></dl>
+            <label>
+              Motivo de eliminación
+              <textarea data-autofocus required value={motivoEliminacion} onChange={(event) => setMotivoEliminacion(event.target.value)} />
+            </label>
+            <div className="modal-actions">
+              <button type="button" className="secondary" onClick={cerrarEliminacion} disabled={eliminando}>Cancelar</button>
+              <button type="submit" className="danger" disabled={eliminando}>{eliminando ? 'Eliminando…' : 'Eliminar usuario'}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </section>
   );
 }
 
-function FilaUsuario({ usuario, roles, onEditar }: {
+function FilaUsuario({ usuario, roles, puedeEliminar, onEditar, onEliminar, onRestaurar, restaurando }: {
   usuario: DatosAdministracion['usuarios'][number];
   roles: DatosAdministracion['roles'];
+  puedeEliminar: boolean;
   onEditar: () => void;
+  onEliminar: () => void;
+  onRestaurar: () => void;
+  restaurando: boolean;
 }) {
   return (
     <tr>
       <td>{usuario.correo}</td>
       <td>{usuario.nombre}</td>
       <td>{roles.find((rol) => rol.id_rol === usuario.rol_id)?.nombre ?? usuario.rol_id}</td>
-      <td><span className={`badge ${usuario.estado === 'ACTIVO' ? '' : 'badge-muted'}`}>{usuario.estado === 'ACTIVO' ? 'Activo' : 'Inactivo'}</span></td>
-      <td><button type="button" className="secondary" onClick={onEditar}>Editar</button></td>
+      <td><span className={`badge ${usuario.eliminado ? 'badge--danger' : usuario.estado === 'ACTIVO' ? '' : 'badge-muted'}`}>{usuario.eliminado ? 'ELIMINADO' : usuario.estado === 'ACTIVO' ? 'Activo' : 'Inactivo'}</span></td>
+      <td><div className="admin-user-actions">{usuario.eliminado ? (
+        puedeEliminar && <button type="button" className="secondary" onClick={onRestaurar} disabled={restaurando}>{restaurando ? 'Restaurando…' : 'Restaurar'}</button>
+      ) : <><button type="button" className="secondary" onClick={onEditar}>Editar</button>{puedeEliminar && <button type="button" className="danger" onClick={onEliminar}>Eliminar</button>}</>}</div></td>
     </tr>
   );
 }

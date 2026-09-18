@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_db
 from app.core.permissions import AuthenticatedUser
 from app.services.admin import (
-    create_user, list_administration, reset_user_password, save_permission, save_user,
+    create_user, list_administration, reset_user_password, restore_user, save_permission,
+    save_user, soft_delete_user,
 )
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Administración"])
@@ -41,6 +42,19 @@ class RestablecerPasswordRequest(BaseModel):
     expected_version: int
 
 
+class EliminarUsuarioRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_version: int
+    motivo: str
+
+
+class RestaurarUsuarioRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_version: int
+
+
 class DerechosRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -60,8 +74,11 @@ class ActualizarPermisoRequest(BaseModel):
 
 
 @router.get("/usuarios")
-def listar(db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
-    return list_administration(db, user)
+def listar(
+    incluir_eliminados: bool = False, db: Session = Depends(get_db),
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    return list_administration(db, user, include_deleted=incluir_eliminados)
 
 
 @router.post("/usuarios", status_code=status.HTTP_201_CREATED)
@@ -95,6 +112,28 @@ def restablecer_password_usuario(
 ):
     return reset_user_password(
         db, user, id_usuario, password=payload.password, expected_version=payload.expected_version,
+        correlation_id=getattr(request.state, "correlation_id", ""),
+    )
+
+
+@router.post("/usuarios/{id_usuario}/eliminacion")
+def eliminar_usuario(
+    id_usuario: str, payload: EliminarUsuarioRequest, request: Request, db: Session = Depends(get_db),
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    return soft_delete_user(
+        db, user, id_usuario, expected_version=payload.expected_version, motivo=payload.motivo,
+        correlation_id=getattr(request.state, "correlation_id", ""),
+    )
+
+
+@router.post("/usuarios/{id_usuario}/restauracion")
+def restaurar_usuario(
+    id_usuario: str, payload: RestaurarUsuarioRequest, request: Request, db: Session = Depends(get_db),
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    return restore_user(
+        db, user, id_usuario, expected_version=payload.expected_version,
         correlation_id=getattr(request.state, "correlation_id", ""),
     )
 

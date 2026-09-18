@@ -289,6 +289,43 @@ class ApiIntegrationTests(unittest.TestCase):
         self.assertEqual(forbidden.status_code, 403)
         self.assertEqual(forbidden.json()["code"], "FORBIDDEN")
 
+    def test_admin_user_lifecycle_endpoints_enforce_delete_permission_and_listing_contract(self):
+        self.assertEqual(self.client.post(
+            "/api/v1/auth/login", json={"correo": "admin@example.com", "password": "irrelevante"},
+        ).status_code, 200)
+        missing_version = self.client.post("/api/v1/admin/usuarios/consulta/eliminacion", json={"motivo": "Salida"})
+        self.assertEqual(missing_version.status_code, 422)
+        self_delete = self.client.post("/api/v1/admin/usuarios/admin/eliminacion", json={
+            "expected_version": 1, "motivo": "No permitido",
+        })
+        self.assertEqual(self_delete.status_code, 409)
+        deleted = self.client.post("/api/v1/admin/usuarios/consulta/eliminacion", json={
+            "expected_version": 1, "motivo": "Salida de prueba",
+        })
+        self.assertEqual(deleted.status_code, 200)
+        self.assertTrue(deleted.json()["eliminado"])
+        self.assertFalse(deleted.json()["activo"])
+        self.assertNotIn("consulta", {item["id_usuario"] for item in self.client.get("/api/v1/admin/usuarios").json()["usuarios"]})
+        included = self.client.get("/api/v1/admin/usuarios?incluir_eliminados=true")
+        self.assertEqual(included.status_code, 200)
+        self.assertTrue(included.json()["puede_eliminar_usuarios"])
+        self.assertIn("consulta", {item["id_usuario"] for item in included.json()["usuarios"]})
+        stale_restore = self.client.post("/api/v1/admin/usuarios/consulta/restauracion", json={"expected_version": 99})
+        self.assertEqual(stale_restore.status_code, 409)
+        restored = self.client.post("/api/v1/admin/usuarios/consulta/restauracion", json={"expected_version": 2})
+        self.assertEqual(restored.status_code, 200)
+        self.assertFalse(restored.json()["eliminado"])
+
+        self.assertEqual(self.client.post("/api/v1/auth/logout").status_code, 200)
+        self.assertEqual(self.client.post(
+            "/api/v1/auth/login", json={"correo": "consulta@example.com", "password": "irrelevante"},
+        ).status_code, 200)
+        self.assertEqual(self.client.get("/api/v1/admin/usuarios?incluir_eliminados=true").status_code, 403)
+        self.assertEqual(self.client.post("/api/v1/admin/usuarios/admin/eliminacion", json={
+            "expected_version": 1, "motivo": "No permitido",
+        }).status_code, 403)
+        self.assertEqual(self.client.post("/api/v1/admin/usuarios/admin/restauracion", json={"expected_version": 1}).status_code, 403)
+
     def test_sensitive_cases_are_not_exposed_in_lists_or_autocomplete(self):
         with Session(self.engine) as session, session.begin():
             session.add(Catalogo(
