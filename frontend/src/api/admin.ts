@@ -34,6 +34,7 @@ export interface DatosAdministracion {
   usuarios: UsuarioAdmin[];
   roles: RolAdmin[];
   permisos: PermisoAdmin[];
+  puede_eliminar_usuarios?: boolean;
 }
 
 export interface CrearUsuarioPayload {
@@ -43,18 +44,40 @@ export interface CrearUsuarioPayload {
   password: string;
 }
 
-export function listarAdministracion(): Promise<DatosAdministracion> {
-  return get<DatosAdministracion>('/admin/usuarios');
+export interface ActualizarUsuarioPayload {
+  nombre: string;
+  correo: string;
+  rol_id: string;
+  estado: 'ACTIVO' | 'INACTIVO';
+  expected_version: number;
+}
+
+export function listarAdministracion(incluirEliminados = false): Promise<DatosAdministracion> {
+  return get<DatosAdministracion>(`/admin/usuarios${incluirEliminados ? '?incluir_eliminados=true' : ''}`);
 }
 
 export function crearUsuario(payload: CrearUsuarioPayload): Promise<UsuarioAdmin> {
   return post<UsuarioAdmin>('/admin/usuarios', payload);
 }
 
-export function actualizarUsuario(
-  idUsuario: string, rolId: string, estado: string, expectedVersion: number,
+export function actualizarUsuario(idUsuario: string, payload: ActualizarUsuarioPayload): Promise<UsuarioAdmin> {
+  return patch<UsuarioAdmin>(`/admin/usuarios/${idUsuario}`, payload);
+}
+
+export function restablecerPasswordUsuario(
+  idUsuario: string, password: string, expectedVersion: number,
 ): Promise<UsuarioAdmin> {
-  return patch<UsuarioAdmin>(`/admin/usuarios/${idUsuario}`, { rol_id: rolId, estado, expected_version: expectedVersion });
+  return put<UsuarioAdmin>(`/admin/usuarios/${idUsuario}/password`, { password, expected_version: expectedVersion });
+}
+
+export function eliminarUsuario(idUsuario: string, expectedVersion: number, motivo: string): Promise<UsuarioAdmin> {
+  return post<UsuarioAdmin>(`/admin/usuarios/${idUsuario}/eliminacion`, {
+    expected_version: expectedVersion, motivo,
+  });
+}
+
+export function restaurarUsuario(idUsuario: string, expectedVersion: number): Promise<UsuarioAdmin> {
+  return post<UsuarioAdmin>(`/admin/usuarios/${idUsuario}/restauracion`, { expected_version: expectedVersion });
 }
 
 export function actualizarPermiso(

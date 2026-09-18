@@ -8,7 +8,10 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.core.permissions import AuthenticatedUser
-from app.services.admin import create_user, list_administration, save_permission, save_user_role
+from app.services.admin import (
+    create_user, list_administration, reset_user_password, restore_user, save_permission,
+    save_user, soft_delete_user,
+)
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Administración"])
 
@@ -25,8 +28,30 @@ class CrearUsuarioRequest(BaseModel):
 class ActualizarUsuarioRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    nombre: str
+    correo: str
     rol_id: str
     estado: Literal["ACTIVO", "INACTIVO"] = "ACTIVO"
+    expected_version: int
+
+
+class RestablecerPasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    password: str
+    expected_version: int
+
+
+class EliminarUsuarioRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_version: int
+    motivo: str
+
+
+class RestaurarUsuarioRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     expected_version: int
 
 
@@ -49,8 +74,11 @@ class ActualizarPermisoRequest(BaseModel):
 
 
 @router.get("/usuarios")
-def listar(db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
-    return list_administration(db, user)
+def listar(
+    incluir_eliminados: bool = False, db: Session = Depends(get_db),
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    return list_administration(db, user, include_deleted=incluir_eliminados)
 
 
 @router.post("/usuarios", status_code=status.HTTP_201_CREATED)
@@ -69,9 +97,43 @@ def actualizar_usuario(
     id_usuario: str, payload: ActualizarUsuarioRequest, request: Request, db: Session = Depends(get_db),
     user: AuthenticatedUser = Depends(get_current_user),
 ):
-    return save_user_role(
-        db, user, id_usuario, rol_id=payload.rol_id, estado=payload.estado,
+    return save_user(
+        db, user, id_usuario, nombre=payload.nombre, correo=payload.correo,
+        rol_id=payload.rol_id, estado=payload.estado,
         expected_version=payload.expected_version,
+        correlation_id=getattr(request.state, "correlation_id", ""),
+    )
+
+
+@router.put("/usuarios/{id_usuario}/password")
+def restablecer_password_usuario(
+    id_usuario: str, payload: RestablecerPasswordRequest, request: Request, db: Session = Depends(get_db),
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    return reset_user_password(
+        db, user, id_usuario, password=payload.password, expected_version=payload.expected_version,
+        correlation_id=getattr(request.state, "correlation_id", ""),
+    )
+
+
+@router.post("/usuarios/{id_usuario}/eliminacion")
+def eliminar_usuario(
+    id_usuario: str, payload: EliminarUsuarioRequest, request: Request, db: Session = Depends(get_db),
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    return soft_delete_user(
+        db, user, id_usuario, expected_version=payload.expected_version, motivo=payload.motivo,
+        correlation_id=getattr(request.state, "correlation_id", ""),
+    )
+
+
+@router.post("/usuarios/{id_usuario}/restauracion")
+def restaurar_usuario(
+    id_usuario: str, payload: RestaurarUsuarioRequest, request: Request, db: Session = Depends(get_db),
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    return restore_user(
+        db, user, id_usuario, expected_version=payload.expected_version,
         correlation_id=getattr(request.state, "correlation_id", ""),
     )
 

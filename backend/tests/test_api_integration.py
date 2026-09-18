@@ -15,7 +15,7 @@ import app.db.session as db_session
 from app.db.session import build_engine
 from app.main import app
 from app.models import Auditoria, Caso, Catalogo, User
-from app.services.passwords import verify_password
+from app.services.passwords import hash_password, verify_password
 from app.services.security_seed import seed_security
 
 
@@ -205,6 +205,167 @@ class ApiIntegrationTests(unittest.TestCase):
                 response = self.client.post("/api/v1/admin/usuarios", json=payload)
                 self.assertEqual(response.status_code, status_code)
                 self.assertEqual(response.json()["code"], code)
+
+    def test_admin_updates_user_data_and_resets_password_without_exposing_credentials(self):
+        old_password = "ClaveAnterior123"
+        new_password = "ClaveNueva456"
+        with Session(self.engine) as session, session.begin():
+            self.assertEqual(session.get(User, "consulta").version, 1)
+            session.get(User, "consulta").password_hash = hash_password(old_password)
+        self.assertEqual(self.client.post(
+            "/api/v1/auth/login", json={"correo": "admin@example.com", "password": "irrelevante"},
+        ).status_code, 200)
+
+        updated = self.client.patch("/api/v1/admin/usuarios/consulta", json={
+            "nombre": " Consulta Actualizada ", "correo": " CONSULTA.NUEVA@EXAMPLE.COM ",
+            "rol_id": "ROLE_CONSULTA", "estado": "ACTIVO", "expected_version": 1,
+        })
+        self.assertEqual(updated.status_code, 200)
+        updated_body = updated.json()
+        self.assertEqual(updated_body["nombre"], "Consulta Actualizada")
+        self.assertEqual(updated_body["correo"], "consulta.nueva@example.com")
+        self.assertEqual(updated_body["estado"], "ACTIVO")
+        self.assertNotIn("password", updated_body)
+        self.assertNotIn("password_hash", updated_body)
+
+        reset = self.client.put("/api/v1/admin/usuarios/consulta/password", json={
+            "password": new_password, "expected_version": updated_body["version"],
+        })
+        self.assertEqual(reset.status_code, 200)
+        self.assertNotIn("password", reset.json())
+        self.assertNotIn("password_hash", reset.json())
+
+        with Session(self.engine) as session:
+            usuario = session.get(User, "consulta")
+            self.assertTrue(verify_password(new_password, usuario.password_hash))
+            self.assertFalse(verify_password(old_password, usuario.password_hash))
+            auditorias = session.query(Auditoria).filter_by(
+                tabla="usuarios", id_registro="consulta", accion="UPDATE",
+            ).all()
+            self.assertTrue(auditorias)
+            self.assertTrue(all(row.campo not in {"password", "password_hash"} for row in auditorias))
+            self.assertNotIn(new_password, " ".join((row.valor_nuevo or "") for row in auditorias))
+            self.assertNotIn(usuario.password_hash, " ".join((row.valor_nuevo or "") for row in auditorias))
+
+        password_settings = SimpleNamespace(
+            auth_mode="password", cookie_secure=False, cookie_samesite="lax", session_ttl_hours=12,
+        )
+        self.assertEqual(self.client.post("/api/v1/auth/logout").status_code, 200)
+        with patch("app.api.auth.get_settings", return_value=password_settings):
+            self.assertEqual(self.client.post(
+                "/api/v1/auth/login", json={"correo": "consulta.nueva@example.com", "password": old_password},
+            ).status_code, 401)
+            self.assertEqual(self.client.post(
+                "/api/v1/auth/login", json={"correo": "consulta.nueva@example.com", "password": new_password},
+            ).status_code, 200)
+
+    def test_admin_user_update_and_password_reset_enforce_validation_and_edit_permission(self):
+        self.assertEqual(self.client.post(
+            "/api/v1/auth/login", json={"correo": "admin@example.com", "password": "irrelevante"},
+        ).status_code, 200)
+        invalid_email = self.client.patch("/api/v1/admin/usuarios/consulta", json={
+            "nombre": "Consulta", "correo": "inválido", "rol_id": "ROLE_CONSULTA", "estado": "ACTIVO", "expected_version": 1,
+        })
+        self.assertEqual(invalid_email.status_code, 422)
+        self.assertEqual(invalid_email.json()["code"], "INVALID_EMAIL")
+        weak_password = self.client.put("/api/v1/admin/usuarios/consulta/password", json={
+            "password": "débil", "expected_version": 1,
+        })
+        self.assertEqual(weak_password.status_code, 422)
+        self.assertEqual(weak_password.json()["code"], "WEAK_PASSWORD")
+        stale_version = self.client.put("/api/v1/admin/usuarios/consulta/password", json={
+            "password": "ClaveNueva456", "expected_version": 99,
+        })
+        self.assertEqual(stale_version.status_code, 409)
+        self.assertEqual(stale_version.json()["code"], "VERSION_CONFLICT")
+
+        self.assertEqual(self.client.post("/api/v1/auth/logout").status_code, 200)
+        self.assertEqual(self.client.post(
+            "/api/v1/auth/login", json={"correo": "consulta@example.com", "password": "irrelevante"},
+        ).status_code, 200)
+        forbidden = self.client.put("/api/v1/admin/usuarios/admin/password", json={
+            "password": "ClaveNueva456", "expected_version": 1,
+        })
+        self.assertEqual(forbidden.status_code, 403)
+        self.assertEqual(forbidden.json()["code"], "FORBIDDEN")
+
+    def test_admin_soft_deletes_and_restores_user_without_exposing_secrets(self):
+        target_client = TestClient(app)
+        password_plana = "ClaveTemporalEliminacion123"
+        try:
+            with Session(self.engine) as session, session.begin():
+                session.get(User, "consulta").password_hash = hash_password(password_plana)
+            self.assertEqual(target_client.post(
+                "/api/v1/auth/login", json={"correo": "consulta@example.com", "password": password_plana},
+            ).status_code, 200)
+            token_sesion = target_client.cookies.get("sits_session")
+            self.assertEqual(self.client.post(
+                "/api/v1/auth/login", json={"correo": "admin@example.com", "password": "irrelevante"},
+            ).status_code, 200)
+
+            deleted = self.client.post("/api/v1/admin/usuarios/consulta/eliminacion", json={
+                "expected_version": 1, "motivo": "Salida de la compañía",
+            })
+            self.assertEqual(deleted.status_code, 200)
+            self.assertTrue(deleted.json()["eliminado"])
+            self.assertFalse(deleted.json()["activo"])
+            self.assertNotIn("password", deleted.json())
+            self.assertNotIn("password_hash", deleted.json())
+            self.assertEqual(target_client.get("/api/v1/auth/me").status_code, 401)
+            self.assertEqual(target_client.post(
+                "/api/v1/auth/login", json={"correo": "consulta@example.com", "password": password_plana},
+            ).status_code, 403)
+
+            normal_list = self.client.get("/api/v1/admin/usuarios")
+            self.assertEqual(normal_list.status_code, 200)
+            self.assertNotIn("consulta", {item["id_usuario"] for item in normal_list.json()["usuarios"]})
+            deleted_list = self.client.get("/api/v1/admin/usuarios?incluir_eliminados=true")
+            self.assertEqual(deleted_list.status_code, 200)
+            self.assertIn("consulta", {item["id_usuario"] for item in deleted_list.json()["usuarios"]})
+            self.assertTrue(deleted_list.json()["puede_eliminar_usuarios"])
+
+            repeated = self.client.post("/api/v1/admin/usuarios/consulta/eliminacion", json={
+                "expected_version": 2, "motivo": "Reintento",
+            })
+            self.assertEqual(repeated.status_code, 409)
+            self.assertEqual(repeated.json()["code"], "USER_ALREADY_DELETED")
+            restored = self.client.post("/api/v1/admin/usuarios/consulta/restauracion", json={"expected_version": 2})
+            self.assertEqual(restored.status_code, 200)
+            self.assertFalse(restored.json()["eliminado"])
+            self.assertTrue(restored.json()["activo"])
+            self.assertEqual(target_client.get("/api/v1/auth/me").status_code, 401)
+            self.assertEqual(target_client.post(
+                "/api/v1/auth/login", json={"correo": "consulta@example.com", "password": password_plana},
+            ).status_code, 200)
+
+            with Session(self.engine) as session:
+                usuario = session.get(User, "consulta")
+                auditorias = session.query(Auditoria).filter_by(tabla="usuarios", id_registro="consulta").all()
+                self.assertIsNotNone(usuario)
+                self.assertFalse(usuario.eliminado)
+                self.assertIsNone(usuario.motivo_eliminacion)
+                self.assertEqual({row.accion for row in auditorias}, {"DELETE", "RESTORE"})
+                self.assertTrue(all(row.campo in {"id_usuario", "correo", "nombre", "rol_id", "estado", "activo", "eliminado", "version"} for row in auditorias))
+                audit_text = " ".join((row.valor_nuevo or "") for row in auditorias)
+                self.assertNotIn(password_plana, audit_text)
+                self.assertNotIn("password_hash", audit_text)
+                if usuario.password_hash:
+                    self.assertNotIn(usuario.password_hash, audit_text)
+                if token_sesion:
+                    self.assertNotIn(token_sesion, audit_text)
+
+            self.assertEqual(self.client.post("/api/v1/auth/logout").status_code, 200)
+            self.assertEqual(self.client.post(
+                "/api/v1/auth/login", json={"correo": "consulta@example.com", "password": password_plana},
+            ).status_code, 200)
+            forbidden = self.client.post("/api/v1/admin/usuarios/admin/eliminacion", json={
+                "expected_version": 1, "motivo": "Sin permiso",
+            })
+            self.assertEqual(forbidden.status_code, 403)
+            self.assertEqual(forbidden.json()["code"], "FORBIDDEN")
+            self.assertEqual(self.client.get("/api/v1/admin/usuarios?incluir_eliminados=true").status_code, 403)
+        finally:
+            target_client.close()
 
     def test_sensitive_cases_are_not_exposed_in_lists_or_autocomplete(self):
         with Session(self.engine) as session, session.begin():
