@@ -97,17 +97,17 @@ export function AdminUsuariosPage() {
     }
   }
 
-  if (cargando) return <p>Cargando…</p>;
+  if (cargando) return <div className="module-state" role="status">Cargando…</div>;
   if (!datos) return <p className="form-error">{error ?? 'No fue posible cargar la administración.'}</p>;
 
   return (
-    <section className="panel wide-panel">
-      <div className="panel-header">
-        <h2>Usuarios y roles</h2>
+    <section className="module-list-page admin-page admin-users-page">
+      <header className="module-page-hero">
+        <div><p className="eyebrow">Administración</p><h2>Usuarios y roles</h2><p>Gestione las cuentas activas y sus roles asignados.</p></div>
         <button type="button" onClick={abrirModal}>+ Crear usuario</button>
-      </div>
+      </header>
       {error && <p className="form-error" role="alert">{error}</p>}
-      <div className="table-scroll"><table className="data-table">
+      <section className="module-table-card"><div className="module-table-card-heading"><div><h3>Usuarios registrados</h3><p>Los cambios se guardan por usuario y conservan su trazabilidad.</p></div><span className="badge">{datos.usuarios.length} usuarios</span></div><div className="table-scroll"><table className="data-table module-data-table admin-data-table">
         <thead><tr><th>Correo</th><th>Nombre</th><th>Rol</th><th>Estado</th><th></th></tr></thead>
         <tbody>
           {datos.usuarios.map((usuario) => (
@@ -120,10 +120,10 @@ export function AdminUsuariosPage() {
             />
           ))}
         </tbody>
-      </table></div>
+      </table></div></section>
       {modalAbierto && (
         <Modal titulo="Crear usuario" onClose={cerrarModal} closeOnBackdrop={!creando}>
-          <form className="admin-user-form" onSubmit={handleCrear} noValidate>
+          <form className="admin-user-form module-form" onSubmit={handleCrear} noValidate>
             {errorCreacion && <p className="form-error" role="alert">{errorCreacion}</p>}
             <label>
               Nombre completo
