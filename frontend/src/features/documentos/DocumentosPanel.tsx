@@ -172,11 +172,11 @@ export function DocumentosPanel({ tipoRegistro, idRegistro, riesgoId, produccion
   }
 
   return (
-    <section className="panel">
+    <section className="panel module-documents-panel">
       <h2>Documentos</h2>
       {error && <p className="form-error" role="alert">{error}</p>}
 
-      {canUpload && <form onSubmit={handleSubir} className="upload-form">
+      {canUpload && <form onSubmit={handleSubir} className="upload-form module-upload-form">
         <label htmlFor="documento-archivo">Archivo (PDF, JPEG, PNG o WEBP — máx. 10&nbsp;MB)</label>
         <input id="documento-archivo" ref={inputArchivoRef} type="file" required
                accept={FILE_ACCEPT} />
@@ -194,7 +194,7 @@ export function DocumentosPanel({ tipoRegistro, idRegistro, riesgoId, produccion
       ) : documentos.length === 0 ? (
         <p className="footnote">Sin documentos adjuntos.</p>
       ) : (
-        <div className="table-scroll"><table className="data-table">
+        <div className="table-scroll"><table className="data-table module-data-table">
           <thead>
             <tr><th>Nombre</th><th>Tipo</th><th>Categoría</th><th>Tamaño</th><th>Cargado</th><th></th></tr>
           </thead>

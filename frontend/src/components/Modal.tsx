@@ -80,7 +80,7 @@ export function Modal({ titulo, onClose, children, size = 'medium', closeOnBackd
 
   return createPortal(
     <div ref={overlayRef} className="modal-overlay" onMouseDown={() => closeOnBackdrop && onClose()}>
-      <div ref={dialogRef} className={`modal modal--${size}`} role="dialog" aria-modal="true" aria-labelledby={titleId}
+      <div ref={dialogRef} className={`modal modal-v2 modal--${size}`} role="dialog" aria-modal="true" aria-labelledby={titleId}
            tabIndex={-1} onMouseDown={(event) => event.stopPropagation()}>
         <div className="modal-header">
           <h2 id={titleId}>{titulo}</h2>

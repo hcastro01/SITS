@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { Link, MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Layout } from './Layout';
 
@@ -8,8 +8,8 @@ const auth = vi.hoisted(() => ({ usuario: { nombre: 'Admin', rol_nombre: 'Admini
 vi.mock('./AuthContext', () => ({ useAuth: () => auth }));
 vi.mock('../components/FeedbackProvider', () => ({ useFeedback: () => ({ notify: vi.fn() }) }));
 
-function renderLayout() {
-  return render(<MemoryRouter><Layout /></MemoryRouter>);
+function renderLayout(initialEntry = '/') {
+  return render(<MemoryRouter initialEntries={[initialEntry]}><Layout /></MemoryRouter>);
 }
 
 beforeEach(() => { auth.usuario.permisos = {}; });
@@ -31,5 +31,46 @@ describe('navegación de Departamento Médico', () => {
   it('no muestra Atenciones ni los otros hijos sin su permiso de lectura', async () => {
     renderLayout();
     expect(screen.queryByRole('button', { name: /departamento médico/i })).not.toBeInTheDocument();
+  });
+});
+
+describe('expansión controlada del sidebar', () => {
+  beforeEach(() => {
+    auth.usuario.permisos = {
+      ADMINISTRACION: { read: true }, ATENCIONES: { read: true }, RECORRIDOS: { read: true },
+      RIESGOS_TRABAJO: { read: true }, AUSENTISMO: { read: true }, ACCIDENTES: { read: true }, FORMULARIOS: { read: true },
+    };
+  });
+
+  it('abre Administración al entrar, permite contraerla y volver a expandirla', async () => {
+    const user = userEvent.setup();
+    renderLayout('/admin/usuarios');
+    const admin = await screen.findByRole('button', { name: /^administración$/i });
+    expect(admin).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('link', { name: 'Usuarios' })).toBeInTheDocument();
+
+    await user.click(admin);
+    expect(admin).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('link', { name: 'Usuarios' })).not.toBeInTheDocument();
+
+    await user.click(admin);
+    expect(admin).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('link', { name: 'Usuarios' })).toBeInTheDocument();
+  });
+
+  it('abre los ancestros de la nueva ruta, incluyendo Producción y Departamento Médico', async () => {
+    const user = userEvent.setup();
+    render(<MemoryRouter initialEntries={['/admin/usuarios']}><Link to="/trabajo-social/produccion/atenciones">Ir a Producción</Link><Layout /></MemoryRouter>);
+    const production = await screen.findByRole('button', { name: /^producción$/i });
+    expect(production).toHaveAttribute('aria-expanded', 'false');
+
+    await user.click(screen.getByRole('link', { name: 'Ir a Producción' }));
+    expect(await screen.findByRole('link', { name: 'Atenciones' })).toHaveAttribute('href', '/trabajo-social/produccion/atenciones');
+    expect(production).toHaveAttribute('aria-expanded', 'true');
+
+    renderLayout('/trabajo-social/departamento-medico/riesgos');
+    const medical = (await screen.findAllByRole('button', { name: /^departamento médico$/i })).at(-1)!;
+    expect(medical).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getAllByRole('link', { name: 'Riesgos de trabajo' }).at(-1)).toBeInTheDocument();
   });
 });
