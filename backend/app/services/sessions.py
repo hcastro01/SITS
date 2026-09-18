@@ -59,3 +59,13 @@ def revoke_session(session: Session, token: str) -> None:
     fila = session.scalar(select(Sesion).where(Sesion.token_hash == _hash_token(token)))
     if fila is not None and fila.revocada_en is None:
         fila.revocada_en = utc_now_iso()
+
+
+def revoke_user_sessions(session: Session, id_usuario: str) -> None:
+    """Revoca todas las sesiones aún vigentes de un usuario en la transacción actual."""
+    ahora = utc_now_iso()
+    for fila in session.scalars(select(Sesion).where(
+        Sesion.id_usuario == id_usuario,
+        Sesion.revocada_en.is_(None),
+    )):
+        fila.revocada_en = ahora

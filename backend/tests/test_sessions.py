@@ -11,7 +11,7 @@ import app.db.session as db_session
 from app.db.session import build_engine
 from app.models import Sesion, User
 from app.services.security_seed import seed_security
-from app.services.sessions import create_session, resolve_session_user_id, revoke_session
+from app.services.sessions import create_session, resolve_session_user_id, revoke_session, revoke_user_sessions
 
 
 class SessionsServiceTests(unittest.TestCase):
@@ -80,6 +80,20 @@ class SessionsServiceTests(unittest.TestCase):
         with Session(self.engine) as session:
             fila = session.scalar(select(Sesion))
             self.assertIsNotNone(fila.revocada_en)
+
+    def test_revoke_user_sessions_revokes_all_active_sessions_only(self):
+        with Session(self.engine) as session, session.begin():
+            first = create_session(session, "u1")
+            second = create_session(session, "u1")
+        with Session(self.engine) as session, session.begin():
+            revoke_session(session, first)
+            revoke_user_sessions(session, "u1")
+        with Session(self.engine) as session:
+            self.assertIsNone(resolve_session_user_id(session, first))
+            self.assertIsNone(resolve_session_user_id(session, second))
+            sessions = session.scalars(select(Sesion).where(Sesion.id_usuario == "u1")).all()
+            self.assertEqual(len(sessions), 2)
+            self.assertTrue(all(fila.revocada_en is not None for fila in sessions))
 
 
 if __name__ == "__main__":

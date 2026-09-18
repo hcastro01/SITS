@@ -8,7 +8,9 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.core.permissions import AuthenticatedUser
-from app.services.admin import create_user, list_administration, save_permission, save_user_role
+from app.services.admin import (
+    create_user, list_administration, reset_user_password, save_permission, save_user,
+)
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Administración"])
 
@@ -25,8 +27,17 @@ class CrearUsuarioRequest(BaseModel):
 class ActualizarUsuarioRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    nombre: str
+    correo: str
     rol_id: str
     estado: Literal["ACTIVO", "INACTIVO"] = "ACTIVO"
+    expected_version: int
+
+
+class RestablecerPasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    password: str
     expected_version: int
 
 
@@ -69,9 +80,21 @@ def actualizar_usuario(
     id_usuario: str, payload: ActualizarUsuarioRequest, request: Request, db: Session = Depends(get_db),
     user: AuthenticatedUser = Depends(get_current_user),
 ):
-    return save_user_role(
-        db, user, id_usuario, rol_id=payload.rol_id, estado=payload.estado,
+    return save_user(
+        db, user, id_usuario, nombre=payload.nombre, correo=payload.correo,
+        rol_id=payload.rol_id, estado=payload.estado,
         expected_version=payload.expected_version,
+        correlation_id=getattr(request.state, "correlation_id", ""),
+    )
+
+
+@router.put("/usuarios/{id_usuario}/password")
+def restablecer_password_usuario(
+    id_usuario: str, payload: RestablecerPasswordRequest, request: Request, db: Session = Depends(get_db),
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    return reset_user_password(
+        db, user, id_usuario, password=payload.password, expected_version=payload.expected_version,
         correlation_id=getattr(request.state, "correlation_id", ""),
     )
 

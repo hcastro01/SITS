@@ -15,7 +15,7 @@ import app.db.session as db_session
 from app.db.session import build_engine
 from app.main import app
 from app.models import Auditoria, Caso, Catalogo, User
-from app.services.passwords import verify_password
+from app.services.passwords import hash_password, verify_password
 from app.services.security_seed import seed_security
 
 
@@ -205,6 +205,89 @@ class ApiIntegrationTests(unittest.TestCase):
                 response = self.client.post("/api/v1/admin/usuarios", json=payload)
                 self.assertEqual(response.status_code, status_code)
                 self.assertEqual(response.json()["code"], code)
+
+    def test_admin_updates_user_data_and_resets_password_without_exposing_credentials(self):
+        old_password = "ClaveAnterior123"
+        new_password = "ClaveNueva456"
+        with Session(self.engine) as session, session.begin():
+            self.assertEqual(session.get(User, "consulta").version, 1)
+            session.get(User, "consulta").password_hash = hash_password(old_password)
+        self.assertEqual(self.client.post(
+            "/api/v1/auth/login", json={"correo": "admin@example.com", "password": "irrelevante"},
+        ).status_code, 200)
+
+        updated = self.client.patch("/api/v1/admin/usuarios/consulta", json={
+            "nombre": " Consulta Actualizada ", "correo": " CONSULTA.NUEVA@EXAMPLE.COM ",
+            "rol_id": "ROLE_CONSULTA", "estado": "ACTIVO", "expected_version": 1,
+        })
+        self.assertEqual(updated.status_code, 200)
+        updated_body = updated.json()
+        self.assertEqual(updated_body["nombre"], "Consulta Actualizada")
+        self.assertEqual(updated_body["correo"], "consulta.nueva@example.com")
+        self.assertEqual(updated_body["estado"], "ACTIVO")
+        self.assertNotIn("password", updated_body)
+        self.assertNotIn("password_hash", updated_body)
+
+        reset = self.client.put("/api/v1/admin/usuarios/consulta/password", json={
+            "password": new_password, "expected_version": updated_body["version"],
+        })
+        self.assertEqual(reset.status_code, 200)
+        self.assertNotIn("password", reset.json())
+        self.assertNotIn("password_hash", reset.json())
+
+        with Session(self.engine) as session:
+            usuario = session.get(User, "consulta")
+            self.assertTrue(verify_password(new_password, usuario.password_hash))
+            self.assertFalse(verify_password(old_password, usuario.password_hash))
+            auditorias = session.query(Auditoria).filter_by(
+                tabla="usuarios", id_registro="consulta", accion="UPDATE",
+            ).all()
+            self.assertTrue(auditorias)
+            self.assertTrue(all(row.campo not in {"password", "password_hash"} for row in auditorias))
+            self.assertNotIn(new_password, " ".join((row.valor_nuevo or "") for row in auditorias))
+            self.assertNotIn(usuario.password_hash, " ".join((row.valor_nuevo or "") for row in auditorias))
+
+        password_settings = SimpleNamespace(
+            auth_mode="password", cookie_secure=False, cookie_samesite="lax", session_ttl_hours=12,
+        )
+        self.assertEqual(self.client.post("/api/v1/auth/logout").status_code, 200)
+        with patch("app.api.auth.get_settings", return_value=password_settings):
+            self.assertEqual(self.client.post(
+                "/api/v1/auth/login", json={"correo": "consulta.nueva@example.com", "password": old_password},
+            ).status_code, 401)
+            self.assertEqual(self.client.post(
+                "/api/v1/auth/login", json={"correo": "consulta.nueva@example.com", "password": new_password},
+            ).status_code, 200)
+
+    def test_admin_user_update_and_password_reset_enforce_validation_and_edit_permission(self):
+        self.assertEqual(self.client.post(
+            "/api/v1/auth/login", json={"correo": "admin@example.com", "password": "irrelevante"},
+        ).status_code, 200)
+        invalid_email = self.client.patch("/api/v1/admin/usuarios/consulta", json={
+            "nombre": "Consulta", "correo": "inválido", "rol_id": "ROLE_CONSULTA", "estado": "ACTIVO", "expected_version": 1,
+        })
+        self.assertEqual(invalid_email.status_code, 422)
+        self.assertEqual(invalid_email.json()["code"], "INVALID_EMAIL")
+        weak_password = self.client.put("/api/v1/admin/usuarios/consulta/password", json={
+            "password": "débil", "expected_version": 1,
+        })
+        self.assertEqual(weak_password.status_code, 422)
+        self.assertEqual(weak_password.json()["code"], "WEAK_PASSWORD")
+        stale_version = self.client.put("/api/v1/admin/usuarios/consulta/password", json={
+            "password": "ClaveNueva456", "expected_version": 99,
+        })
+        self.assertEqual(stale_version.status_code, 409)
+        self.assertEqual(stale_version.json()["code"], "VERSION_CONFLICT")
+
+        self.assertEqual(self.client.post("/api/v1/auth/logout").status_code, 200)
+        self.assertEqual(self.client.post(
+            "/api/v1/auth/login", json={"correo": "consulta@example.com", "password": "irrelevante"},
+        ).status_code, 200)
+        forbidden = self.client.put("/api/v1/admin/usuarios/admin/password", json={
+            "password": "ClaveNueva456", "expected_version": 1,
+        })
+        self.assertEqual(forbidden.status_code, 403)
+        self.assertEqual(forbidden.json()["code"], "FORBIDDEN")
 
     def test_sensitive_cases_are_not_exposed_in_lists_or_autocomplete(self):
         with Session(self.engine) as session, session.begin():
