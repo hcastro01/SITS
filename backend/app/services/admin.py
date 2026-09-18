@@ -14,11 +14,13 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
-from app.core.permissions import AuthenticatedUser, authorize
+from app.core.permissions import AuthenticatedUser, authorize, can
 from app.models import Permission, Role, User
 from app.services.audit import log_change
 from app.services.passwords import hash_password
-from app.services.records import check_expected_version, creation_metadata, mark_updated
+from app.services.records import (
+    apply_restore, apply_soft_delete, check_expected_version, creation_metadata, mark_updated,
+)
 from app.services.sessions import revoke_user_sessions
 
 ADMIN_MODULE = "ADMINISTRACION"
@@ -50,15 +52,21 @@ def serialize_permission(permiso: Permission) -> dict:
     }
 
 
-def list_administration(session: Session, user: AuthenticatedUser) -> dict:
+def list_administration(session: Session, user: AuthenticatedUser, *, include_deleted: bool = False) -> dict:
     authorize(user, ADMIN_MODULE, "read")
-    usuarios = session.scalars(select(User).order_by(User.nombre)).all()
+    if include_deleted:
+        authorize(user, ADMIN_MODULE, "delete")
+    users_statement = select(User).order_by(User.nombre)
+    if not include_deleted:
+        users_statement = users_statement.where(User.eliminado.is_(False))
+    usuarios = session.scalars(users_statement).all()
     roles = session.scalars(select(Role).order_by(Role.nombre)).all()
     permisos = session.scalars(select(Permission)).all()
     return {
         "usuarios": [serialize_user(u) for u in usuarios],
         "roles": [serialize_role(r) for r in roles],
         "permisos": [serialize_permission(p) for p in permisos],
+        "puede_eliminar_usuarios": can(user, ADMIN_MODULE, "delete"),
     }
 
 
@@ -178,6 +186,63 @@ def reset_user_password(
         {"evento_seguridad": "Restablecimiento de contraseña por administrador"},
         admin.correo, "Restablecimiento de contraseña por administrador", correlation_id,
     )
+    return serialize_user(usuario)
+
+
+def soft_delete_user(
+    session: Session, admin: AuthenticatedUser, id_usuario: str, *,
+    expected_version: int | None, motivo: str, correlation_id: str,
+) -> dict:
+    """Soft-delete seguro de usuario: conserva trazabilidad y revoca sesiones vigentes."""
+    authorize(admin, ADMIN_MODULE, "delete")
+    usuario = session.get(User, id_usuario)
+    if usuario is None:
+        raise AppError("NOT_FOUND", "Usuario no encontrado.", 404)
+    if usuario.eliminado:
+        raise AppError("USER_ALREADY_DELETED", "El usuario ya se encuentra eliminado.", 409)
+    if usuario.id_usuario == admin.id_usuario:
+        raise AppError("SELF_DELETE_FORBIDDEN", "No puede eliminar su propia cuenta.", 409)
+    if usuario.rol_id == ADMIN_ROLE_ID and usuario.activo and usuario.estado == "ACTIVO":
+        otros_admins = session.scalar(
+            select(func.count()).select_from(User).where(
+                User.rol_id == ADMIN_ROLE_ID,
+                User.id_usuario != id_usuario,
+                User.activo.is_(True),
+                User.estado == "ACTIVO",
+                User.eliminado.is_(False),
+            )
+        )
+        if not otros_admins:
+            raise AppError("LAST_ADMIN", "No se puede eliminar al último administrador activo.", 409)
+    check_expected_version(usuario, expected_version)
+    before = serialize_user(usuario)
+    apply_soft_delete(usuario, admin.correo, motivo)
+    mark_updated(usuario, admin.correo)
+    revoke_user_sessions(session, usuario.id_usuario)
+    log_change(session, "usuarios", id_usuario, "DELETE", before, serialize_user(usuario),
+               admin.correo, motivo.strip(), correlation_id)
+    return serialize_user(usuario)
+
+
+def restore_user(
+    session: Session, admin: AuthenticatedUser, id_usuario: str, *,
+    expected_version: int | None, correlation_id: str,
+) -> dict:
+    """Restaura sin tocar contraseña ni revivir sesiones ya revocadas."""
+    authorize(admin, ADMIN_MODULE, "delete")
+    usuario = session.get(User, id_usuario)
+    if usuario is None:
+        raise AppError("NOT_FOUND", "Usuario no encontrado.", 404)
+    if not usuario.eliminado:
+        raise AppError("USER_NOT_DELETED", "El usuario no se encuentra eliminado.", 409)
+    check_expected_version(usuario, expected_version)
+    before = serialize_user(usuario)
+    apply_restore(usuario)
+    # El estado administrativo prevalece: restaurar no activa una cuenta INACTIVA.
+    usuario.activo = usuario.estado == "ACTIVO"
+    mark_updated(usuario, admin.correo)
+    log_change(session, "usuarios", id_usuario, "RESTORE", before, serialize_user(usuario),
+               admin.correo, "Restauración de usuario", correlation_id)
     return serialize_user(usuario)
 
 

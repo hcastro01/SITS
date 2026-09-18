@@ -1,4 +1,5 @@
 import unittest
+from dataclasses import replace
 from tempfile import TemporaryDirectory
 
 from alembic import command
@@ -12,7 +13,8 @@ from app.core.permissions import resolve_current_user
 from app.db.session import build_engine
 from app.models import Auditoria, User
 from app.services.admin import (
-    create_user, list_administration, reset_user_password, save_permission, save_user, save_user_role,
+    create_user, list_administration, reset_user_password, restore_user, save_permission, save_user, save_user_role,
+    soft_delete_user,
 )
 from app.services.passwords import hash_password, verify_password
 from app.services.security_seed import MODULES, ROLES, seed_security
@@ -246,6 +248,102 @@ class AdminServiceTests(unittest.TestCase):
             with self.assertRaises(AppError) as ctx:
                 reset_user_password(session, admin, "ts", password="débil", expected_version=1, correlation_id="x")
             self.assertEqual(ctx.exception.code, "WEAK_PASSWORD")
+
+    def test_soft_delete_lifecycle_preserves_row_password_audit_and_revokes_all_sessions(self):
+        password = "ClaveTemporalEliminacion123"
+        with Session(self.engine) as session, session.begin():
+            admin = resolve_current_user(session, "admin1@example.com")
+            usuario = session.get(User, "ts")
+            usuario.password_hash = hash_password(password)
+            token_one = create_session(session, "ts")
+            token_two = create_session(session, "ts")
+            deleted = soft_delete_user(
+                session, admin, "ts", expected_version=1, motivo="Salida de la compañía", correlation_id="delete-1",
+            )
+            self.assertTrue(deleted["eliminado"])
+            self.assertFalse(deleted["activo"])
+            self.assertEqual(deleted["version"], 2)
+            self.assertNotIn("password", deleted)
+            self.assertNotIn("password_hash", deleted)
+
+        with Session(self.engine) as session:
+            usuario = session.get(User, "ts")
+            self.assertIsNotNone(usuario)
+            self.assertTrue(usuario.eliminado)
+            self.assertEqual(usuario.motivo_eliminacion, "Salida de la compañía")
+            self.assertTrue(verify_password(password, usuario.password_hash))
+            self.assertIsNone(resolve_session_user_id(session, token_one))
+            self.assertIsNone(resolve_session_user_id(session, token_two))
+            admin = resolve_current_user(session, "admin1@example.com")
+            self.assertNotIn("ts", {item["id_usuario"] for item in list_administration(session, admin)["usuarios"]})
+            self.assertIn("ts", {item["id_usuario"] for item in list_administration(session, admin, include_deleted=True)["usuarios"]})
+            audit_values = " ".join(
+                (row.valor_anterior or "") + (row.valor_nuevo or "")
+                for row in session.scalars(select(Auditoria).where(Auditoria.id_registro == "ts")).all()
+            )
+            self.assertNotIn(password, audit_values)
+            self.assertNotIn(usuario.password_hash, audit_values)
+            self.assertNotIn(token_one, audit_values)
+            self.assertNotIn(token_two, audit_values)
+
+        with Session(self.engine) as session, session.begin():
+            admin = resolve_current_user(session, "admin1@example.com")
+            restored = restore_user(session, admin, "ts", expected_version=2, correlation_id="restore-1")
+            self.assertFalse(restored["eliminado"])
+            self.assertTrue(restored["activo"])
+            self.assertEqual(restored["version"], 3)
+            self.assertTrue(verify_password(password, session.get(User, "ts").password_hash))
+            self.assertIsNone(resolve_session_user_id(session, token_one))
+            self.assertIsNone(resolve_session_user_id(session, token_two))
+
+    def test_restore_keeps_an_inactive_user_inactive(self):
+        with Session(self.engine) as session, session.begin():
+            session.add(User(id_usuario="inactive", correo="inactive@example.com", nombre="Inactivo",
+                             rol_id="ROLE_CONSULTA", estado="INACTIVO", activo=False))
+        with Session(self.engine) as session, session.begin():
+            admin = resolve_current_user(session, "admin1@example.com")
+            deleted = soft_delete_user(session, admin, "inactive", expected_version=1, motivo="Archivo", correlation_id="d")
+            self.assertTrue(deleted["eliminado"])
+            restored = restore_user(session, admin, "inactive", expected_version=2, correlation_id="r")
+            self.assertEqual(restored["estado"], "INACTIVO")
+            self.assertFalse(restored["activo"])
+            self.assertFalse(restored["eliminado"])
+
+    def test_user_lifecycle_requires_delete_permission_reason_current_version_and_admin_safeguards(self):
+        with Session(self.engine) as session, session.begin():
+            admin = resolve_current_user(session, "admin1@example.com")
+            consulta = resolve_current_user(session, "consulta@example.com")
+            with self.assertRaises(AppError) as forbidden_delete:
+                soft_delete_user(session, consulta, "ts", expected_version=1, motivo="x", correlation_id="x")
+            self.assertEqual(forbidden_delete.exception.code, "FORBIDDEN")
+            with self.assertRaises(AppError) as missing_reason:
+                soft_delete_user(session, admin, "ts", expected_version=1, motivo="  ", correlation_id="x")
+            self.assertEqual(missing_reason.exception.code, "DELETE_REASON_REQUIRED")
+            with self.assertRaises(AppError) as stale:
+                soft_delete_user(session, admin, "ts", expected_version=99, motivo="x", correlation_id="x")
+            self.assertEqual(stale.exception.code, "VERSION_CONFLICT")
+            with self.assertRaises(AppError) as self_delete:
+                soft_delete_user(session, admin, "admin1", expected_version=1, motivo="x", correlation_id="x")
+            self.assertEqual(self_delete.exception.code, "SELF_DELETE_FORBIDDEN")
+            with self.assertRaises(AppError) as last_admin:
+                soft_delete_user(session, replace(admin, id_usuario="otro-admin"), "admin1",
+                                 expected_version=1, motivo="x", correlation_id="x")
+            self.assertEqual(last_admin.exception.code, "LAST_ADMIN")
+
+    def test_deleted_listing_and_restore_require_delete_permission_and_current_version(self):
+        with Session(self.engine) as session, session.begin():
+            admin = resolve_current_user(session, "admin1@example.com")
+            soft_delete_user(session, admin, "ts", expected_version=1, motivo="x", correlation_id="x")
+            consulta = resolve_current_user(session, "consulta@example.com")
+            with self.assertRaises(AppError) as hidden:
+                list_administration(session, consulta, include_deleted=True)
+            self.assertEqual(hidden.exception.code, "FORBIDDEN")
+            with self.assertRaises(AppError) as forbidden_restore:
+                restore_user(session, consulta, "ts", expected_version=2, correlation_id="x")
+            self.assertEqual(forbidden_restore.exception.code, "FORBIDDEN")
+            with self.assertRaises(AppError) as stale_restore:
+                restore_user(session, admin, "ts", expected_version=99, correlation_id="x")
+            self.assertEqual(stale_restore.exception.code, "VERSION_CONFLICT")
 
     def test_cannot_strip_core_admin_permission(self):
         with Session(self.engine) as session, session.begin():
