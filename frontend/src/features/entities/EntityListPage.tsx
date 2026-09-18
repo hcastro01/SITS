@@ -59,15 +59,19 @@ export function EntityListPage({ config }: { config: EntityPageConfig }) {
   const columnas = config.campos.filter((campo) => campo.enLista !== false).slice(0, config.maxListColumns ?? (config.contextual ? 8 : 5));
 
   return (
-    <section className="panel wide-panel">
-      <div className="panel-header">
-        <h2>{config.titulo}</h2>
+    <section className="module-list-page">
+      <header className="module-page-hero">
+        <div>
+          {config.eyebrow && <p className="eyebrow">{config.eyebrow}</p>}
+          <h2>{config.titulo}</h2>
+          {config.descripcion && <p>{config.descripcion}</p>}
+        </div>
         <div className="panel-header-actions">
-          {(isPeople || config.contextual) && canCreateBase && <button type="button" className="secondary" onClick={() => setModalAbierto(true)}>Nuevo {config.tituloSingular}</button>}
+          {(isPeople || config.contextual) && canCreateBase && <button type="button" className="secondary" onClick={() => setModalAbierto(true)}>{config.etiquetaAccionCrear ?? `Nuevo ${config.tituloSingular}`}</button>}
           {!config.contextual && canCreateFromForm && <button type="button" className="button-link as-button" onClick={() => setSelectorAbierto(true)}>Nuevo registro</button>}
         </div>
-      </div>
-      {config.contextual && <form className="form-grid" onSubmit={applyFilters}>
+      </header>
+      {config.contextual && <form className="form-grid module-filter-card" onSubmit={applyFilters}>
         {filtrosDisponibles.map((filtro) => <label key={filtro.nombre}>{filtro.etiqueta}
           {filtro.tipo === 'select'
             ? <select aria-label={`Filtrar por ${filtro.etiqueta.toLowerCase()}`} value={filtros[filtro.nombre] ?? ''} onChange={(event) => updateFilter(filtro.nombre, event.target.value)}><option value="">Todos</option>{filtro.opciones?.map((opcion) => <option key={opcion} value={opcion}>{opcion}</option>)}</select>
@@ -77,11 +81,11 @@ export function EntityListPage({ config }: { config: EntityPageConfig }) {
       </form>}
       {error && <p className="form-error" role="alert">{error}</p>}
       {cargando ? (
-        <p>Cargando…</p>
+        <div className="module-state" role="status">Cargando…</div>
       ) : registros.length === 0 ? (
-        <p className="footnote">No hay registros todavía.</p>
+        <div className="module-empty-state"><span aria-hidden="true">⌁</span><div><strong>No hay registros todavía.</strong><p>Los resultados aparecerán aquí cuando existan registros para los filtros seleccionados.</p></div></div>
       ) : (
-        <div className="table-scroll"><table className="data-table">
+        <section className="module-table-card"><div className="module-table-card-heading"><div><h3>Registros</h3><p>Información disponible según sus permisos actuales.</p></div>{config.contextual && <span className="badge">{total} registros</span>}</div><div className="table-scroll"><table className="data-table module-data-table">
           <thead>
             <tr>{columnas.map((campo) => <th key={campo.nombre}>{campo.etiqueta}</th>)}<th /></tr>
           </thead>
@@ -93,17 +97,17 @@ export function EntityListPage({ config }: { config: EntityPageConfig }) {
                   {columnas.map((campo) => (
                     <td key={campo.nombre}>{String(registro[campo.nombre] ?? '—')}</td>
                   ))}
-                  <td><Link to={`${config.rutaBase}/${id}`}>Ver</Link></td>
+                  <td><Link className="table-action-link" to={`${config.rutaBase}/${id}`}>Ver</Link></td>
                 </tr>
               );
             })}
           </tbody>
-        </table></div>
+        </table></div></section>
       )}
 
       {!config.contextual && <ModuleFormRecordsPanel module={config.tipoRegistro} />}
 
-      {config.contextual && !cargando && !error && <div className="pagination-controls"><button type="button" className="secondary" disabled={!offset} onClick={() => setOffset(Math.max(0, offset - 25))}>Anterior</button><span>{total ? `Mostrando ${offset + 1}-${Math.min(offset + registros.length, total)} de ${total}` : '0 registros'}</span><button type="button" className="secondary" disabled={offset + registros.length >= total} onClick={() => setOffset(offset + 25)}>Siguiente</button></div>}
+      {config.contextual && !cargando && !error && <div className="pagination-controls module-pagination"><button type="button" className="secondary" disabled={!offset} onClick={() => setOffset(Math.max(0, offset - 25))}>Anterior</button><span>{total ? `Mostrando ${offset + 1}-${Math.min(offset + registros.length, total)} de ${total}` : '0 registros'}</span><button type="button" className="secondary" disabled={offset + registros.length >= total} onClick={() => setOffset(offset + 25)}>Siguiente</button></div>}
 
       {(isPeople || config.contextual) && modalAbierto && (
         <EntityFormModal

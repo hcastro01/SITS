@@ -67,11 +67,11 @@ export function EntityFormModal({ config, registro, onClose, onSaved }: Props) {
 
   return (
     <Modal titulo={editando ? `Editar ${config.tituloSingular}` : `Nuevo registro: ${config.tituloSingular}`} onClose={() => void requestClose()} size="large">
-      <form onSubmit={handleSubmit}>
-        <div className="form-grid">
-        {config.contextual && <div><label>Persona (opcional)</label><SearchAutocompleteField source="PERSONAS" value={personaTexto} ariaLabel="Persona" placeholder="Buscar por nombre o cédula" onSelect={(result, text) => { setPersonaId(result?.id ?? ''); setPersonaTexto(text); }} />{config.personaIdField && personaId && <button type="button" className="secondary" onClick={() => { setPersonaId(''); setPersonaTexto(''); }}>Limpiar Persona</button>}<small>Al seleccionarla se mostrará su nombre, cédula y área actual.</small></div>}
+      <form className="module-form" onSubmit={handleSubmit}>
+        <div className="form-grid module-form-grid">
+        {config.contextual && <div className="module-form-field"><label>Persona (opcional)</label><SearchAutocompleteField source="PERSONAS" value={personaTexto} ariaLabel="Persona" placeholder="Buscar por nombre o cédula" onSelect={(result, text) => { setPersonaId(result?.id ?? ''); setPersonaTexto(text); }} />{config.personaIdField && personaId && <button type="button" className="secondary" onClick={() => { setPersonaId(''); setPersonaTexto(''); }}>Limpiar Persona</button>}<small>Al seleccionarla se mostrará su nombre, cédula y área actual.</small></div>}
         {camposFormulario.map((campo) => (
-          <div key={campo.nombre}>
+          <div className="module-form-field" key={campo.nombre}>
             <label htmlFor={campo.nombre}>{campo.etiqueta}</label>
             {campo.tipo === 'select'
               ? <select id={campo.nombre} required={campo.requerido} value={valores[campo.nombre] ?? ''} onChange={(event) => setValores((previo) => ({ ...previo, [campo.nombre]: event.target.value }))}><option value="">Seleccione una opción</option>{campo.opciones?.map((opcion) => <option key={opcion} value={opcion}>{opcion}</option>)}</select>
