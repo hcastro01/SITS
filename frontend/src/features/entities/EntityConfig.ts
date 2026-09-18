@@ -21,6 +21,10 @@ export interface FiltroConfig {
 export interface EntityPageConfig {
   titulo: string;
   tituloSingular: string;
+  etiquetaAccionCrear?: string;
+  /** Metadatos de presentación; no intervienen en rutas, permisos ni API. */
+  eyebrow?: string;
+  descripcion?: string;
   rutaBase: string;
   api: EntityClient | ContextualEntityClient;
   campos: CampoConfig[];
@@ -40,6 +44,7 @@ export interface EntityPageConfig {
 export const atencionesConfig: EntityPageConfig = {
   titulo: 'Atenciones',
   tituloSingular: 'atención',
+  etiquetaAccionCrear: 'Nueva atención',
   rutaBase: '/atenciones',
   api: atencionesApi,
   tipoRegistro: 'ATENCIONES',
@@ -92,6 +97,7 @@ export const recorridosConfig: EntityPageConfig = {
 
 export const produccionAtencionesConfig: EntityPageConfig = {
   ...atencionesConfig, titulo: 'Atenciones de Producción', tituloSingular: 'atención de Producción',
+  eyebrow: 'Trabajo Social · Producción', descripcion: 'Registre y consulte las atenciones realizadas en el contexto de Producción.',
   rutaBase: '/trabajo-social/produccion/atenciones', api: produccionAtencionesApi, contextual: true, permissionModule: 'PRODUCCION', produccionKind: 'atenciones',
   campos: [
     { nombre: 'id_atencion', etiqueta: 'ID', enFormulario: false }, { nombre: 'fecha', etiqueta: 'Fecha' },
@@ -106,12 +112,14 @@ export const produccionAtencionesConfig: EntityPageConfig = {
 
 export const medicoAtencionesConfig: EntityPageConfig = {
   ...produccionAtencionesConfig, titulo: 'Atenciones', tituloSingular: 'atención',
+  eyebrow: 'Trabajo Social · Departamento Médico', descripcion: 'Gestione las atenciones registradas por el Departamento Médico.',
   rutaBase: '/trabajo-social/departamento-medico/atenciones', api: medicoAtencionesApi,
   permissionModule: 'ATENCIONES', produccionKind: undefined, medicoKind: 'atenciones',
 };
 
 export const produccionRecorridosConfig: EntityPageConfig = {
   ...recorridosConfig, rutaBase: '/trabajo-social/produccion/recorridos', api: produccionRecorridosApi, contextual: true, permissionModule: 'PRODUCCION', produccionKind: 'recorridos',
+  eyebrow: 'Trabajo Social · Producción', descripcion: 'Consulte y registre los recorridos operativos de Producción.',
   campos: [
     { nombre: 'id_recorrido', etiqueta: 'ID', enFormulario: false }, { nombre: 'fecha', etiqueta: 'Fecha' },
     { nombre: 'persona', etiqueta: 'Persona', enFormulario: false }, { nombre: 'cedula', etiqueta: 'Cédula', enFormulario: false },
@@ -123,6 +131,7 @@ export const produccionRecorridosConfig: EntityPageConfig = {
 
 export const produccionNovedadesConfig: EntityPageConfig = {
   ...novedadesConfig, titulo: 'Novedades de planta', tituloSingular: 'novedad de planta',
+  eyebrow: 'Trabajo Social · Producción', descripcion: 'Centralice las novedades operativas reportadas desde planta.',
   rutaBase: '/trabajo-social/produccion/novedades', api: produccionNovedadesApi, contextual: true, permissionModule: 'PRODUCCION', produccionKind: 'novedades',
   campos: [
     { nombre: 'id_novedad', etiqueta: 'ID', enFormulario: false }, { nombre: 'fecha', etiqueta: 'Fecha' },
@@ -141,11 +150,13 @@ const officeFilters: readonly FiltroConfig[] = [
 
 export const oficinaAtencionesConfig: EntityPageConfig = {
   ...produccionAtencionesConfig, titulo: 'Atenciones de Oficina', tituloSingular: 'atención de Oficina',
+  eyebrow: 'Trabajo Social · Oficina', descripcion: 'Gestione las atenciones registradas en el proceso de Oficina.',
   rutaBase: '/trabajo-social/oficina/atenciones', api: oficinaAtencionesApi, permissionModule: 'OFICINA', produccionKind: undefined, oficinaKind: 'atenciones',
 };
 
 export const beneficiosConfig: EntityPageConfig = {
   titulo: 'Beneficios', tituloSingular: 'beneficio', rutaBase: '/trabajo-social/oficina/beneficios', api: beneficiosApi,
+  eyebrow: 'Trabajo Social · Oficina', descripcion: 'Administre las gestiones de beneficios registradas para las personas.',
   tipoRegistro: 'BENEFICIOS', contextual: true, permissionModule: 'OFICINA', personaIdField: 'persona_id', oficinaKind: 'beneficios', maxListColumns: 9,
   filtros: [...officeFilters, { nombre: 'tipo', etiqueta: 'Tipo de beneficio', tipo: 'select', opciones: ['TIA', 'FARMACIA'] }, { nombre: 'tipo_gestion', etiqueta: 'Tipo de gestión', tipo: 'select', opciones: ['ACTIVACION', 'BLOQUEO', 'ANULACION'] }],
   campos: [
@@ -160,6 +171,7 @@ export const beneficiosConfig: EntityPageConfig = {
 
 export const prestamosConfig: EntityPageConfig = {
   titulo: 'Préstamos', tituloSingular: 'préstamo', rutaBase: '/trabajo-social/oficina/prestamos', api: prestamosApi,
+  eyebrow: 'Trabajo Social · Oficina', descripcion: 'Consulte y gestione los préstamos y anticipos registrados.',
   tipoRegistro: 'PRESTAMOS', contextual: true, permissionModule: 'OFICINA', personaIdField: 'persona_id', oficinaKind: 'prestamos', maxListColumns: 9,
   filtros: [...officeFilters, { nombre: 'tipo', etiqueta: 'Tipo', tipo: 'select', opciones: ['PRESTAMO', 'ANTICIPO'] }],
   campos: [
@@ -172,6 +184,7 @@ export const prestamosConfig: EntityPageConfig = {
 
 export const segurosConfig: EntityPageConfig = {
   titulo: 'Seguro', tituloSingular: 'gestión de Seguro', rutaBase: '/trabajo-social/oficina/seguro', api: segurosApi,
+  eyebrow: 'Trabajo Social · Oficina', descripcion: 'Administre las gestiones relacionadas con el seguro de las personas.',
   tipoRegistro: 'SEGUROS', contextual: true, permissionModule: 'OFICINA', personaIdField: 'persona_id', oficinaKind: 'seguro', maxListColumns: 9,
   filtros: [...officeFilters, { nombre: 'tipo_gestion', etiqueta: 'Tipo de gestión', tipo: 'select', opciones: ['AFILIACION', 'ENROLAMIENTO', 'COBERTURA', 'REEMBOLSO', 'PRIMA', 'DEPENDIENTE'] }],
   campos: [

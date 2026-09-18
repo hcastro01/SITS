@@ -69,36 +69,44 @@ export function EntityDetailPage({ config }: { config: EntityPageConfig }) {
     }
   }
 
-  if (cargando) return <p>Cargando…</p>;
+  if (cargando) return <div className="module-state" role="status">Cargando registro…</div>;
   if (!registro) return <p className="form-error">Registro no encontrado.</p>;
 
   return (
     <div className="detail-page">
       <Link className="back-link" to={config.rutaBase}>← Volver a {config.titulo.toLowerCase()}</Link>
-      <section className="panel">
-        <div className="panel-header">
-          <h2>{config.tituloSingular} {registro.eliminado ? '(eliminado)' : ''}</h2>
+      <section className="detail-page-hero">
+        <div className="detail-page-heading">
+          {config.eyebrow && <p className="eyebrow">{config.eyebrow}</p>}
+          <h2>{config.tituloSingular}</h2>
+          <p>{config.descripcion ?? `Información registrada de ${config.tituloSingular}.`}</p>
+        </div>
+        <div className="detail-page-actions">
+          {registro.eliminado && <span className="badge badge--danger">Eliminado</span>}
           {!registro.eliminado && (
             <button type="button" className="secondary as-button" onClick={() => setEditando(true)}>Editar</button>
           )}
         </div>
+      </section>
+      <section className="panel detail-data-card">
+        <div className="section-heading"><div><h3>Datos principales</h3><p className="footnote">Detalle disponible para este registro.</p></div><span className="badge">Versión {registro.version}</span></div>
         {error && <p className="form-error" role="alert">{error}</p>}
-        <dl className="field-list">
+        <dl className="field-list detail-field-list">
           {config.campos.map((campo) => (
             <Fragment key={campo.nombre}>
               <dt>{campo.etiqueta}</dt>
               <dd>{campo.nombre.startsWith('fecha') ? formatDate(String(registro[campo.nombre] ?? '')) : String(registro[campo.nombre] ?? '—')}</dd>
             </Fragment>
           ))}
-          <dt>Versión</dt><dd>{registro.version}</dd>
         </dl>
 
         {registro.eliminado ? (
-            <button onClick={handleRestaurar} disabled={procesando}>
+            <div className="detail-danger-zone"><p>Este registro fue eliminado de forma lógica y conserva su trazabilidad.</p><button onClick={handleRestaurar} disabled={procesando}>
             {procesando ? 'Restaurando…' : 'Restaurar'}
-          </button>
+          </button></div>
         ) : (
-          <form onSubmit={handleEliminar}>
+          <form className="detail-danger-zone" onSubmit={handleEliminar}>
+            <p>La eliminación es lógica y el evento quedará auditado.</p>
             <label htmlFor="motivo-eliminacion">Motivo de eliminación</label>
             <input
               id="motivo-eliminacion" required value={motivoEliminacion}
@@ -113,8 +121,8 @@ export function EntityDetailPage({ config }: { config: EntityPageConfig }) {
 
       <ContextFormsPanel contextType={config.tipoRegistro} contextId={id} produccionKind={config.produccionKind} oficinaKind={config.oficinaKind} /></>}
 
-      <section className="panel">
-        <h2>Historial</h2>
+      <section className="panel detail-history-card">
+        <div className="section-heading"><div><h3>Historial</h3><p className="footnote">Eventos auditados de este registro.</p></div></div>
         {historial.length === 0 ? (
           <p className="footnote">Sin eventos registrados.</p>
         ) : (
