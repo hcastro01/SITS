@@ -6,7 +6,7 @@
 - Lote productivo `351a817e-772f-4cf1-8083-1b6ba674e5c5`: `CONFIRMADO`; 37.591 fuente/procesadas, 37.589 incorporadas ahora, 1 reconocida como existente del intento inicial, 1 error trazado, 0 duplicados MessageId persistidos.
 - Reconciliación de producción: 37.590 correos totales y vinculados al lote, 9.314 en `REVISION`, 0 sin lote, `PRAGMA integrity_check = ok`.
 - QA productivo PASS: sesión, dashboard, filtro individual por origen (37.590), filtro combinado de revisión y estado (9.314), paginación 51–100 de 9.314, orden A–Z, detalle sensible y formulario de seguimiento sin guardar cambios, historial y persistencia tras recarga. Consola sin errores/advertencias.
-- PENDIENTE QA MANUAL: vista móvil. La capacidad de viewport del navegador integrado no aplicó 390×844, por lo que no se infiere un PASS visual móvil.
+- QA móvil **NO VERIFICADO**: el override del navegador integrado solicitado en 390×844 dejó el área efectiva en 1707×735 CSS; el intento de usar la pestaña autenticada de Chrome no pudo completar la conexión de automatización y el control nativo de Windows no expuso una ventana. No se ejecutaron escenarios de UI en móvil, no se guardaron capturas ni se cambiaron datos. Esto es una limitación de herramienta/capacidad, no un defecto atribuido a SITS.
 - n8n queda fuera de este cierre; permanece como pendiente independiente sin workflow activado.
 
 ## Cierre productivo en curso (2026-09-21)

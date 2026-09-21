@@ -3,7 +3,7 @@
 ## Estado posterior al cierre de datos (2026-09-21)
 
 - Importación histórica: **COMPLETADA**. No volver a subir ni confirmar el XLSX; el lote `351a817e-772f-4cf1-8083-1b6ba674e5c5` está `CONFIRMADO` y reconciliado.
-- Vista móvil: **PENDIENTE QA MANUAL**. La emulación 390×844 no se aplicó en el navegador integrado; falta comprobar visualmente ese breakpoint en un navegador/dispositivo que permita dicha resolución.
+- Vista móvil: **NO VERIFICADO**. El override integrado 390×844 mantuvo el área efectiva en 1707×735 CSS. La alternativa permitida de Chrome no aceptó la conexión de automatización de la pestaña autenticada y el control nativo no expuso una ventana; no se copiaron sesiones ni cookies. Falta una ejecución visual en un navegador/dispositivo que confirme el área CSS 390×844.
 - n8n: **pendiente independiente, fuera del cierre**. No hay instancia/workflow autenticado de ingesta identificado ni se activó flujo alguno.
 
 ## Técnicos ya resueltos

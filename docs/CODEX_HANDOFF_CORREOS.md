@@ -109,3 +109,9 @@ Instalar el navegador local solicitado por la herramienta, autenticar en `http:/
 - El fixture XLSX sintético, no versionado, produjo un lote `CONFIRMADO` con 3 procesadas, 1 importada, 1 revisión y 1 error. El lote real se preservó sin reimportar ni alterar.
 - Pruebas posteriores al cambio: backend 325/325, frontend 158/158, TypeScript/build y smoke Docker PASS. Los logs y fixture locales están en `outputs/`, excluidos de Git.
 - El checkpoint `35860b5` quedó publicado y coincide en local/upstream/remoto. Próxima acción externa: iniciar sesión en GitHub con el usuario autorizado, crear/actualizar el PR hacia `master`, y revisar checks de ese SHA. No merge ni producción.
+
+## Intento de QA móvil de producción 2026-09-21
+
+- Resultado: **NO VERIFICADO**, no FAIL de SITS. El navegador integrado aceptó el override 390×844 pero la inspección de la página informó 1707×735 CSS, por lo que la emulación no fue efectiva.
+- Se intentó usar la pestaña autenticada de Chrome sin trasladar ni leer cookies; la conexión de automatización se interrumpió. Tras el reinicio, sólo quedó disponible el navegador integrado y el control nativo de Windows no expuso una ventana seleccionable. No hubo escenarios móviles, escrituras, capturas ni datos personales en evidencia.
+- Procedimiento manual único pendiente: abrir `https://sits-wheat.vercel.app/trabajo-social/correos` con la sesión autorizada; activar emulación/ventana de **390×844 CSS** y confirmar `window.innerWidth=390`, `window.innerHeight=844`; recorrer menú, dashboard, filtros, listado/tabla, paginación/orden, detalle con desplazamiento/cierre, historial/lote y formulario de seguimiento sin guardar; recargar y comprobar persistencia de la consulta y consola/red sin errores. Conservar sólo una lista de resultados, sin capturas ni contenido de correos.
