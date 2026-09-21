@@ -1,4 +1,4 @@
-import { get, post, postForm } from './client';
+import { get, post, postForBlobResponse, postForm, type BlobResponse } from './client';
 
 export type EstadoRequerimiento = 'PENDIENTE' | 'EN_PROCESO' | 'EN_ESPERA' | 'RESUELTO' | 'CERRADO';
 export type EstadoClasificacion = 'CLASIFICADO' | 'REVISION';
@@ -52,3 +52,5 @@ export const obtenerErroresImportacionCorreos = (id: string) => get<{ items: Err
 export function analizarCorreos(archivo: File): Promise<AnalisisCorreos> { const body = new FormData(); body.append('archivo', archivo); return postForm('/correos/importar/analizar', body); }
 export const confirmarImportacionCorreos = (id: string, incluirSinClasificar: boolean) => post<{ lote: LoteCorreo; filas_seleccionadas: number; filas_importadas: number; filas_duplicadas: number }>(`/correos/importar/${id}/confirmar`, { incluir_sin_clasificar: incluirSinClasificar });
 export const crearSeguimientoCorreo = (id: string, payload: { expected_version: number; detalle_seguimiento: string; seguimiento_por?: string; estado_requerimiento: EstadoRequerimiento }) => post<{ correo: CorreoResumen; seguimiento: SeguimientoCorreo }>(`/correos/${id}/seguimientos`, payload);
+export interface ExportCorreosPayload { alcance: 'filtered' | 'all'; filtros: Record<string, string | boolean>; incluir_cuerpo: boolean; incluir_seguimientos: boolean; }
+export const exportarCorreos = (payload: ExportCorreosPayload): Promise<BlobResponse> => postForBlobResponse('/correos/exportar', payload);

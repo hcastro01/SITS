@@ -86,6 +86,18 @@ describe('CorreosDashboardPage', () => {
     });
   });
 
+  it('abre la descarga con resultados filtrados por defecto y deja el contenido sensible sin seleccionar', async () => {
+    renderPage();
+    await screen.findByText('correos.xlsx');
+    await userEvent.type(screen.getByLabelText('Filtrar por asunto'), 'Permiso');
+    await userEvent.click(screen.getByRole('button', { name: 'Descargar Excel' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByLabelText('Descargar resultados filtrados')).toBeChecked();
+    expect(within(dialog).getByLabelText('Incluir cuerpo completo del correo')).not.toBeChecked();
+    expect(within(dialog).getByLabelText('Incluir historial de seguimientos')).not.toBeChecked();
+    expect(within(dialog).getByText(/cantidad final se confirma/)).toBeInTheDocument();
+  });
+
   it('mantiene el éxito del seguimiento después de reiniciar su formulario', async () => {
     vi.mocked(api.listarCorreos).mockResolvedValue({ items: [correo], total: 1, limite: 50, offset: 0 });
     vi.mocked(api.obtenerCorreo).mockResolvedValue({ correo: { ...correo, cuerpo: 'Contenido QA' }, seguimientos: [] });
