@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from openpyxl import load_workbook
 from openpyxl.utils.exceptions import InvalidFileException
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, insert, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -181,20 +181,20 @@ def _bulk_import(session: Session, actor: str, lot: LoteImportacionCorreo, recor
     """Persiste una carga XLSX con pocos flushes y sin auditoría sensible por fila."""
     existing_external, existing_idempotency = _existing_import_keys(session, records)
     seen_external, seen_idempotency = set(existing_external), set(existing_idempotency)
-    inserted, duplicates, pending = 0, 0, []
-    metadata = creation_metadata(actor)
+    duplicates, pending = 0, []
+    metadata = {"activo": True, "eliminado": False, "version": 1, **creation_metadata(actor)}
     for data in records:
         external_id, idempotency_key = data["id_externo_correo"], data["idempotency_key"]
         if external_id in seen_external or idempotency_key in seen_idempotency:
             duplicates += 1
             continue
         seen_external.add(external_id); seen_idempotency.add(idempotency_key)
-        pending.append(Correo(
-            id_correo=str(uuid4()), lote_id=lot.id_lote, estado_requerimiento="PENDIENTE",
-            archivo_fuente="XLSX", hoja_fuente="Correos_POST", **data, **metadata,
-        ))
+        pending.append({
+            "id_correo": str(uuid4()), "lote_id": lot.id_lote, "estado_requerimiento": "PENDIENTE",
+            "archivo_fuente": "XLSX", "hoja_fuente": "Correos_POST", **data, **metadata,
+        })
     for chunk in _chunks(pending):
-        session.add_all(chunk)
+        session.execute(insert(Correo), chunk)
         session.flush()
     return len(pending), duplicates
 
