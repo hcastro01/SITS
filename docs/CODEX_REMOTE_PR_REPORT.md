@@ -1,5 +1,10 @@
 # Estado remoto y PR
 
+## Cierre posterior (2026-09-21)
+
+- PR #15: `fix(correos): limitar E/S de SQLite por bloque`; checks Vercel observados en éxito, merge commit `1a28076b885369fd036966d9e03037aa478b9482`.
+- El SHA funcional fue aplicado por fast-forward en PythonAnywhere y recargado; Vercel informó éxito. El PR documental de cierre debe contener únicamente estos informes y no debe recargar PythonAnywhere, pues no cambia código ejecutable.
+
 - Upstream: `origin` apunta a `https://github.com/hcastro01/SITS.git`.
 - La rama remota `codex/correos-n8n-production-readiness` conserva el checkpoint `9feb395d95c152ccaecc28f68e4aa192a8674831`; el código funcional pertenece a `35860b5` y la documentación posterior registra evidencia.
 - `gh` está autenticado como `hcastro01` con permiso administrador. El PR #12 se creó contra `master`, se verificó como `CLEAN` y `MERGEABLE`, y se integró con commit de merge `c857995d8203d39e43a0b16e8fbf46a85b3255c9`.

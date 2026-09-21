@@ -1,5 +1,13 @@
 # Cierre productivo SITS
 
+## Resultado de cierre (2026-09-21)
+
+- PR #15 redujo el lote SQL a 25 correos tras localizar el error de E/S en `executemany` de 500 filas. Se verificó en 7/7 pruebas aisladas, se fusionó como `1a28076` y se desplegó por fast-forward en PythonAnywhere con Reload successful. Vercel informó éxito.
+- El lote histórico productivo `351a817e-772f-4cf1-8083-1b6ba674e5c5` está `CONFIRMADO`: 37.591 procesadas, 37.589 incorporadas, 1 registro del intento inicial reconocido por deduplicación y 1 error trazado. La tabla contiene 37.590 correos, todos vinculados al lote; hay 0 grupos MessageId duplicados y 9.314 filas en revisión.
+- Respaldo privado previo, `integrity_check`, `production_check` y Alembic `0026` fueron verificados. No se restauró, sustituyó ni vació la SQLite productiva.
+- QA web del dominio habitual PASS para sesión, dashboard, filtros, paginación, orden, detalle, historial y persistencia. La vista móvil queda `PENDIENTE QA MANUAL`, pues el navegador integrado no aplicó la emulación solicitada.
+- n8n queda explícitamente fuera de este cierre y pendiente como trabajo independiente.
+
 ## Autorización vigente
 
 El usuario autorizó el 2026-09-21 el cierre completo de la versión de Correos y seguimiento: correcciones, pruebas, PR, merge controlado, Vercel, PythonAnywhere, migraciones, carga histórica deduplicada, n8n de ingesta y QA en el dominio productivo. Esta autorización reemplaza las restricciones locales históricas, sin omitir protecciones de plataforma, controles de seguridad ni reglas de recuperación.
