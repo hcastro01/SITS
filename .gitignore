@@ -29,3 +29,11 @@ backend/private_files/
 **/*.key
 **/*.egg-info/
 .claude/
+
+# Local-only audit, browser, workflow, and recovery artifacts
+/.chrome-ui-audit/
+/.ui-audit/
+/.ui-v2-backup/
+/n8n-sits/
+/recovery/
+/ui-login-desktop.png
