@@ -5,6 +5,7 @@
 - Consulta pública GitHub: no existe PR contra `master` para esa rama.
 - `gh` está instalado, pero no autenticado; no se creó PR. La consulta pública devolvió 0 PR abiertos contra `master` para la rama.
 - El checkpoint incluye QA visual y correcciones de login/seguimiento. Si se crea el PR, hay que reconsultar sus checks para `35860b5`; no usar resultados de `d687cbe` como CI del nuevo SHA.
+- Checks públicos consultados: `Vercel Preview Comments` terminó `success` para `35860b5` y para el checkpoint documental `da18465`; no hay PR abierto ni otros contexts/check-runs observados.
 
 ## PR preparado, no creado
 
