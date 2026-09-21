@@ -4,7 +4,7 @@ from tempfile import TemporaryDirectory
 
 from alembic import command
 from alembic.config import Config
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -12,8 +12,9 @@ import app.db.session as db_session
 from app.core.errors import AppError
 from app.core.permissions import resolve_current_user
 from app.db.session import build_engine
-from app.models import Correo, ErrorImportacionCorreo, SeguimientoCorreo, User
+from app.models import Auditoria, Correo, ErrorImportacionCorreo, Permission, SeguimientoCorreo, User
 from app.services.correos import add_follow_up, analyze_import, confirm_import, create_from_post
+from app.services.correos_export import generate_email_export, remove_export_file
 from app.services.security_seed import seed_security
 
 
@@ -138,6 +139,58 @@ class CorreosServiceTests(unittest.TestCase):
             confirmed, selected, inserted, duplicates = confirm_import(session, self.user(session), lot.id_lote, include_revision=True, correlation_id="test")
             self.assertEqual((confirmed.estado, selected, inserted, duplicates), ("CONFIRMADO", 1_001, 1_001, 0))
             self.assertEqual(len(session.scalars(select(Correo)).all()), 1_001)
+
+    def test_xlsx_export_preserves_selection_content_and_permissions(self):
+        with Session(self.engine) as session, session.begin():
+            lot, _ = analyze_import(session, self.user(session), filename="correos.xlsx", content=self.content(), correlation_id="export-setup")
+            confirm_import(session, self.user(session), lot.id_lote, include_revision=True, correlation_id="export-setup")
+            first = session.scalar(select(Correo).where(Correo.id_externo_correo == "mail-1"))
+            assert first is not None
+            first.cuerpo = "=SUM(A1:A2)\n" + ("ñ" * 33_000)
+            first.destinatarios = "ana@example.test; José <jose@example.test>"
+            add_follow_up(session, self.user(session), first.id_correo, expected_version=first.version,
+                          detail="@seguimiento\n" + ("é" * 33_000), responsible="Admin",
+                          state="EN_PROCESO", correlation_id="export-follow")
+            result = generate_email_export(
+                session, self.user(session), scope="filtered", filters={"remitente": "ana@example.com", "orden": "recibido_desc"},
+                include_body=True, include_follow_ups=True, correlation_id="export-test",
+            )
+            self.assertEqual(result.count, 2)
+            self.assertTrue(result.extended_content)
+            self.assertTrue(result.filename.startswith("SITS_Correos_Categorizados_"))
+            workbook = load_workbook(result.path, read_only=True, data_only=False, keep_links=False)
+            try:
+                self.assertEqual(workbook.sheetnames, ["Correos", "Contenido_extenso", "Seguimientos", "Información_exportación"])
+                correos = list(workbook["Correos"].values)
+                headers = correos[0]
+                self.assertIn("Estado de categoría", headers)
+                self.assertIn("Estado de clasificación", headers)
+                self.assertIn("Estado del requerimiento", headers)
+                self.assertIn("Cuerpo completo", headers)
+                self.assertEqual([row[1] for row in correos[1:]], ["mail-3", "mail-1"])
+                body_index = headers.index("Cuerpo completo")
+                self.assertEqual(correos[2][body_index], "[Contenido extendido: consulte Contenido_extenso]")
+                parts = [row for row in list(workbook["Contenido_extenso"].values)[1:] if row[1] == "cuerpo"]
+                rebuilt = "".join(str(row[4]).removeprefix("\u200b") for row in sorted(parts, key=lambda row: row[2]))
+                self.assertEqual(rebuilt, first.cuerpo)
+                self.assertEqual(len(list(workbook["Seguimientos"].values)) - 1, 1)
+                info = dict(list(workbook["Información_exportación"].values)[1:])
+                self.assertEqual(info["Registros exportados"], "2")
+                self.assertIn("U+200B", info["Protección contra fórmulas"])
+            finally:
+                workbook.close()
+            self.assertTrue(session.scalars(select(Auditoria).where(Auditoria.tabla == "correos_exportaciones", Auditoria.accion == "DOWNLOAD_FILE")).first())
+            remove_export_file(result.path)
+
+            permission = session.scalar(select(Permission).where(Permission.rol_id == "ROLE_CONSULTA", Permission.modulo == "CORREOS"))
+            assert permission is not None
+            permission.puede_exportar = True
+            session.flush()
+            self.assertTrue(self.user(session, "consulta@example.com").permisos["CORREOS"]["export"])
+            with self.assertRaises(AppError) as context:
+                generate_email_export(session, self.user(session, "consulta@example.com"), scope="all", filters={},
+                                      include_body=True, include_follow_ups=False, correlation_id="export-forbidden")
+            self.assertEqual(context.exception.code, "FORBIDDEN")
 
 
 if __name__ == "__main__":

@@ -240,8 +240,13 @@ def create_from_post(session: Session, user: AuthenticatedUser, data: dict, *, c
     return create_integration_email(session, data, correlation_id=correlation_id, actor=user.correo, origin="MANUAL")
 
 
-def list_emails(session: Session, user: AuthenticatedUser, *, limit: int, offset: int, filters: dict):
-    authorize(user, "CORREOS", "read"); stmt = select(Correo).where(Correo.eliminado.is_(False)); values = {key: value for key, value in filters.items() if value not in (None, "")}
+def email_selection(filters: dict):
+    """Consulta canónica de la bandeja, sin paginación.
+
+    La exportación la reutiliza para no convertir la página visible del navegador
+    en su fuente de datos.
+    """
+    stmt = select(Correo).where(Correo.eliminado.is_(False)); values = {key: value for key, value in filters.items() if value not in (None, "")}
     if values.get("estado"): stmt = stmt.where(Correo.estado_requerimiento == values["estado"])
     for field, column in (("categoria", Correo.categoria_macro), ("origen", Correo.archivo_fuente), ("importancia", Correo.importancia)):
         if values.get(field): stmt = stmt.where(column == values[field])
@@ -252,8 +257,17 @@ def list_emails(session: Session, user: AuthenticatedUser, *, limit: int, offset
         if values.get(field): stmt = stmt.where(column.ilike(f"%{values[field]}%"))
     if values.get("texto"):
         term = f"%{values['texto']}%"; stmt = stmt.where(or_(Correo.asunto.ilike(term), Correo.remitente.ilike(term), Correo.destinatarios.ilike(term), Correo.id_externo_correo.ilike(term)))
-    total = session.scalar(select(func.count()).select_from(stmt.subquery())) or 0; order = Correo.asunto.asc() if values.get("orden") == "asunto_asc" else Correo.fecha_recibido.desc()
-    return session.scalars(stmt.order_by(order, Correo.fecha_creacion.desc()).offset(offset).limit(limit)).all(), total
+    order = Correo.asunto.asc() if values.get("orden") == "asunto_asc" else Correo.fecha_recibido.desc()
+    # El segundo criterio hace determinista el orden incluso cuando dos filas
+    # comparten fecha o asunto.
+    return stmt.order_by(order, Correo.fecha_creacion.desc(), Correo.id_correo.asc())
+
+
+def list_emails(session: Session, user: AuthenticatedUser, *, limit: int, offset: int, filters: dict):
+    authorize(user, "CORREOS", "read")
+    stmt = email_selection(filters)
+    total = session.scalar(select(func.count()).select_from(stmt.order_by(None).subquery())) or 0
+    return session.scalars(stmt.offset(offset).limit(limit)).all(), total
 
 
 def summary(session: Session, user: AuthenticatedUser) -> dict:

@@ -109,6 +109,23 @@ export async function postForBlob(path: string, body?: unknown): Promise<Blob> {
   return response.blob();
 }
 
+/** POST autenticado que conserva también el nombre seguro indicado por el servidor. */
+export async function postForBlobResponse(path: string, body?: unknown): Promise<BlobResponse> {
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  if (!response.ok) {
+    notifySessionExpired(response.status);
+    let apiError: ApiErrorBody;
+    try { apiError = await response.json(); } catch {
+      apiError = { ok: false, code: `HTTP_${response.status}`, message: response.statusText, correlationId: '' };
+    }
+    throw new HttpError(response.status, apiError);
+  }
+  return { blob: await response.blob(), filename: filenameFromDisposition(response.headers.get('Content-Disposition')) };
+}
+
 function filenameFromDisposition(value: string | null): string | null {
   if (!value) return null;
   const encoded = value.match(/filename\*=UTF-8''([^;]+)/i)?.[1];

@@ -115,3 +115,15 @@ Instalar el navegador local solicitado por la herramienta, autenticar en `http:/
 - Resultado: **NO VERIFICADO**, no FAIL de SITS. El navegador integrado aceptó el override 390×844 pero la inspección de la página informó 1707×735 CSS, por lo que la emulación no fue efectiva.
 - Se intentó usar la pestaña autenticada de Chrome sin trasladar ni leer cookies; la conexión de automatización se interrumpió. Tras el reinicio, sólo quedó disponible el navegador integrado y el control nativo de Windows no expuso una ventana seleccionable. No hubo escenarios móviles, escrituras, capturas ni datos personales en evidencia.
 - Procedimiento manual único pendiente: abrir `https://sits-wheat.vercel.app/trabajo-social/correos` con la sesión autorizada; activar emulación/ventana de **390×844 CSS** y confirmar `window.innerWidth=390`, `window.innerHeight=844`; recorrer menú, dashboard, filtros, listado/tabla, paginación/orden, detalle con desplazamiento/cierre, historial/lote y formulario de seguimiento sin guardar; recargar y comprobar persistencia de la consulta y consola/red sin errores. Conservar sólo una lista de resultados, sin capturas ni contenido de correos.
+
+## Exportación XLSX de correos 2026-09-21
+
+- Rama de trabajo: `codex/correos-exportacion-xlsx`, basada en `origin/master` `8a40959` antes del commit. No incluir `AGENTS.md`, `diagrams/` ni `outputs/` no rastreados.
+- Contrato: `POST /api/v1/correos/exportar` recibe alcance `filtered` o `all`, filtros de la bandeja y opciones sensibles. Requiere `CORREOS:read` y `CORREOS:export`; cuerpo y seguimientos requieren además `CORREOS:sensitive` en backend. El endpoint genera un XLSX autenticado, sin caché compartida, y elimina el temporal tras la respuesta.
+- El archivo tiene hojas `Correos`, `Contenido_extenso`, `Seguimientos` opcional e `Información_exportación`. La consulta canónica del listado se comparte sin paginación, con orden estable. Los textos mayores de 32.767 caracteres se dividen sin pérdida y los posibles valores de fórmula se neutralizan de forma reversible con U+200B documentado.
+- Validación local: backend Docker **327/327 PASS** (130.413 s); frontend **159/159 PASS** (84.10 s); TypeScript, build y `git diff --check` PASS. La prueba específica abre el XLSX con `openpyxl`, reconcilia IDs/filas y valida contenido largo, Unicode, fórmula, seguimientos, auditoría y permisos.
+- Estado externo: GitHub autenticado, sin PR existente para la rama. **PENDIENTE**: commit/push/PR, checks remotos, integración, despliegue Vercel/PythonAnywhere y descarga desde el dominio productivo. No se efectuó ninguna descarga ni cambio de datos en producción.
+
+## NEXT ACTION
+
+Revisar el diff, crear un commit selectivo de la exportación, publicar el PR y ejecutar sus checks. Tras una integración aprobada, hacer preflight de respaldo y SHA antes de actualizar PythonAnywhere y confirmar una descarga privada desde el dominio habitual.

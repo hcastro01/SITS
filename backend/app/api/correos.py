@@ -3,6 +3,8 @@ import secrets
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, File, Header, Query, Request, Response, UploadFile, status
+from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
@@ -12,6 +14,7 @@ from app.core.errors import AppError
 from app.core.permissions import AuthenticatedUser
 from app.models import Correo, ErrorImportacionCorreo, LoteImportacionCorreo, SeguimientoCorreo
 from app.services.correos import CATEGORIAS_VALIDAS, ESTADOS_REQUERIMIENTO, add_follow_up, analyze_import, confirm_import, create_from_post, create_integration_email, get_detail, list_emails, list_lot_errors, list_lots, max_xlsx_bytes, normalize_received, summary
+from app.services.correos_export import generate_email_export, remove_export_file
 
 router = APIRouter(prefix="/api/v1/correos", tags=["Correos"])
 
@@ -65,6 +68,31 @@ class SeguimientoPayload(BaseModel):
     estado_requerimiento: Literal["PENDIENTE", "EN_PROCESO", "EN_ESPERA", "RESUELTO", "CERRADO"]
 
 
+class ExportFilters(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    estado: str | None = None
+    categoria: str | None = None
+    texto: str | None = Field(default=None, max_length=500)
+    asunto: str | None = Field(default=None, max_length=500)
+    remitente: str | None = Field(default=None, max_length=500)
+    destinatario: str | None = Field(default=None, max_length=500)
+    message_id: str | None = Field(default=None, max_length=512)
+    fecha_desde: str | None = Field(default=None, max_length=100)
+    fecha_hasta: str | None = Field(default=None, max_length=100)
+    origen: str | None = Field(default=None, max_length=100)
+    importancia: str | None = Field(default=None, max_length=100)
+    tiene_adjuntos: bool | None = None
+    orden: Literal["recibido_desc", "asunto_asc"] = "recibido_desc"
+
+
+class ExportCorreosPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    alcance: Literal["filtered", "all"]
+    filtros: ExportFilters = Field(default_factory=ExportFilters)
+    incluir_cuerpo: bool = False
+    incluir_seguimientos: bool = False
+
+
 def serialize_email(value: Correo, *, include_body: bool = False) -> dict:
     result = {"id_correo": value.id_correo, "id_externo_correo": value.id_externo_correo, "asunto": value.asunto, "remitente": value.remitente, "destinatarios": value.destinatarios, "cc": value.cc, "fecha_recibido": value.fecha_recibido, "importancia": value.importancia, "tiene_adjuntos": value.tiene_adjuntos, "leido": value.leido, "categoria_macro": value.categoria_macro, "categoria_nombre": value.categoria_nombre, "estado_categoria": value.estado_categoria, "regla_disparadora": value.regla_disparadora, "estado_clasificacion": value.estado_clasificacion, "estado_requerimiento": value.estado_requerimiento, "responsable_seguimiento": value.responsable_seguimiento, "origen": value.archivo_fuente, "fecha_creacion": value.fecha_creacion, "fecha_actualizacion": value.fecha_actualizacion, "version": value.version}
     if include_body: result["cuerpo"] = value.cuerpo
@@ -112,6 +140,27 @@ def listar(estado: str | None = None, categoria: str | None = None, texto: str |
     if estado and estado not in ESTADOS_REQUERIMIENTO: raise AppError("INVALID_STATE", "El estado solicitado no es válido.", 422)
     rows, total = list_emails(db, user, limit=limite, offset=offset, filters=locals())
     return {"items": [serialize_email(row) for row in rows], "total": total, "limite": limite, "offset": offset}
+
+
+@router.post("/exportar")
+def exportar(payload: ExportCorreosPayload, request: Request, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
+    if payload.filtros.estado and payload.filtros.estado not in ESTADOS_REQUERIMIENTO:
+        raise AppError("INVALID_STATE", "El estado solicitado no es válido.", 422)
+    result = generate_email_export(
+        db, user, scope=payload.alcance, filters=payload.filtros.model_dump(),
+        include_body=payload.incluir_cuerpo, include_follow_ups=payload.incluir_seguimientos,
+        correlation_id=request.state.correlation_id,
+    )
+    if result.count == 0:
+        remove_export_file(result.path)
+        raise AppError("NO_EXPORT_RESULTS", "No hay correos para el alcance seleccionado.", 422)
+    return FileResponse(
+        result.path,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=result.filename,
+        background=BackgroundTask(remove_export_file, result.path),
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @router.get("/importar/lotes")
