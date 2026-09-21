@@ -1,5 +1,13 @@
 # Estado operativo
 
+## Checkpoint posterior de cierre (2026-09-21, 11:50 UTC)
+
+- `master` productivo está en `22d09e9fbfccefaa3138320f096b4d170b48b58e` (PR #14, merge commit). PythonAnywhere avanzó sólo con `git pull --ff-only`, pasó `production_check` y confirmó `Reload successful`; Vercel terminó los checks observados.
+- Se verificaron respaldos privados consistentes antes de cada actualización productiva, `PRAGMA integrity_check = ok`, Alembic `0026_correos_operational_hardening (head)` y 1 registro existente en `correos`.
+- El XLSX histórico ya fue analizado una vez en producción: 37.591 fuente, 28.276 clasificadas, 9.314 en revisión y 1 error. El lote permanece `ANALIZADO`, con 0 importadas y 0 duplicadas; no se debe volver a analizar ni crear un lote nuevo.
+- El intento inicial detectó E/S de SQLite y dejó una única fila parcial, conservada para deduplicación. PR #13 redujo escrituras ORM por fila y PR #14 usa inserción SQL por bloques; ambos pasaron Vercel. La reanudación posterior no escribió porque la sesión del navegador fue invalidada tras la recarga.
+- Bloqueo actual: iniciar sesión nuevamente en el dominio habitual para confirmar exactamente ese lote; después validar conteos, filtros, paginación y detalle sin crear seguimientos de prueba. n8n sigue sin instancia autenticada.
+
 ## Cierre productivo en curso (2026-09-21)
 
 - La misión vigente está en `docs/CODEX_PRODUCTION_MASTER.md`; sustituye los límites locales históricos dentro de su alcance.

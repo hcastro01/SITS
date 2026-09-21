@@ -1,5 +1,11 @@
 # Estado remoto y PR
 
+## Checkpoint posterior (2026-09-21)
+
+- PR #13 `fix(correos): confirmar histórico XLSX por lotes`: checks Vercel observados en éxito; fusionado con merge commit `c15a5ab`.
+- PR #14 `fix(correos): reducir E/S de carga histórica`: checks Vercel observados en éxito; fusionado con merge commit `22d09e9`.
+- Ambos cambios están desplegados en PythonAnywhere por `git pull --ff-only` y Reload successful. La confirmación real sigue pendiente de una nueva sesión SITS; n8n no fue activado.
+
 - Upstream: `origin` apunta a `https://github.com/hcastro01/SITS.git`.
 - La rama remota `codex/correos-n8n-production-readiness` conserva el checkpoint `9feb395d95c152ccaecc28f68e4aa192a8674831`; el código funcional pertenece a `35860b5` y la documentación posterior registra evidencia.
 - `gh` está autenticado como `hcastro01` con permiso administrador. El PR #12 se creó contra `master`, se verificó como `CLEAN` y `MERGEABLE`, y se integró con commit de merge `c857995d8203d39e43a0b16e8fbf46a85b3255c9`.

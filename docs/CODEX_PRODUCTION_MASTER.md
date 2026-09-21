@@ -1,5 +1,12 @@
 # Cierre productivo SITS
 
+## Checkpoint posterior (2026-09-21)
+
+- Correcciones de importación: PR #13 (`c15a5ab`) y PR #14 (`22d09e9`) fueron fusionados con merge commits y desplegados en PythonAnywhere mediante fast-forward y Reload successful; Vercel completó los checks observados.
+- El lote histórico fue analizado en producción una sola vez. Resultado: 37.591 fuente, 28.276 clasificadas, 9.314 revisión y 1 error. No se reanaliza ni se reemplaza la SQLite productiva.
+- Un fallo inicial de E/S dejó una única fila parcial. La integridad de SQLite es correcta, la fila se conservará para la deduplicación y el lote continúa `ANALIZADO` (0 importadas/0 duplicadas en el resumen de lote).
+- La recarga invalidó la sesión de SITS antes del último intento, por lo que la confirmación final y QA funcional quedan `PENDIENTE` de un inicio de sesión autorizado. n8n sigue `NOT_RUN` por falta de instancia/workflow autenticado.
+
 ## Autorización vigente
 
 El usuario autorizó el 2026-09-21 el cierre completo de la versión de Correos y seguimiento: correcciones, pruebas, PR, merge controlado, Vercel, PythonAnywhere, migraciones, carga histórica deduplicada, n8n de ingesta y QA en el dominio productivo. Esta autorización reemplaza las restricciones locales históricas, sin omitir protecciones de plataforma, controles de seguridad ni reglas de recuperación.

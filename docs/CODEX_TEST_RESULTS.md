@@ -1,5 +1,9 @@
 # Últimos resultados de pruebas
 
+| 2026-09-21 | `docker compose build backend` y `docker compose run --rm backend python -m unittest tests.test_correos` | 7/7 PASS, exit 0; incluye importación de 1.001 filas con persistencia por lotes. |
+| 2026-09-21 | PythonAnywhere tras PR #13 y #14 | `production_check` PASS, `PRAGMA integrity_check = ok`, Alembic `0026_correos_operational_hardening (head)` y Reload successful. |
+| 2026-09-21 | XLSX histórico en UI productiva | análisis PASS: 37.591 fuente, 28.276 clasificadas, 9.314 revisión, 1 error. Confirmación E2E: PENDIENTE de nueva sesión; no declarar PASS. |
+
 | Fecha | Entorno y comando | Resultado |
 | --- | --- | --- |
 | 2026-09-21 | `docker compose -p sits-correos-local exec -T backend /opt/venv/bin/python -m unittest discover -s tests -v` | 324/324 PASS, 239.796 s, exit 0 |

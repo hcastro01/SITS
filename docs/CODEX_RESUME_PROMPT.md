@@ -1,5 +1,14 @@
 # Reanudación de Correos y seguimiento
 
+## Checkpoint vigente (precede a las notas históricas)
+
+1. Abrir `https://sits-wheat.vercel.app` e iniciar sesión con una cuenta administrativa autorizada. No volver a cargar el XLSX.
+2. Ir a Trabajo Social → Correos → Historial, localizar el único lote `ANALIZADO` del XLSX histórico y confirmarlo incluyendo revisión. Debe deduplicar la única fila parcial y completar las restantes; detenerse ante cualquier error sin reintentos ciegos.
+3. Verificar desde la UI sólo conteos, filtros, paginación y detalle. No crear seguimientos de prueba sobre información real.
+4. Mantener `n8n` como `NOT_RUN` hasta disponer de una instancia autenticada y un flujo exclusivamente de ingesta.
+
+Producción: `master` `22d09e9`; PythonAnywhere y Vercel actualizados. Respaldos privados verificados; Alembic `0026`. PR #13 y #14 ya están fusionados. Prueba actual: 7/7 de `tests.test_correos` PASS.
+
 Continúa en `C:\Proyectos`, rama `codex/correos-n8n-production-readiness`. Lee `AGENTS.md`, `docs/CODEX_PRODUCTION_MASTER.md`, `docs/CODEX_STATE.md`, `docs/CODEX_BLOCKERS.md`, `docs/CODEX_DECISIONS.md`, `docs/CODEX_TEST_RESULTS.md` y `docs/CODEX_HANDOFF_CORREOS.md` antes de actuar.
 
 La misión actual SÍ autoriza PR, merge controlado, Vercel, PythonAnywhere, migraciones, importación histórica deduplicada y n8n limitado a ingesta. Conserva los controles de recuperación y no agregues `outputs/`, secretos, bases ni artefactos locales.

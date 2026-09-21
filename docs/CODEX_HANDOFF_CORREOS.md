@@ -1,5 +1,11 @@
 # Handoff técnico: Correos y seguimiento
 
+## Checkpoint posterior (2026-09-21)
+
+- Producción en `22d09e9` tras PR #13/#14; PythonAnywhere pasó `production_check`, integridad SQLite y Reload successful. La inserción XLSX ahora usa SQL por lotes y la prueba aislada `tests.test_correos` pasó 7/7, incluida carga de 1.001 filas.
+- El XLSX real está ya analizado en producción y debe reanudarse desde el lote existente, no volver a transmitirse. Conteos de análisis: 37.591 / 28.276 / 9.314 / 1 (fuente/clasificadas/revisión/error).
+- Una única fila parcial existe y el lote sigue `ANALIZADO`. La cookie de SITS se invalidó tras la recarga; iniciar sesión y confirmar una vez incluyendo revisión. Después realizar QA de sólo lectura. No crear seguimiento artificial ni activar n8n.
+
 ## Estado Git
 
 - Rama: `codex/correos-n8n-production-readiness`.
