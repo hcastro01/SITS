@@ -3,11 +3,12 @@
 import json
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query, Request, Response, UploadFile
+from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from starlette.datastructures import UploadFile
 
 from app.api.deps import get_current_user, get_db
 from app.core.permissions import AuthenticatedUser, authorize, can
@@ -31,7 +32,7 @@ from app.services.records import get_active
 from app.services.reglas_formulario import reglas_formulario
 from app.services.respuestas_formulario import save_response
 from app.services.response_contexts import response_action_allowed
-from app.services.documentos import content_response_headers, download_documento
+from app.services.documentos import MAX_FILE_BYTES, content_response_headers, download_documento
 
 router = APIRouter(prefix="/api/v1/formularios", tags=["Formularios"])
 
@@ -83,8 +84,12 @@ async def response_request_payload(request: Request) -> tuple[ResponderFormulari
         question_id = name.removeprefix("archivo:")
         if not question_id:
             raise ValueError("Cada adjunto requiere una pregunta.")
+        try:
+            contenido = await value.read(MAX_FILE_BYTES + 1)
+        finally:
+            await value.close()
         attachments.append({"id_pregunta": question_id, "nombre_archivo": value.filename or "archivo",
-                            "mime_type": value.content_type or "", "contenido": await value.read()})
+                            "mime_type": value.content_type or "", "contenido": contenido})
     return payload, attachments
 
 

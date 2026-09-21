@@ -11,7 +11,7 @@ La opción más directa es Docker Compose:
 docker compose up --build
 ```
 
-El frontend queda en `http://localhost:8080` y el backend en
+El frontend queda en `http://localhost:8081` y el backend en
 `http://localhost:8000`. El inicio por correo sin contraseña solo existe para el
 entorno local; la configuración de producción impide arrancar si no se activa la
 autenticación por contraseña y la cookie segura.
