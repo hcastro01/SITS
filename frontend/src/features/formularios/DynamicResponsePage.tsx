@@ -72,7 +72,7 @@ export function DynamicResponsePage() {
   function toAnswers(): FormAnswer[] {
     if (!definition) return []; const result: FormAnswer[] = [];
     definition.preguntas.forEach((question) => { const value = values[question.id_pregunta]; if (value === undefined || value === '' || (Array.isArray(value) && !value.length)) return;
-      if (Array.isArray(value) && value.some((item) => item instanceof File)) return;
+      if (['ARCHIVO', 'FOTOGRAFIA'].includes(question.tipo) && Array.isArray(value)) return;
       const items = Array.isArray(value) ? value : [value]; items.forEach((item) => {
         if (['NUMERO', 'NUMERO_ENTERO', 'NUMERO_DECIMAL', 'MONEDA', 'PORCENTAJE', 'ESCALA', 'CALIFICACION'].includes(question.tipo)) result.push({ id_pregunta: question.id_pregunta, valor_numero: Number(item) });
         else if (['FECHA', 'HORA', 'FECHA_HORA'].includes(question.tipo)) result.push({ id_pregunta: question.id_pregunta, valor_fecha: String(item) });
