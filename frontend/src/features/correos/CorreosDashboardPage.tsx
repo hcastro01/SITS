@@ -9,6 +9,9 @@ import { Modal } from '../../components/Modal';
 const ESTADOS: readonly EstadoRequerimiento[] = ['PENDIENTE', 'EN_PROCESO', 'EN_ESPERA', 'RESUELTO', 'CERRADO'];
 const MAX_XLSX_BYTES = 50 * 1024 * 1024;
 const errorText = (error: unknown, fallback: string) => error instanceof HttpError ? error.message : fallback;
+const exportErrorText = (error: unknown) => error instanceof HttpError && error.status === 405
+  ? 'La exportación no está disponible en el servidor actual. Actualice el backend e inténtelo de nuevo.'
+  : errorText(error, 'No fue posible preparar el archivo de Excel.');
 const dateText = (value: string | null) => value ? new Date(value).toLocaleString('es-EC') : 'Sin fecha';
 const stateText = (value: string) => value.replaceAll('_', ' ');
 
@@ -188,7 +191,7 @@ function CorreosDashboardContent() {
       link.href = url; link.download = result.filename || 'SITS_Correos_Categorizados.xlsx';
       document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
       setExportReady(true);
-    } catch (caught) { setExportError(errorText(caught, 'No fue posible preparar el archivo de Excel.')); }
+    } catch (caught) { setExportError(exportErrorText(caught)); }
     finally { setExporting(false); }
   }
 
