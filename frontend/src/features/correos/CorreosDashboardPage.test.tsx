@@ -1,7 +1,8 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FeedbackProvider } from '../../components/FeedbackProvider';
+import { HttpError } from '../../api/client';
 import * as api from '../../api/correos';
 import { CorreosDashboardPage } from './CorreosDashboardPage';
 
@@ -35,7 +36,13 @@ beforeEach(() => {
   vi.mocked(api.obtenerHistorialImportacionesCorreos).mockResolvedValue({ items: [lot] });
   vi.mocked(api.obtenerErroresImportacionCorreos).mockResolvedValue({ items: [{ fila: 8, message_id: 'mail-duplicado', codigo: 'DUPLICATE_IN_FILE', detalle: 'MessageId repetido dentro del XLSX.' }] });
   vi.mocked(api.confirmarImportacionCorreos).mockResolvedValue({ lote: { ...lot, estado: 'CONFIRMADO', filas_importadas: 2 }, filas_seleccionadas: 2, filas_importadas: 2, filas_duplicadas: 0 });
+  vi.mocked(api.exportarCorreos).mockResolvedValue({ blob: new Blob(['xlsx']), filename: 'correos.xlsx' });
+  Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:correos') });
+  Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
+  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
 });
+
+afterEach(() => vi.restoreAllMocks());
 
 describe('CorreosDashboardPage', () => {
   it('muestra las incidencias persistidas de un lote histórico', async () => {
@@ -96,6 +103,34 @@ describe('CorreosDashboardPage', () => {
     expect(within(dialog).getByLabelText('Incluir cuerpo completo del correo')).not.toBeChecked();
     expect(within(dialog).getByLabelText('Incluir historial de seguimientos')).not.toBeChecked();
     expect(within(dialog).getByText(/cantidad final se confirma/)).toBeInTheDocument();
+  });
+
+  it('solicita el XLSX filtrado, conserva el nombre y libera el blob tras iniciar la descarga', async () => {
+    renderPage();
+    await screen.findByText('correos.xlsx');
+    await userEvent.type(screen.getByLabelText('Filtrar por asunto'), 'Permiso');
+    await userEvent.click(screen.getByRole('button', { name: 'Descargar Excel' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Descargar Excel' }));
+    await waitFor(() => expect(api.exportarCorreos).toHaveBeenCalledWith({
+      alcance: 'filtered', filtros: { asunto: 'Permiso' }, incluir_cuerpo: false, incluir_seguimientos: false,
+    }));
+    expect(URL.createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:correos');
+    expect(within(dialog).getByText(/la descarga se inició/i)).toBeInTheDocument();
+  });
+
+  it('traduce un 405 de un servidor desactualizado a una acción comprensible', async () => {
+    vi.mocked(api.exportarCorreos).mockRejectedValue(new HttpError(405, {
+      ok: false, code: 'HTTP_405', message: 'Method Not Allowed', correlationId: 'qa-405',
+    }));
+    renderPage();
+    await screen.findByText('correos.xlsx');
+    await userEvent.click(screen.getByRole('button', { name: 'Descargar Excel' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Descargar Excel' }));
+    expect(await within(dialog).findByText(/actualice el backend/i)).toBeInTheDocument();
+    expect(within(dialog).queryByText('Method Not Allowed')).not.toBeInTheDocument();
   });
 
   it('mantiene el éxito del seguimiento después de reiniciar su formulario', async () => {
