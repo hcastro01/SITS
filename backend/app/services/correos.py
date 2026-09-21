@@ -21,7 +21,9 @@ from app.services.records import check_expected_version, creation_metadata, get_
 
 MAX_EMAIL_XLSX_BYTES = 50 * 1024 * 1024
 MAX_PREVIEW_ROWS = 100
-IMPORT_BATCH_SIZE = 500
+# PythonAnywhere usa almacenamiento de red para SQLite: bloques pequeños evitan que
+# una única llamada executemany concentre demasiado I/O de cuerpos de correo.
+IMPORT_BATCH_SIZE = 25
 MAX_TEXT = {"id_externo_correo": 512, "asunto": 2000, "remitente": 1000, "destinatarios": 8000, "cc": 8000, "importancia": 100, "categoria_macro": 160, "categoria_nombre": 300, "regla_disparadora": 500, "idempotency_key": 600, "cuerpo": 2_000_000}
 ESTADOS_REQUERIMIENTO = {"PENDIENTE", "EN_PROCESO", "EN_ESPERA", "RESUELTO", "CERRADO"}
 ESTADOS_CLASIFICACION = {"CLASIFICADO", "REVISION"}
