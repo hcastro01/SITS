@@ -21,6 +21,7 @@ from app.services.records import check_expected_version, creation_metadata, get_
 
 MAX_EMAIL_XLSX_BYTES = 50 * 1024 * 1024
 MAX_PREVIEW_ROWS = 100
+IMPORT_BATCH_SIZE = 500
 MAX_TEXT = {"id_externo_correo": 512, "asunto": 2000, "remitente": 1000, "destinatarios": 8000, "cc": 8000, "importancia": 100, "categoria_macro": 160, "categoria_nombre": 300, "regla_disparadora": 500, "idempotency_key": 600, "cuerpo": 2_000_000}
 ESTADOS_REQUERIMIENTO = {"PENDIENTE", "EN_PROCESO", "EN_ESPERA", "RESUELTO", "CERRADO"}
 ESTADOS_CLASIFICACION = {"CLASIFICADO", "REVISION"}
@@ -154,6 +155,50 @@ def _persist_errors(session: Session, lot_id: str, actor: str, errors: list[dict
     for error in errors: session.add(ErrorImportacionCorreo(id_error=str(uuid4()), lote_id=lot_id, **error, **creation_metadata(actor)))
 
 
+def _chunks(values: list[dict], size: int = IMPORT_BATCH_SIZE):
+    for index in range(0, len(values), size):
+        yield values[index:index + size]
+
+
+def _existing_import_keys(session: Session, records: list[dict]) -> tuple[set[str], set[str]]:
+    """Consulta las claves existentes en grupos, sin una consulta por fila."""
+    external_ids, idempotency_keys = set(), set()
+    for chunk in _chunks(records):
+        rows = session.execute(
+            select(Correo.id_externo_correo, Correo.idempotency_key).where(
+                or_(
+                    Correo.id_externo_correo.in_([record["id_externo_correo"] for record in chunk]),
+                    Correo.idempotency_key.in_([record["idempotency_key"] for record in chunk]),
+                )
+            )
+        ).all()
+        external_ids.update(row.id_externo_correo for row in rows)
+        idempotency_keys.update(row.idempotency_key for row in rows)
+    return external_ids, idempotency_keys
+
+
+def _bulk_import(session: Session, actor: str, lot: LoteImportacionCorreo, records: list[dict]) -> tuple[int, int]:
+    """Persiste una carga XLSX con pocos flushes y sin auditoría sensible por fila."""
+    existing_external, existing_idempotency = _existing_import_keys(session, records)
+    seen_external, seen_idempotency = set(existing_external), set(existing_idempotency)
+    inserted, duplicates, pending = 0, 0, []
+    metadata = creation_metadata(actor)
+    for data in records:
+        external_id, idempotency_key = data["id_externo_correo"], data["idempotency_key"]
+        if external_id in seen_external or idempotency_key in seen_idempotency:
+            duplicates += 1
+            continue
+        seen_external.add(external_id); seen_idempotency.add(idempotency_key)
+        pending.append(Correo(
+            id_correo=str(uuid4()), lote_id=lot.id_lote, estado_requerimiento="PENDIENTE",
+            archivo_fuente="XLSX", hoja_fuente="Correos_POST", **data, **metadata,
+        ))
+    for chunk in _chunks(pending):
+        session.add_all(chunk)
+        session.flush()
+    return len(pending), duplicates
+
+
 def analyze_import(session: Session, user: AuthenticatedUser, *, filename: str, content: bytes, correlation_id: str):
     authorize(user, "IMPORTACION", "create"); authorize(user, "CORREOS", "create")
     if not filename.lower().endswith(".xlsx"): raise AppError("INVALID_XLSX", "El archivo debe tener extensión .xlsx.", 422)
@@ -171,10 +216,7 @@ def confirm_import(session: Session, user: AuthenticatedUser, lot_id: str, *, in
     if lot.estado != ESTADO_ANALIZADO: raise AppError("INVALID_IMPORT_STATE", "El lote no está disponible para confirmación.", 409)
     started = perf_counter(); records, _, _, _ = _read_xlsx(lot.contenido_archivo); selected = records if include_revision else [row for row in records if row["estado_clasificacion"] == "CLASIFICADO"]
     if not selected: raise AppError("NO_CLASSIFIED_ROWS", "No existen correos aptos para cargar.", 422)
-    inserted = duplicates = 0
-    for row in selected:
-        if _create(session, user.correo, row, correlation_id=correlation_id, lote_id=lot.id_lote, origin="XLSX") is None: duplicates += 1
-        else: inserted += 1
+    inserted, duplicates = _bulk_import(session, user.correo, lot, selected)
     before = {"estado": lot.estado, "filas_importadas": lot.filas_importadas}; lot.estado, lot.filas_importadas, lot.filas_duplicadas = ESTADO_CONFIRMADO, inserted, duplicates; lot.duracion_ms = (lot.duracion_ms or 0) + round((perf_counter() - started) * 1000); mark_updated(lot, user.correo)
     log_change(session, "lotes_importacion_correo", lot.id_lote, "IMPORT", before, {"estado": lot.estado, "filas_importadas": inserted, "filas_duplicadas": duplicates, "incluyo_revision": include_revision}, user.correo, "Confirmación de carga de correos", correlation_id, sensitive_record=True)
     return lot, len(selected), inserted, duplicates

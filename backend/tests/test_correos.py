@@ -128,6 +128,17 @@ class CorreosServiceTests(unittest.TestCase):
             self.assertEqual((selected, inserted, duplicates), (3, 0, 3))
             self.assertEqual(len(session.scalars(select(Correo)).all()), 3)
 
+    def test_large_confirmation_uses_batched_persistence(self):
+        rows = [
+            [f"mail-{index}", "Caso", "ana@example.com", "2026-09-20T10:00:00", "Contenido", "CASOS_TALENTO_HUMANO", "Casos", "CLASIFICADO", "SI", "PENDIENTE"]
+            for index in range(1_001)
+        ]
+        with Session(self.engine) as session, session.begin():
+            lot, _ = analyze_import(session, self.user(session), filename="large.xlsx", content=xlsx(rows), correlation_id="test")
+            confirmed, selected, inserted, duplicates = confirm_import(session, self.user(session), lot.id_lote, include_revision=True, correlation_id="test")
+            self.assertEqual((confirmed.estado, selected, inserted, duplicates), ("CONFIRMADO", 1_001, 1_001, 0))
+            self.assertEqual(len(session.scalars(select(Correo)).all()), 1_001)
+
 
 if __name__ == "__main__":
     unittest.main()
