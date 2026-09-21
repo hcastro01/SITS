@@ -1,5 +1,11 @@
 # Bloqueos
 
+## Estado posterior al cierre de datos (2026-09-21)
+
+- Importación histórica: **COMPLETADA**. No volver a subir ni confirmar el XLSX; el lote `351a817e-772f-4cf1-8083-1b6ba674e5c5` está `CONFIRMADO` y reconciliado.
+- Vista móvil: **PENDIENTE QA MANUAL**. La emulación 390×844 no se aplicó en el navegador integrado; falta comprobar visualmente ese breakpoint en un navegador/dispositivo que permita dicha resolución.
+- n8n: **pendiente independiente, fuera del cierre**. No hay instancia/workflow autenticado de ingesta identificado ni se activó flujo alguno.
+
 ## Técnicos ya resueltos
 
 - La UI ahora permite recuperar errores y retomar un lote histórico `ANALIZADO`.

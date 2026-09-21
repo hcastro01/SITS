@@ -1,5 +1,10 @@
 # Últimos resultados de pruebas
 
+| 2026-09-21 | `docker compose build backend` y `docker compose run --rm backend python -m unittest tests.test_correos` | 7/7 PASS, exit 0; incluye importación de 1.001 filas y bloques SQL reducidos a 25. |
+| 2026-09-21 | Producción: SQLite, lote y deduplicación | PASS: `integrity_check=ok`; 37.590 correos; 0 grupos MessageId duplicados; 9.314 en revisión; lote `351a817e-772f-4cf1-8083-1b6ba674e5c5` = `CONFIRMADO:37589:1:1`. |
+| 2026-09-21 | QA navegador del dominio habitual | PASS: sesión, dashboard, origen 37.590, filtro combinado 9.314, paginación 51–100/9.314, orden A–Z, detalle y formulario sin escritura, historial y persistencia tras recarga; consola sin errores/advertencias. |
+| 2026-09-21 | Vista móvil del navegador integrado | PENDIENTE QA MANUAL: el override 390×844 no tomó efecto; no se declara PASS visual. |
+
 | Fecha | Entorno y comando | Resultado |
 | --- | --- | --- |
 | 2026-09-21 | `docker compose -p sits-correos-local exec -T backend /opt/venv/bin/python -m unittest discover -s tests -v` | 324/324 PASS, 239.796 s, exit 0 |

@@ -1,5 +1,11 @@
 # Handoff técnico: Correos y seguimiento
 
+## Cierre posterior (2026-09-21)
+
+- No queda reanudación de importación: lote productivo `351a817e-772f-4cf1-8083-1b6ba674e5c5` `CONFIRMADO`; 37.591/37.589/1/1 (procesadas/importadas/existente/error). El conteo general es 37.590 y todos sus registros pertenecen al lote.
+- La causa del fallo anterior se localizó como E/S en `executemany` de 500 filas. PR #15 redujo el bloque a 25, pasó 7/7 pruebas, se integró en `1a28076` y se desplegó. No repetir la carga.
+- QA desktop productivo completado sin escrituras artificiales. Sólo queda QA visual manual móvil; n8n está fuera del cierre.
+
 ## Estado Git
 
 - Rama: `codex/correos-n8n-production-readiness`.

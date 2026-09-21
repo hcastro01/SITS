@@ -1,5 +1,13 @@
 # Reanudación de Correos y seguimiento
 
+## Cierre vigente
+
+La importación histórica está cerrada. Lote `351a817e-772f-4cf1-8083-1b6ba674e5c5`: `CONFIRMADO`, 37.591 procesadas, 37.589 incorporadas, 1 existente reconocido, 1 error trazado; total de base 37.590, sin grupos MessageId duplicados y 9.314 en revisión. No reconfirmar ni volver a subir el XLSX.
+
+Producción funcional: `1a28076`; Vercel en éxito, PythonAnywhere actualizado, `production_check` e integridad SQLite PASS, Alembic `0026`. QA desktop del dominio habitual PASS para sesión, dashboard, filtros, paginación, orden, detalle, historial y persistencia. No se creó un seguimiento ficticio.
+
+Pendiente exacto: QA visual manual móvil, porque el navegador integrado no aplicó el viewport solicitado. n8n es pendiente independiente y está fuera de este cierre.
+
 Continúa en `C:\Proyectos`, rama `codex/correos-n8n-production-readiness`. Lee `AGENTS.md`, `docs/CODEX_PRODUCTION_MASTER.md`, `docs/CODEX_STATE.md`, `docs/CODEX_BLOCKERS.md`, `docs/CODEX_DECISIONS.md`, `docs/CODEX_TEST_RESULTS.md` y `docs/CODEX_HANDOFF_CORREOS.md` antes de actuar.
 
 La misión actual SÍ autoriza PR, merge controlado, Vercel, PythonAnywhere, migraciones, importación histórica deduplicada y n8n limitado a ingesta. Conserva los controles de recuperación y no agregues `outputs/`, secretos, bases ni artefactos locales.
