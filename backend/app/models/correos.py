@@ -33,8 +33,6 @@ class Correo(MetadatosComunes, Base):
         CheckConstraint("estado_clasificacion IN ('CLASIFICADO', 'REVISION')", name="estado_clasificacion_valido"),
         CheckConstraint("estado_requerimiento IN ('PENDIENTE', 'EN_PROCESO', 'EN_ESPERA', 'RESUELTO', 'CERRADO')", name="estado_requerimiento_valido"),
         CheckConstraint("version >= 1", name="version_positive"),
-        Index("ix_correos_recibido", "fecha_recibido"),
-        Index("ix_correos_estado_categoria", "estado_requerimiento", "categoria_macro"),
     )
 
     id_correo: Mapped[str] = mapped_column(String, primary_key=True)
@@ -44,7 +42,7 @@ class Correo(MetadatosComunes, Base):
     remitente: Mapped[str | None] = mapped_column(String)
     destinatarios: Mapped[str | None] = mapped_column(Text)
     cc: Mapped[str | None] = mapped_column(Text)
-    fecha_recibido: Mapped[str | None] = mapped_column(String)
+    fecha_recibido: Mapped[str | None] = mapped_column(String, index=True)
     importancia: Mapped[str | None] = mapped_column(String)
     cuerpo: Mapped[str | None] = mapped_column(Text)
     tiene_adjuntos: Mapped[bool] = mapped_column(Boolean(create_constraint=True), default=False)
@@ -55,8 +53,8 @@ class Correo(MetadatosComunes, Base):
     regla_disparadora: Mapped[str | None] = mapped_column(String)
     estado_clasificacion: Mapped[str] = mapped_column(String, nullable=False, default="REVISION")
     estado_requerimiento: Mapped[str] = mapped_column(String, nullable=False, default="PENDIENTE", index=True)
-    responsable_seguimiento: Mapped[str | None] = mapped_column(String, index=True)
-    lote_id: Mapped[str | None] = mapped_column(ForeignKey("lotes_importacion_correo.id_lote"), index=True)
+    responsable_seguimiento: Mapped[str | None] = mapped_column(String)
+    lote_id: Mapped[str | None] = mapped_column(ForeignKey("lotes_importacion_correo.id_lote"))
 
 
 class SeguimientoCorreo(MetadatosComunes, Base):
@@ -64,7 +62,6 @@ class SeguimientoCorreo(MetadatosComunes, Base):
     __table_args__ = (
         CheckConstraint("estado_requerimiento IN ('PENDIENTE', 'EN_PROCESO', 'EN_ESPERA', 'RESUELTO', 'CERRADO')", name="estado_requerimiento_valido"),
         CheckConstraint("version >= 1", name="version_positive"),
-        Index("ix_seguimientos_correo_correo_fecha", "correo_id", "fecha_seguimiento"),
     )
 
     id_seguimiento: Mapped[str] = mapped_column(String, primary_key=True)

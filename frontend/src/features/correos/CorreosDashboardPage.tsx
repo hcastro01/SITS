@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { canAccess } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import { analizarCorreos, confirmarImportacionCorreos, crearSeguimientoCorreo, listarCorreos, obtenerCorreo, obtenerHistorialImportacionesCorreos, obtenerResumenCorreos, type AnalisisCorreos, type CorreoDetalle, type CorreoResumen, type EstadoRequerimiento, type LoteCorreo, type ResumenCorreos, type SeguimientoCorreo } from '../../api/correos';
+import { analizarCorreos, confirmarImportacionCorreos, crearSeguimientoCorreo, listarCorreos, obtenerCorreo, obtenerErroresImportacionCorreos, obtenerHistorialImportacionesCorreos, obtenerResumenCorreos, type AnalisisCorreos, type CorreoDetalle, type CorreoResumen, type ErrorImportacionCorreo, type EstadoRequerimiento, type LoteCorreo, type ResumenCorreos, type SeguimientoCorreo } from '../../api/correos';
 import { useAuth } from '../../app/AuthContext';
 import { useFeedback } from '../../components/FeedbackProvider';
 import { Modal } from '../../components/Modal';
@@ -30,6 +30,7 @@ function CorreosDashboardContent() {
   const [analyzing, setAnalyzing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [askUnclassified, setAskUnclassified] = useState(false);
+  const [pendingConfirmation, setPendingConfirmation] = useState<LoteCorreo | null>(null);
   const [detail, setDetail] = useState<DetailState | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -37,9 +38,23 @@ function CorreosDashboardContent() {
   const [stateFilter, setStateFilter] = useState('');
   const [textFilter, setTextFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [subjectFilter, setSubjectFilter] = useState('');
+  const [senderFilter, setSenderFilter] = useState('');
+  const [recipientFilter, setRecipientFilter] = useState('');
+  const [originFilter, setOriginFilter] = useState('');
+  const [importanceFilter, setImportanceFilter] = useState('');
+  const [messageIdFilter, setMessageIdFilter] = useState('');
+  const [dateFromFilter, setDateFromFilter] = useState('');
+  const [dateToFilter, setDateToFilter] = useState('');
+  const [attachmentsFilter, setAttachmentsFilter] = useState('');
+  const [orderFilter, setOrderFilter] = useState('');
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
   const [history, setHistory] = useState<LoteCorreo[]>([]);
+  const [errorLot, setErrorLot] = useState<LoteCorreo | null>(null);
+  const [lotErrors, setLotErrors] = useState<ErrorImportacionCorreo[]>([]);
+  const [lotErrorsLoading, setLotErrorsLoading] = useState(false);
+  const [lotErrorsError, setLotErrorsError] = useState<string | null>(null);
   const canViewBody = canAccess(usuario, 'CORREOS', 'sensitive');
   const canImport = canAccess(usuario, 'IMPORTACION', 'create') && canAccess(usuario, 'CORREOS', 'create');
 
@@ -50,6 +65,16 @@ function CorreosDashboardContent() {
       if (stateFilter) params.set('estado', stateFilter);
       if (textFilter.trim()) params.set('texto', textFilter.trim());
       if (categoryFilter.trim()) params.set('categoria', categoryFilter.trim());
+      if (subjectFilter.trim()) params.set('asunto', subjectFilter.trim());
+      if (senderFilter.trim()) params.set('remitente', senderFilter.trim());
+      if (recipientFilter.trim()) params.set('destinatario', recipientFilter.trim());
+      if (originFilter.trim()) params.set('origen', originFilter.trim());
+      if (importanceFilter.trim()) params.set('importancia', importanceFilter.trim());
+      if (messageIdFilter.trim()) params.set('message_id', messageIdFilter.trim());
+      if (dateFromFilter) params.set('fecha_desde', dateFromFilter);
+      if (dateToFilter) params.set('fecha_hasta', dateToFilter);
+      if (attachmentsFilter) params.set('tiene_adjuntos', attachmentsFilter);
+      if (orderFilter) params.set('orden', orderFilter);
       const [nextSummary, page, importHistory] = await Promise.all([obtenerResumenCorreos(), listarCorreos(params), canImport ? obtenerHistorialImportacionesCorreos() : Promise.resolve({ items: [] })]);
       setSummary(nextSummary); setItems(page.items); setTotal(page.total); setHistory(importHistory.items);
     } catch (caught) {
@@ -57,7 +82,7 @@ function CorreosDashboardContent() {
     } finally { setLoading(false); }
   }
 
-  useEffect(() => { void load(); }, [stateFilter, textFilter, categoryFilter, offset]);
+  useEffect(() => { void load(); }, [stateFilter, textFilter, categoryFilter, subjectFilter, senderFilter, recipientFilter, originFilter, importanceFilter, messageIdFilter, dateFromFilter, dateToFilter, attachmentsFilter, orderFilter, offset]);
 
   async function analyze() {
     if (!file || analyzing) return;
@@ -67,20 +92,32 @@ function CorreosDashboardContent() {
     try {
       const result = await analizarCorreos(file);
       setAnalysis(result);
-      if (result.lote.filas_revision > 0) setAskUnclassified(true);
     } catch (caught) { setError(errorText(caught, 'No fue posible analizar el XLSX.')); }
     finally { setAnalyzing(false); }
   }
 
-  async function confirmImport(includeUnclassified: boolean) {
-    if (!analysis || confirming) return;
+  function requestConfirmation(lot: LoteCorreo) {
+    setPendingConfirmation(lot);
+    if (lot.filas_revision > 0) setAskUnclassified(true);
+    else void confirmImport(lot, false);
+  }
+
+  async function confirmImport(lot: LoteCorreo, includeUnclassified: boolean) {
+    if (confirming) return;
     setConfirming(true); setAskUnclassified(false); setError(null);
     try {
-      const result = await confirmarImportacionCorreos(analysis.lote.id_lote, includeUnclassified);
+      const result = await confirmarImportacionCorreos(lot.id_lote, includeUnclassified);
       notify(`Se procesaron ${result.filas_seleccionadas} correos; ${result.filas_importadas} se incorporaron y ${result.filas_duplicadas} ya existían.`);
-      setAnalysis(null); setFile(null); await load();
+      setAnalysis(null); setFile(null); setPendingConfirmation(null); await load();
     } catch (caught) { setError(errorText(caught, 'No fue posible confirmar la carga.')); }
     finally { setConfirming(false); }
+  }
+
+  async function openLotErrors(lot: LoteCorreo) {
+    setErrorLot(lot); setLotErrors([]); setLotErrorsError(null); setLotErrorsLoading(true);
+    try { setLotErrors((await obtenerErroresImportacionCorreos(lot.id_lote)).items); }
+    catch (caught) { setLotErrorsError(errorText(caught, 'No fue posible consultar los errores del lote.')); }
+    finally { setLotErrorsLoading(false); }
   }
 
   async function openDetail(id: string) {
@@ -118,11 +155,12 @@ function CorreosDashboardContent() {
         ['En seguimiento', summary?.en_seguimiento ?? 0, 'violet'], ['Sin clasificar', summary?.sin_clasificar ?? 0, 'danger'],
       ].map(([label, value, tone]) => <article className={`dashboard-kpi-card kpi-card--${tone}`} key={String(label)}><div className="dashboard-kpi-top"><span className="dashboard-kpi-icon" aria-hidden="true">✉</span><span className="dashboard-kpi-label">{label}</span></div><strong className="dashboard-kpi-value">{value}</strong></article>)}
     </section>
-    {canImport && <section className="panel correos-upload-card"><div><h3>Cargar XLSX</h3><p className="footnote">Límite: 50 MB. Las filas inválidas se informan por separado; podrá incluir o excluir las que requieren revisión.</p></div><div className="upload-form"><label>Archivo XLSX<input aria-label="Seleccionar archivo XLSX de correos" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(event) => { setFile(event.target.files?.[0] ?? null); setAnalysis(null); }} /></label><button type="button" disabled={!file || analyzing} onClick={() => void analyze()}>{analyzing ? 'Analizando archivo…' : 'Analizar archivo'}</button></div>{file && <p className="selected-file">Archivo seleccionado: <strong>{file.name}</strong></p>}{analysis && <AnalysisPanel analysis={analysis} confirming={confirming} onConfirm={() => analysis.lote.filas_revision ? setAskUnclassified(true) : void confirmImport(false)} />}</section>}
-    <section className="panel module-table-card correos-table-card"><div className="module-table-card-heading"><div><h3>Correos ({total})</h3><p>Los filtros y la paginación se resuelven en el servidor. El cuerpo se consulta sólo en el detalle.</p></div><div className="upload-form"><label>Buscar<input aria-label="Buscar correos" value={textFilter} onChange={(event) => { setOffset(0); setTextFilter(event.target.value); }} /></label><label>Categoría<input aria-label="Filtrar por categoría" value={categoryFilter} onChange={(event) => { setOffset(0); setCategoryFilter(event.target.value); }} /></label><label className="correos-state-filter">Estado<select aria-label="Filtrar por estado de requerimiento" value={stateFilter} onChange={(event) => { setOffset(0); setStateFilter(event.target.value); }}><option value="">Todos</option>{ESTADOS.map((state) => <option value={state} key={state}>{stateText(state)}</option>)}</select></label></div></div>{loading ? <p className="loading-message">Cargando correos…</p> : items.length ? <><div className="table-scroll"><table className="data-table module-data-table"><thead><tr><th>Recibido</th><th>Remitente</th><th>Asunto</th><th>Categoría</th><th>Origen</th><th>Estado</th><th /></tr></thead><tbody>{items.map((item) => <tr key={item.id_correo}><td>{dateText(item.fecha_recibido)}</td><td>{item.remitente ?? 'Sin remitente'}</td><td>{item.asunto || 'Sin asunto'}</td><td><span className="correo-category">{item.categoria_nombre ?? item.categoria_macro ?? item.estado_categoria}</span></td><td>{item.origen ?? 'Sin información'}</td><td><span className={`correo-status correo-status--${item.estado_requerimiento.toLowerCase()}`}>{stateText(item.estado_requerimiento)}</span></td><td><button type="button" className="secondary" disabled={!canViewBody} title={canViewBody ? 'Ver detalle' : 'Requiere permiso sensible de CORREOS'} onClick={() => void openDetail(item.id_correo)}>Ver detalle</button></td></tr>)}</tbody></table></div><div className="modal-actions"><button type="button" className="secondary" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - 50))}>Anterior</button><span className="footnote">{offset + 1}–{Math.min(offset + items.length, total)} de {total}</span><button type="button" disabled={offset + items.length >= total} onClick={() => setOffset(offset + 50)}>Siguiente</button></div></> : <div className="module-empty-state"><span aria-hidden="true">✉</span><div><strong>No hay correos para estos filtros.</strong><p>Analice un XLSX o ajuste los filtros de consulta.</p></div></div>}</section>
-    {canImport && history.length > 0 && <section className="panel module-table-card"><h3>Historial de importaciones</h3><div className="table-scroll"><table className="data-table"><thead><tr><th>Archivo</th><th>Fecha</th><th>Procesadas</th><th>Importadas</th><th>Duplicadas</th><th>Errores</th></tr></thead><tbody>{history.map((lot) => <tr key={lot.id_lote}><td>{lot.nombre_archivo}</td><td>{dateText(lot.fecha_creacion)}</td><td>{lot.filas_procesadas}</td><td>{lot.filas_importadas}</td><td>{lot.filas_duplicadas}</td><td>{lot.filas_error}</td></tr>)}</tbody></table></div></section>}
+    {canImport && <section className="panel correos-upload-card"><div><h3>Cargar XLSX</h3><p className="footnote">Límite: 50 MB. Las filas inválidas se informan por separado; podrá incluir o excluir las que requieren revisión.</p></div><div className="upload-form"><label>Archivo XLSX<input aria-label="Seleccionar archivo XLSX de correos" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(event) => { setFile(event.target.files?.[0] ?? null); setAnalysis(null); }} /></label><button type="button" disabled={!file || analyzing} onClick={() => void analyze()}>{analyzing ? 'Analizando archivo…' : 'Analizar archivo'}</button></div>{file && <p className="selected-file">Archivo seleccionado: <strong>{file.name}</strong></p>}{analysis && <AnalysisPanel analysis={analysis} confirming={confirming} onConfirm={() => requestConfirmation(analysis.lote)} />}</section>}
+    <section className="panel module-table-card correos-table-card"><div className="module-table-card-heading"><div><h3>Correos ({total})</h3><p>Los filtros y la paginación se resuelven en el servidor. El cuerpo se consulta sólo en el detalle.</p></div><div className="upload-form"><label>Buscar<input aria-label="Buscar correos" value={textFilter} onChange={(event) => { setOffset(0); setTextFilter(event.target.value); }} /></label><label>Asunto<input aria-label="Filtrar por asunto" value={subjectFilter} onChange={(event) => { setOffset(0); setSubjectFilter(event.target.value); }} /></label><label>Remitente<input aria-label="Filtrar por remitente" value={senderFilter} onChange={(event) => { setOffset(0); setSenderFilter(event.target.value); }} /></label><label>Destinatario<input aria-label="Filtrar por destinatario" value={recipientFilter} onChange={(event) => { setOffset(0); setRecipientFilter(event.target.value); }} /></label><label>Categoría<input aria-label="Filtrar por categoría" value={categoryFilter} onChange={(event) => { setOffset(0); setCategoryFilter(event.target.value); }} /></label><label>Origen<input aria-label="Filtrar por origen" value={originFilter} onChange={(event) => { setOffset(0); setOriginFilter(event.target.value); }} /></label><label>Importancia<input aria-label="Filtrar por importancia" value={importanceFilter} onChange={(event) => { setOffset(0); setImportanceFilter(event.target.value); }} /></label><label>MessageId<input aria-label="Filtrar por MessageId" value={messageIdFilter} onChange={(event) => { setOffset(0); setMessageIdFilter(event.target.value); }} /></label><label>Desde<input aria-label="Filtrar desde fecha" type="date" value={dateFromFilter} onChange={(event) => { setOffset(0); setDateFromFilter(event.target.value); }} /></label><label>Hasta<input aria-label="Filtrar hasta fecha" type="date" value={dateToFilter} onChange={(event) => { setOffset(0); setDateToFilter(event.target.value); }} /></label><label>Adjuntos<select aria-label="Filtrar por adjuntos" value={attachmentsFilter} onChange={(event) => { setOffset(0); setAttachmentsFilter(event.target.value); }}><option value="">Todos</option><option value="true">Con adjuntos</option><option value="false">Sin adjuntos</option></select></label><label>Orden<select aria-label="Ordenar correos" value={orderFilter} onChange={(event) => { setOffset(0); setOrderFilter(event.target.value); }}><option value="">Más recientes</option><option value="asunto_asc">Asunto A–Z</option></select></label><label className="correos-state-filter">Estado<select aria-label="Filtrar por estado de requerimiento" value={stateFilter} onChange={(event) => { setOffset(0); setStateFilter(event.target.value); }}><option value="">Todos</option>{ESTADOS.map((state) => <option value={state} key={state}>{stateText(state)}</option>)}</select></label></div></div>{loading ? <p className="loading-message">Cargando correos…</p> : items.length ? <><div className="table-scroll"><table className="data-table module-data-table"><thead><tr><th>Recibido</th><th>Remitente</th><th>Asunto</th><th>Categoría</th><th>Origen</th><th>Estado</th><th /></tr></thead><tbody>{items.map((item) => <tr key={item.id_correo}><td>{dateText(item.fecha_recibido)}</td><td>{item.remitente ?? 'Sin remitente'}</td><td>{item.asunto || 'Sin asunto'}</td><td><span className="correo-category">{item.categoria_nombre ?? item.categoria_macro ?? item.estado_categoria}</span></td><td>{item.origen ?? 'Sin información'}</td><td><span className={`correo-status correo-status--${item.estado_requerimiento.toLowerCase()}`}>{stateText(item.estado_requerimiento)}</span></td><td><button type="button" className="secondary" disabled={!canViewBody} title={canViewBody ? 'Ver detalle' : 'Requiere permiso sensible de CORREOS'} onClick={() => void openDetail(item.id_correo)}>Ver detalle</button></td></tr>)}</tbody></table></div><div className="modal-actions"><button type="button" className="secondary" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - 50))}>Anterior</button><span className="footnote">{offset + 1}–{Math.min(offset + items.length, total)} de {total}</span><button type="button" disabled={offset + items.length >= total} onClick={() => setOffset(offset + 50)}>Siguiente</button></div></> : <div className="module-empty-state"><span aria-hidden="true">✉</span><div><strong>No hay correos para estos filtros.</strong><p>Analice un XLSX o ajuste los filtros de consulta.</p></div></div>}</section>
+    {canImport && history.length > 0 && <section className="panel module-table-card"><h3>Historial de importaciones</h3><p className="footnote">Puede revisar las incidencias trazadas y retomar únicamente los lotes que siguen analizados.</p><div className="table-scroll"><table className="data-table"><thead><tr><th>Archivo</th><th>Fecha</th><th>Estado</th><th>Procesadas</th><th>Importadas</th><th>Duplicadas</th><th>Errores</th><th /></tr></thead><tbody>{history.map((lot) => <tr key={lot.id_lote}><td>{lot.nombre_archivo}</td><td>{dateText(lot.fecha_creacion)}</td><td>{stateText(lot.estado)}</td><td>{lot.filas_procesadas}</td><td>{lot.filas_importadas}</td><td>{lot.filas_duplicadas}</td><td>{lot.filas_error}</td><td><div className="modal-actions"><button type="button" className="secondary" onClick={() => void openLotErrors(lot)}>Ver errores</button>{lot.estado === 'ANALIZADO' && <button type="button" disabled={confirming} onClick={() => requestConfirmation(lot)}>Confirmar lote</button>}</div></td></tr>)}</tbody></table></div></section>}
     {(detailLoading || detail || detailError) && <Modal titulo="Detalle del correo" onClose={() => { if (!detailLoading) { setDetail(null); setDetailError(null); } }} size="large" closeOnBackdrop={!detailLoading}>{detailLoading ? <p className="loading-message">Cargando detalle…</p> : detailError ? <p className="form-error" role="alert">{detailError}</p> : detail && <EmailDetail data={detail} saving={savingFollowUp} onSave={saveFollowUp} />}</Modal>}
-    {askUnclassified && analysis && <Modal titulo="Correos sin clasificar" onClose={() => setAskUnclassified(false)} size="small"><p className="dialog-message">El archivo contiene {analysis.lote.filas_revision} correos sin categoría válida y {analysis.lote.filas_error} filas con error. Las filas con error quedan trazadas y no se cargarán.</p><div className="modal-actions"><button type="button" className="secondary" disabled={confirming} onClick={() => void confirmImport(false)}>Solo clasificados</button><button type="button" disabled={confirming} onClick={() => void confirmImport(true)}>{confirming ? 'Cargando…' : 'Incluir revisión'}</button></div></Modal>}
+    {askUnclassified && pendingConfirmation && <Modal titulo="Correos sin clasificar" onClose={() => setAskUnclassified(false)} size="small"><p className="dialog-message">El archivo contiene {pendingConfirmation.filas_revision} correos sin categoría válida y {pendingConfirmation.filas_error} filas con error. Las filas con error quedan trazadas y no se cargarán.</p><div className="modal-actions"><button type="button" className="secondary" disabled={confirming} onClick={() => void confirmImport(pendingConfirmation, false)}>Solo clasificados</button><button type="button" disabled={confirming} onClick={() => void confirmImport(pendingConfirmation, true)}>{confirming ? 'Cargando…' : 'Incluir revisión'}</button></div></Modal>}
+    {errorLot && <Modal titulo={`Errores de ${errorLot.nombre_archivo}`} onClose={() => { if (!lotErrorsLoading) setErrorLot(null); }} size="large" closeOnBackdrop={!lotErrorsLoading}>{lotErrorsLoading ? <p className="loading-message">Cargando errores…</p> : lotErrorsError ? <p className="form-error" role="alert">{lotErrorsError}</p> : lotErrors.length ? <div className="table-scroll"><table className="data-table"><thead><tr><th>Fila</th><th>MessageId</th><th>Código</th><th>Detalle</th></tr></thead><tbody>{lotErrors.map((item, index) => <tr key={`${item.fila ?? 'sin-fila'}-${item.codigo}-${index}`}><td>{item.fila ?? 'Sin fila'}</td><td>{item.message_id ?? 'Sin MessageId'}</td><td>{item.codigo}</td><td>{item.detalle}</td></tr>)}</tbody></table></div> : <p className="footnote">No hay errores persistidos para este lote.</p>}</Modal>}
   </section>;
 }
 

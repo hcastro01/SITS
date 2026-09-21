@@ -77,4 +77,12 @@ Cerrar **Trabajo Social → Correos y seguimiento**: XLSX → validación/import
 
 ## NEXT ACTION
 
-En PowerShell, con los puertos aislados, autenticarse mediante un navegador real en `http://localhost:18081`, confirmar el lote `cb189146-a0c4-4628-8231-97b2bb67d5be` con `incluir_sin_clasificar=true`, y registrar los conteos, consulta SQL `GROUP BY id_externo_correo HAVING COUNT(*) > 1`, dashboard/filtros/detalle antes de continuar con n8n E2E.
+Instalar el navegador local solicitado por la herramienta, autenticar en `http://localhost:18081` con una cuenta QA local autorizada y verificar visualmente historial, filtros, detalle y móvil. El lote `cb189146-a0c4-4628-8231-97b2bb67d5be` ya está confirmado, por lo que no debe reconfirmarse ni incluir revisión de nuevo. Después, crear el PR cuando exista autenticación GitHub.
+
+## Actualización 2026-09-21
+
+- Estado SQL comprobado: lote `CONFIRMADO`, 37.591 procesadas, 37.590 importadas, 0 duplicadas, 0 omitidas, 1 error; 37.592 correos activos en total y 0 grupos `MessageId` duplicados. La confirmación consta en auditoría a las `2026-09-21T05:39:07Z`, anterior a esta continuación.
+- El historial UI permite ahora abrir incidencias y confirmar sólo lotes aún `ANALIZADO`; se expusieron todos los filtros que el backend ya ofrece. Las pruebas de componente de Correos son 4/4 PASS.
+- Se corrigieron dos regresiones: metadata de índices ORM versus migraciones, y permiso sensible implícito para roles no administradores. No se reescribieron 0025/0026.
+- Validaciones finales: backend 324/324 PASS; frontend 156/156 PASS; TypeScript y build PASS; migración desechable ida/vuelta PASS; n8n HTTP local: 401/401/201/200/422/401 según escenario.
+- No se completó QA visual autenticado porque el navegador requerido no está instalado. No existe PR abierto y `gh` no está autenticado. No hubo producción, merge ni workflow n8n real.

@@ -1,13 +1,13 @@
 # Bloqueos
 
-## Resolubles por Codex
+## Técnicos ya resueltos
 
-- La confirmación E2E del XLSX quedó pendiente porque una nueva sesión PowerShell no reenvió la cookie de SITS. Usar un navegador real o depurar el cliente de prueba sin exponer tokens.
-- Faltan pruebas frontend específicas y la repetición de migración downgrade/upgrade limpia.
-- Falta mostrar el detalle de errores de lote en la UI, aunque el endpoint está implementado.
+- La UI ahora permite recuperar errores y retomar un lote histórico `ANALIZADO`.
+- La metadata ORM ahora coincide con 0025/0026; no se modificaron migraciones publicadas.
+- Las suites completas backend y frontend ya fueron ejecutadas con éxito.
 
-## Requieren intervención humana
+## Requieren intervención humana o capacidad no instalada
 
-- Configurar una credencial real de `N8N_SITS_API_KEY` en el almacenamiento seguro de n8n y en el entorno destino.
-- Autorizar cualquier configuración de workflow n8n real, push, revisión/merge o despliegue.
-- No hay bloqueo humano para seguir pruebas locales aisladas.
+- QA visual autenticado: el navegador de gstack no está instalado. Su instalación única requiere confirmación explícita de la herramienta; hasta entonces, login, navegación, historial, filtros, detalle y vista móvil quedan `PENDIENTE QA MANUAL/NO EJECUTADO`.
+- PR: no existe PR abierto y `gh` no tiene autenticación. Se requiere una sesión/token GitHub autorizado para crear o actualizar el PR. El push de la rama se intentará sólo tras el commit final.
+- Configuración real de `N8N_SITS_API_KEY`, workflow externo n8n, merge y despliegue requieren autorización y acceso externos. La API n8n local sí fue validada.

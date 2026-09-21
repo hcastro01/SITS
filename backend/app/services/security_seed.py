@@ -116,8 +116,6 @@ def initial_rights(role: str, module: str) -> dict[str, bool]:
     elif role == "ROLE_GERENCIA":
         rights.update(read=module in OPERATIONAL | {"DASHBOARD", "BUSQUEDA", "REPORTES", "CATALOGOS"},
                       export=module == "REPORTES")
-    if role in {"ROLE_COORDINADOR", "ROLE_TRABAJADOR_SOCIAL"} and module == "CORREOS":
-        rights["sensitive"] = True
     return rights
 
 
