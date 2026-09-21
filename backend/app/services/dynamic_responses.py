@@ -109,7 +109,8 @@ def _validate_context(session: Session, user: AuthenticatedUser, form_id: str,
 
 
 def _validate_answers(session: Session, user: AuthenticatedUser, definition: dict,
-                      answers: list[dict], *, draft: bool, attachments: list[dict] | None = None) -> dict[str, list]:
+                      answers: list[dict], *, draft: bool, attachments: list[dict] | None = None,
+                      existing_attachment_question_ids: set[str] | None = None) -> dict[str, list]:
     questions = {q["id_pregunta"]: q for q in definition["preguntas"]}
     values: dict[str, list] = defaultdict(list)
     for answer in answers:
@@ -124,6 +125,10 @@ def _validate_answers(session: Session, user: AuthenticatedUser, definition: dic
         if question is None or (question.get("tipo") or "").upper() not in {"ARCHIVO", "FOTOGRAFIA"}:
             raise AppError("INVALID_ATTACHMENT", "El adjunto no corresponde a una pregunta de archivo válida.", 422)
         attachments_by_question[question_id].append(attachment)
+        values[question_id].append("__archivo__")
+    # Los adjuntos de un borrador existente permanecen asociados al campo al
+    # finalizarlo, incluso cuando el cliente no vuelve a subir el mismo archivo.
+    for question_id in existing_attachment_question_ids or set():
         values[question_id].append("__archivo__")
     visible, required, _ = dynamic_state(definition, values)
     for question_id, question in questions.items():
@@ -324,7 +329,25 @@ def save_dynamic_response(session: Session, user: AuthenticatedUser, form_id: st
         raise AppError("FORBIDDEN", "No puede continuar el borrador de otro usuario.", 403)
     definition = _version_definition(session, response) if response is not None else None
     definition = definition or get_definition(session, form_id)
-    _validate_answers(session, user, definition, answers, draft=draft, attachments=attachments)
+    existing_attachment_ids_by_question: dict[str, list[str]] = defaultdict(list)
+    if response is not None and response.estado == "BORRADOR":
+        existing_rows = session.execute(select(RespuestaFormulario.id_pregunta, RespuestaDocumento.id_archivo).join(
+            RespuestaDocumento, RespuestaDocumento.id_detalle_respuesta == RespuestaFormulario.id_detalle_respuesta,
+        ).where(RespuestaFormulario.id_respuesta == response.id_respuesta,
+                RespuestaFormulario.eliminado.is_(False))).all()
+        for question_id, document_id in existing_rows:
+            existing_attachment_ids_by_question[question_id].append(document_id)
+    new_attachments_by_question: dict[str, int] = defaultdict(int)
+    for attachment in attachments:
+        new_attachments_by_question[attachment["id_pregunta"]] += 1
+    questions_by_id = {question["id_pregunta"]: question for question in definition["preguntas"]}
+    for question_id, document_ids in existing_attachment_ids_by_question.items():
+        config = questions_by_id[question_id].get("configuracion") or {}
+        max_files = min(int(config.get("max_files") or 1), MAX_FILES_PER_RECORD)
+        if len(document_ids) + new_attachments_by_question[question_id] > max_files:
+            raise AppError("TOO_MANY_FILES", "El borrador supera la cantidad máxima de archivos permitida.", 422)
+    _validate_answers(session, user, definition, answers, draft=draft, attachments=attachments,
+                      existing_attachment_question_ids=set(existing_attachment_ids_by_question))
     version = (session.get(FormularioVersion, response.id_version_formulario)
                if response is not None and response.id_version_formulario else None)
     version = version or ensure_published_version(session, form, user)
@@ -349,7 +372,7 @@ def save_dynamic_response(session: Session, user: AuthenticatedUser, form_id: st
         existing_attachments = session.scalar(select(RespuestaDocumento.id_respuesta_documento).join(
             RespuestaFormulario, RespuestaFormulario.id_detalle_respuesta == RespuestaDocumento.id_detalle_respuesta,
         ).where(RespuestaFormulario.id_respuesta == response.id_respuesta, RespuestaFormulario.eliminado.is_(False)))
-        if existing_attachments is not None:
+        if response.estado == "REGISTRADO" and existing_attachments is not None:
             raise AppError("FORM_RESPONSE_WITH_ATTACHMENTS_IMMUTABLE", "No se puede editar una respuesta que contiene adjuntos.", 409)
         for detail in session.scalars(select(RespuestaFormulario).where(
             RespuestaFormulario.id_respuesta == response.id_respuesta,
@@ -377,7 +400,8 @@ def save_dynamic_response(session: Session, user: AuthenticatedUser, form_id: st
                     id_respuesta=response.id_respuesta, id_pregunta=answer["id_pregunta"],
                     **creation_metadata(user.correo), **values)
         session.add(detail); details_by_question[answer["id_pregunta"]].append(detail)
-    for question_id in {item["id_pregunta"] for item in attachments}:
+    attachment_question_ids = {item["id_pregunta"] for item in attachments} | set(existing_attachment_ids_by_question)
+    for question_id in attachment_question_ids:
         detail = RespuestaFormulario(id_detalle_respuesta=str(uuid4()), id_respuesta=response.id_respuesta,
             id_pregunta=question_id, **creation_metadata(user.correo))
         session.add(detail); details_by_question[question_id].append(detail)
@@ -390,6 +414,11 @@ def save_dynamic_response(session: Session, user: AuthenticatedUser, form_id: st
             categoria_documento=f"FORMULARIO:{attachment['id_pregunta']}", correlation_id=correlation_id)
         session.add(RespuestaDocumento(id_respuesta_documento=str(uuid4()),
             id_detalle_respuesta=detail.id_detalle_respuesta, id_archivo=document.id_archivo))
+    for question_id, document_ids in existing_attachment_ids_by_question.items():
+        detail = details_by_question[question_id][-1]
+        for document_id in document_ids:
+            session.add(RespuestaDocumento(id_respuesta_documento=str(uuid4()),
+                id_detalle_respuesta=detail.id_detalle_respuesta, id_archivo=document_id))
     log_change(session, "envios_formulario", response.id_respuesta, audit_action, {},
                {"id_formulario": form_id, "estado": new_state, "contexto_tipo": normalized_type,
                 "contexto_id": normalized_id, "cantidad_respuestas": len(answers), "cantidad_adjuntos": len(attachments),

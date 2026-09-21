@@ -3,11 +3,12 @@
 import json
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query, Request, Response, UploadFile
+from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from starlette.datastructures import UploadFile
 
 from app.api.deps import get_current_user, get_db
 from app.core.permissions import AuthenticatedUser, authorize, can
@@ -31,7 +32,7 @@ from app.services.records import get_active
 from app.services.reglas_formulario import reglas_formulario
 from app.services.respuestas_formulario import save_response
 from app.services.response_contexts import response_action_allowed
-from app.services.documentos import content_response_headers, download_documento
+from app.services.documentos import MAX_FILE_BYTES, content_response_headers, download_documento
 
 router = APIRouter(prefix="/api/v1/formularios", tags=["Formularios"])
 
@@ -83,8 +84,12 @@ async def response_request_payload(request: Request) -> tuple[ResponderFormulari
         question_id = name.removeprefix("archivo:")
         if not question_id:
             raise ValueError("Cada adjunto requiere una pregunta.")
+        try:
+            contenido = await value.read(MAX_FILE_BYTES + 1)
+        finally:
+            await value.close()
         attachments.append({"id_pregunta": question_id, "nombre_archivo": value.filename or "archivo",
-                            "mime_type": value.content_type or "", "contenido": await value.read()})
+                            "mime_type": value.content_type or "", "contenido": contenido})
     return payload, attachments
 
 
@@ -265,10 +270,16 @@ def guardar_destinos_formulario(
 def crear(payload: dict, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
     payload = dict(payload)
     destinos = payload.pop("destinos", None)
+    destino_ids = payload.pop("destino_ids", [])
+    if not isinstance(destino_ids, list) or not all(isinstance(item, str) for item in destino_ids):
+        from app.core.errors import AppError
+        raise AppError("INVALID_FORM_DESTINATIONS", "Los destinos jerárquicos deben ser una lista de identificadores.", 422)
     motivo = payload.pop("motivo_auditoria", None) or "Alta de formulario"
     correlation_id = payload.pop("correlation_id", "")
     registro = create_formulario(db, user, motivo_auditoria=motivo, correlation_id=correlation_id,
                                  destinos=destinos, **payload)
+    if destino_ids:
+        set_form_destinations(db, user, registro.id_formulario, destino_ids, correlation_id=correlation_id)
     return _with_actions(get_definition(db, registro.id_formulario), user)
 
 

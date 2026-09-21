@@ -10,11 +10,13 @@ import app.db.session as db_session
 from app.core.errors import AppError
 from app.core.permissions import AuthenticatedUser, resolve_current_user
 from app.db.session import build_engine
-from app.models import Auditoria, DestinoFormulario, EnvioFormulario, FormularioDestino, User
+from app.models import Auditoria, DestinoFormulario, EnvioFormulario, Formulario, FormularioDestino, User
 from app.services.form_destinations import (
     DESTINOS_INICIALES, list_active_destinations, list_destination_responses,
     list_destination_tree, list_form_destinations, seed_form_destinations, set_form_destinations,
 )
+from app.api.formularios import crear
+from app.services.form_builder import get_definition
 from app.services.formularios import change_status, create_formulario
 from app.services.preguntas import preguntas
 from app.services.respuestas_formulario import save_response
@@ -102,6 +104,25 @@ class FormDestinationTests(unittest.TestCase):
             self.assertFalse(retired["activo"])
             self.assertTrue(retired["eliminado"])
             self.assertTrue(session.scalar(select(Auditoria).where(Auditoria.tabla == "formulario_destinos")))
+
+    def test_create_assigns_a_hierarchical_destination_from_the_start(self):
+        """El alta guiada evita una plantilla publicada pero invisible en Recorridos."""
+        with Session(self.engine) as session, session.begin():
+            admin = self._user(session)
+            data = crear({
+                "nombre": "Inspección de Recorrido", "descripcion": None,
+                "destinos": [], "destino_ids": ["destino-recorridos"],
+            }, db=session, user=admin)
+            self.assertEqual(data["destinos"], [])
+            self.assertEqual(data["destinos_jerarquicos"], ["destino-recorridos"])
+            question = preguntas.create(session, admin, motivo_auditoria="Pregunta", correlation_id="question",
+                                        id_formulario=data["id_formulario"], etiqueta="Evidencia", tipo="FOTOGRAFIA")
+            record = session.get(Formulario, data["id_formulario"])
+            change_status(session, admin, data["id_formulario"], "PUBLICADO",
+                          expected_version=record.version, correlation_id="publish")
+            definition = get_definition(session, data["id_formulario"])
+            self.assertEqual(definition["destinos_jerarquicos"], ["destino-recorridos"])
+            self.assertEqual(question.tipo, "FOTOGRAFIA")
 
     def test_response_destination_is_validated_preserved_and_isolated(self):
         with Session(self.engine) as session, session.begin():

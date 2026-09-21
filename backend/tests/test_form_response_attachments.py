@@ -11,6 +11,8 @@ from types import SimpleNamespace
 
 from alembic import command
 from alembic.config import Config
+from fastapi import FastAPI, Request
+from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -109,6 +111,24 @@ class FormResponseAttachmentTests(unittest.TestCase):
             self.assertEqual(sum(len(answer.get("adjuntos", [])) for answer in data["respuestas"]), 4)
             self.assertNotIn("contenido_comprimido", str(data))
 
+    def test_multipart_parser_collects_starlette_upload_files(self):
+        from app.api.formularios import response_request_payload
+
+        app = FastAPI()
+
+        @app.post("/")
+        async def parse(request: Request):
+            _payload, attachments = await response_request_payload(request)
+            return {"count": len(attachments), "name": attachments[0]["nombre_archivo"] if attachments else None}
+
+        with TestClient(app) as client:
+            response = client.post(
+                "/", data={"payload": json.dumps({"borrador": False})},
+                files=[("archivo:foto", ("foto.jpg", JPEG, "image/jpeg"))],
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"count": 1, "name": "foto.jpg"})
+
     def test_photo_rejects_pdf_and_document_validates_extension_mime_and_signature(self):
         cases = [
             (self.photo_id, "photo.pdf", "application/pdf", PDF, "INVALID_FILE_TYPE"),
@@ -187,6 +207,26 @@ class FormResponseAttachmentTests(unittest.TestCase):
                                     id_respuesta=plain_id, expected_version=plain_version,
                                     editar_registrado=True, correlation_id="edit")
             self.assertEqual(updated.id_respuesta, plain_id)
+
+    def test_draft_with_attachment_can_be_finalized_and_preserves_document(self):
+        with Session(self.engine) as session, session.begin():
+            draft = save_response(
+                session, self._user(session), self.form_id, draft=True,
+                respuestas=[{"id_pregunta": self.text_id, "valor_texto": "borrador"}],
+                id_envio_cliente="draft-with-file", correlation_id="draft",
+                adjuntos=[self.attachment(self.photo_id, "draft.jpg", "image/jpeg", JPEG)],
+            )
+            draft_id, draft_version = draft.id_respuesta, draft.version
+        with Session(self.engine) as session, session.begin():
+            finalized = save_response(
+                session, self._user(session), self.form_id, draft=False,
+                respuestas=[{"id_pregunta": self.text_id, "valor_texto": "final"}],
+                id_respuesta=draft_id, expected_version=draft_version, correlation_id="final",
+            )
+            data = get_user_response(session, self._user(session), finalized.id_respuesta)
+            attachments = [item for answer in data["respuestas"] for item in answer.get("adjuntos", [])]
+            self.assertEqual(finalized.estado, "REGISTRADO")
+            self.assertEqual([item["nombre_archivo"] for item in attachments], ["draft.jpg"])
 
     def test_download_requires_the_exact_response_document_link_and_active_document(self):
         """El id del documento por sí solo no permite cruzar respuestas ni omitir el puente."""

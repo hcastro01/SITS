@@ -1,6 +1,7 @@
-"""Prueba las funciones de los endpoints de auth por invocación directa: el proyecto no
-tiene httpx en requirements.txt (lo necesita fastapi.testclient.TestClient), así que se
-llama a las funciones de ruta como funciones Python normales en vez de por HTTP real.
+"""Prueba las funciones de los endpoints de auth por invocación directa.
+
+La unidad se mantiene aislada de la capa ASGI para verificar las reglas de sesión y
+credenciales sin depender del transporte HTTP.
 """
 
 import unittest

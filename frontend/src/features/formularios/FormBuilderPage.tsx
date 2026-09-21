@@ -163,7 +163,7 @@ export function FormBuilderPage() {
       <h2>{definition.nombre}</h2><p>{definition.descripcion || 'Sin descripción.'}</p>
     </div><div className="builder-hero-actions"><span className={`badge status-${definition.estado.toLowerCase()}`}>{definition.estado}</span>
       <button type="button" disabled={saving || !dirty} onClick={() => void save()}>{saving ? 'Guardando…' : 'Guardar cambios'}</button>
-      {definition.estado !== 'PUBLICADO' ? <button type="button" className="secondary" disabled={saving || definition.preguntas.length === 0 || definition.destinos.length === 0} onClick={() => void changeStatus('PUBLICADO')}>Publicar</button>
+      {definition.estado !== 'PUBLICADO' ? <button type="button" className="secondary" disabled={saving || definition.preguntas.length === 0 || (definition.destinos.length === 0 && !(definition.destinos_jerarquicos?.length))} onClick={() => void changeStatus('PUBLICADO')}>Publicar</button>
         : <button type="button" className="secondary" disabled={saving} onClick={() => void changeStatus('INACTIVO')}>Despublicar</button>}
     </div></section>
     {error && <p className="form-error" role="alert">{error}</p>}
