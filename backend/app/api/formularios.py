@@ -270,10 +270,16 @@ def guardar_destinos_formulario(
 def crear(payload: dict, db: Session = Depends(get_db), user: AuthenticatedUser = Depends(get_current_user)):
     payload = dict(payload)
     destinos = payload.pop("destinos", None)
+    destino_ids = payload.pop("destino_ids", [])
+    if not isinstance(destino_ids, list) or not all(isinstance(item, str) for item in destino_ids):
+        from app.core.errors import AppError
+        raise AppError("INVALID_FORM_DESTINATIONS", "Los destinos jerárquicos deben ser una lista de identificadores.", 422)
     motivo = payload.pop("motivo_auditoria", None) or "Alta de formulario"
     correlation_id = payload.pop("correlation_id", "")
     registro = create_formulario(db, user, motivo_auditoria=motivo, correlation_id=correlation_id,
                                  destinos=destinos, **payload)
+    if destino_ids:
+        set_form_destinations(db, user, registro.id_formulario, destino_ids, correlation_id=correlation_id)
     return _with_actions(get_definition(db, registro.id_formulario), user)
 
 

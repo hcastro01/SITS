@@ -36,9 +36,9 @@ function form(overrides: Partial<FormDefinition> = {}): FormDefinition {
   };
 }
 
-async function renderPage(forms: FormDefinition[]) {
+async function renderPage(forms: FormDefinition[], tree: unknown[] = []) {
   apiMocks.listFormDefinitions.mockResolvedValue(forms);
-  apiMocks.listDestinationTree.mockResolvedValue([]);
+  apiMocks.listDestinationTree.mockResolvedValue(tree);
   const user = userEvent.setup();
   const router = createMemoryRouter([
     { path: '/formularios', element: <FormulariosAdminPage /> },
@@ -127,5 +127,23 @@ describe('FormulariosAdminPage: eliminación segura', () => {
 
     await user.click(within(cardFor(archived.nombre)).getByRole('button', { name: 'Eliminar' }));
     expect(await screen.findByRole('dialog', { name: 'Eliminar formulario' })).toBeInTheDocument();
+  });
+});
+
+describe('FormulariosAdminPage: alta guiada', () => {
+  it('asigna Recorridos desde la creación y dirige a parametrizar preguntas', async () => {
+    const tree = [{ id_destino: 'social', codigo: 'TRABAJO_SOCIAL', nombre: 'Trabajo Social', nivel: 'MACROPROCESO', padre_id_destino: null, activo: true, orden: 1, hijos: [{ id_destino: 'production', codigo: 'PRODUCCION', nombre: 'Producción', nivel: 'PROCESO', padre_id_destino: 'social', activo: true, orden: 1, hijos: [{ id_destino: 'rounds', codigo: 'RECORRIDOS', nombre: 'Recorridos', nivel: 'SUBPROCESO', padre_id_destino: 'production', activo: true, orden: 1, hijos: [] }] }] }];
+    apiMocks.createFormDefinition.mockResolvedValue(form({ id_formulario: 'round-form', destinos: [], destinos_jerarquicos: ['rounds'] }));
+    const user = await renderPage([form()], tree);
+    await user.click(screen.getByRole('button', { name: /Crear formulario/ }));
+    await user.type(screen.getByLabelText('Nombre'), 'Inspección de recorrido');
+    await user.selectOptions(screen.getByLabelText('Macroproceso del formulario'), 'social');
+    await user.selectOptions(screen.getByLabelText('Proceso del formulario'), 'production');
+    await user.selectOptions(screen.getByLabelText('Subproceso del formulario'), 'rounds');
+    await user.click(screen.getByRole('button', { name: 'Crear y parametrizar preguntas' }));
+    await waitFor(() => expect(apiMocks.createFormDefinition).toHaveBeenCalledWith(expect.objectContaining({
+      nombre: 'Inspección de recorrido', destinos: [], destino_ids: ['rounds'],
+    })));
+    expect(await screen.findByText('Constructor')).toBeInTheDocument();
   });
 });
