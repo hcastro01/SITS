@@ -79,6 +79,13 @@ Cerrar **Trabajo Social → Correos y seguimiento**: XLSX → validación/import
 
 Instalar el navegador local solicitado por la herramienta, autenticar en `http://localhost:18081` con una cuenta QA local autorizada y verificar visualmente historial, filtros, detalle y móvil. El lote `cb189146-a0c4-4628-8231-97b2bb67d5be` ya está confirmado, por lo que no debe reconfirmarse ni incluir revisión de nuevo. Después, crear el PR cuando exista autenticación GitHub.
 
+## Cierre productivo 2026-09-21
+
+- El usuario autorizó la publicación completa; la especificación vigente es `docs/CODEX_PRODUCTION_MASTER.md`.
+- Recuperación actual: candidata `e6bd629`, base `08246df`, GitHub autenticado y sin PR abierto. Vercel `hector-f6fc/sits` y PythonAnywhere `hector00999` están disponibles.
+- PythonAnywhere fue comprobado en modo solo lectura: checkout limpio en `08246df`, preflight de producción PASS y respaldo SQLite consistente creado y validado por apertura read-only. La referencia privada está fuera de Git.
+- Continúa con un único PR, checks del SHA exacto y merge con commit de merge. Después actualiza el backend con avance rápido, dependencias fijadas, `app.cli.initialize`, `production_check`, recarga, Vercel Production, importación deduplicada y QA público. No vuelvas a confirmar ni reimportar el lote local.
+
 ## Actualización 2026-09-21
 
 - Estado SQL comprobado: lote `CONFIRMADO`, 37.591 procesadas, 37.590 importadas, 0 duplicadas, 0 omitidas, 1 error; 37.592 correos activos en total y 0 grupos `MessageId` duplicados. La confirmación consta en auditoría a las `2026-09-21T05:39:07Z`, anterior a esta continuación.

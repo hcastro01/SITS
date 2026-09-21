@@ -9,5 +9,5 @@
 ## Requieren intervención humana o capacidad externa
 
 - QA visual autenticado: completado con el navegador integrado aislado. El wrapper de gstack en Windows sigue fallando por no localizar `server.ts`; es una limitación de esa herramienta, no de SITS, y no bloqueó QA.
-- PR: no existe PR abierto y `gh` no tiene autenticación. Falta una sesión GitHub autorizada para crear o actualizar el PR; no se extrajeron tokens ni cookies personales.
-- Configuración real de `N8N_SITS_API_KEY`, workflow externo n8n, merge y despliegue requieren autorización y acceso externos. La API n8n local sí fue validada.
+- GitHub, Vercel y PythonAnywhere ya están autenticados; no son bloqueos. El PR todavía no existe y será creado durante el cierre controlado.
+- n8n real sigue `NOT_RUN`: falta identificar una instancia y un workflow de ingesta aislado. Esto no bloquea la publicación web, pero impedirá declarar cierre total si no se resuelve o documenta como bloqueo externo.

@@ -17,3 +17,6 @@
 | 2026-09-21 | `frontend: npm.cmd exec tsc -- -b` y `npm.cmd run build` | PASS, exit 0; advertencia no bloqueante de chunk JS 535.81 kB |
 
 Las 156/156 y 324/324 anteriores corresponden al checkpoint `f139c6d`; los totales 158/158 y 325/325 corresponden al código publicado en `35860b5`.
+
+| 2026-09-21 | PythonAnywhere: `python -m app.cli.production_check` sobre el backend `08246df` | PASS: entorno productivo, SQLite persistente, `quick_check`, claves foráneas, revisión Alembic, administración y contraseñas correctas |
+| 2026-09-21 | PythonAnywhere: `python -m app.cli.backup_sqlite --output-dir backups` y apertura read-only | PASS: respaldo consistente creado por API SQLite y `PRAGMA integrity_check = ok`; referencia privada fuera de Git |

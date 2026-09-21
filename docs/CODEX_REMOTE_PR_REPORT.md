@@ -1,11 +1,10 @@
 # Estado remoto y PR
 
 - Upstream: `origin` apunta a `https://github.com/hcastro01/SITS.git`.
-- La rama remota `codex/correos-n8n-production-readiness` está comprobada en `35860b5343458f2a7c93c1753f186c505fd97f42`; coincide con HEAD local y upstream.
-- Consulta pública GitHub: no existe PR contra `master` para esa rama.
-- `gh` está instalado, pero no autenticado; no se creó PR. La consulta pública devolvió 0 PR abiertos contra `master` para la rama.
-- El checkpoint incluye QA visual y correcciones de login/seguimiento. Si se crea el PR, hay que reconsultar sus checks para `35860b5`; no usar resultados de `d687cbe` como CI del nuevo SHA.
-- Checks públicos consultados: `Vercel Preview Comments` terminó `success` para `35860b5` y para el checkpoint documental `da18465`; no hay PR abierto ni otros contexts/check-runs observados.
+- La rama remota `codex/correos-n8n-production-readiness` está en `e6bd6298f33df6e285e852ccd009595371c799b9`; los cambios posteriores a `35860b5` son documentación de evidencia.
+- `gh` está autenticado como `hcastro01` con permiso administrador. No existe aún un PR contra `master` para esta rama.
+- La candidata está 11 commits por delante y 0 por detrás de `origin/master` `08246dfbff1db6dcb63d4fb560fc18e3ce556a99`.
+- Checks del SHA candidato: `Vercel Preview Comments` y `Vercel` finalizaron `success`. No hay Actions ni checks de backend/frontend remotos; los resultados locales vigentes son 325/325 backend y 158/158 frontend.
 
 ## PR preparado, no creado
 
