@@ -3,6 +3,7 @@ from app.models.actividades import Actividad
 from app.models.accidentes import Accidente, ErrorImportacionAccidente, LoteImportacionAccidente
 from app.models.ausentismos import Ausentismo, ErrorImportacionAusentismo, LoteImportacionAusentismo
 from app.models.catalogos import Catalogo
+from app.models.correos import Correo, ErrorImportacionCorreo, LoteImportacionCorreo, SeguimientoCorreo
 from app.models.casos import Caso, Cierre, Compromiso, Derivacion, DetalleCasoSensible, Seguimiento
 from app.models.configuracion import Configuracion
 from app.models.documentos import Documento
@@ -20,11 +21,11 @@ from app.models.sesiones import Sesion
 
 __all__ = [
     "Accidente", "Actividad", "Atencion", "Auditoria", "Ausentismo", "Base", "Beneficio", "Catalogo", "Caso", "Cierre", "Compromiso",
-    "Configuracion", "Derivacion", "DetalleCasoSensible", "Documento", "EnvioFormulario", "ErrorImportacionAusentismo",
-    "LoteImportacionAccidente", "LoteImportacionAusentismo", "ErrorImportacionAccidente", "ModuloSistema",
+    "Configuracion", "Correo", "Derivacion", "DetalleCasoSensible", "Documento", "EnvioFormulario", "ErrorImportacionAusentismo",
+    "LoteImportacionAccidente", "LoteImportacionAusentismo", "LoteImportacionCorreo", "ErrorImportacionAccidente", "ErrorImportacionCorreo", "ModuloSistema",
     "DestinoFormulario", "Formulario", "FormularioDestino", "FormularioVersion", "HallazgoRecorrido", "Novedad",
     "OpcionPregunta", "Permission", "Persona", "Pregunta", "Recorrido", "ReglaFormulario",
     "RespuestaDocumento", "RespuestaFormulario", "Role", "SeccionFormulario", "Seguimiento", "SecuenciaRespuestaFormulario",
-    "Prestamo", "Seguro", "Sesion", "User",
+    "Prestamo", "SeguimientoCorreo", "Seguro", "Sesion", "User",
 ]
 

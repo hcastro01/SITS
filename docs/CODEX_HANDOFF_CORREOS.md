@@ -1,0 +1,80 @@
+# Handoff técnico: Correos y seguimiento
+
+## Estado Git
+
+- Rama: `codex/correos-n8n-production-readiness`.
+- Base antes del checkpoint: `378c2dab040f4a531f561ccfa3af4ae0465bd858` (`merge: actualizar base desde origin/master`).
+- Hay cambios locales del módulo Correos, de integración y de este handoff. No ejecutar `reset`, `clean`, merge ni despliegue.
+- Se excluyen de cualquier commit `outputs/`, `diagrams/`, `AGENTS.md`, `.env`, bases locales y artefactos de recuperación. `outputs/` contiene el XLSX de prueba real y otros datos potencialmente privados.
+
+## Objetivo actual
+
+Cerrar **Trabajo Social → Correos y seguimiento**: XLSX → validación/importación → deduplicación → SQLite y trazabilidad → dashboard, filtros y detalle → API → n8n con autenticación de mínimo privilegio e idempotencia → pruebas y documentación.
+
+## Trabajo terminado
+
+### Datos y migraciones
+
+- `0025_correos_seguimientos` crea `correos`, `lotes_importacion_correo` y `seguimientos_correo`; `id_externo_correo` (MessageId) e `idempotency_key` tienen restricciones únicas.
+- `0026_correos_operational_hardening` amplía lotes con procesadas, duplicadas, omitidas, errores, origen y duración; agrega `correos.estado_categoria`, índice por estado de categoría y `errores_importacion_correo` con índices por lote/fila.
+- `backend/app/models/correos.py` define los cuatro modelos. Las filas de error almacenan fila, MessageId, código y detalle, sin cuerpo, token ni secretos.
+
+### Backend
+
+- `backend/app/services/correos.py` lee XLSX con `openpyxl` en `read_only`, limita por `MAX_EMAIL_XLSX_BYTES` configurable (50 MiB por defecto), normaliza fechas a `America/Guayaquil`, conserva registros válidos y persiste errores por fila.
+- La confirmación procesa todas las filas aptas, no sólo la vista previa de 100; la vista previa sigue acotada a 100. Duplicados en archivo o base se cuentan y no se insertan en silencio.
+- `backend/app/api/correos.py` proporciona resumen, listado con filtros/paginación, detalle protegido, seguimiento, análisis/confirmación, historial/errores de lotes y `POST /api/v1/correos/integraciones/n8n`.
+- El endpoint n8n acepta `Authorization: Bearer ...`, compara con `secrets.compare_digest` contra `N8N_SITS_API_KEY`, no usa cookie ni permiso general de SITS, y responde 201 creado o 200 idempotente. Credencial ausente/incorrecta: 401.
+- `main.py`, el seed, el catálogo y la navegación registran el módulo `CORREOS`. Los cuerpos se exponen sólo en detalle sensible y el frontend los renderiza con `pre`, no HTML.
+
+### Frontend e infraestructura
+
+- `CorreosDashboardPage.tsx` tiene carga XLSX con extensión/tamaño, resumen de análisis, confirmación, historial, búsqueda/categoría/estado y paginación server-side, más detalle y seguimientos.
+- `frontend/nginx.conf` y backend quedan en 50 MiB. Compose pasa `MAX_EMAIL_XLSX_BYTES` y `N8N_SITS_API_KEY`; el tmpfs del proxy se elevó a 96 MiB.
+- `README.md` y `.env.example` documentan el entorno aislado y contrato de n8n sin una clave real.
+
+## Trabajo parcialmente terminado
+
+- La UI compila y construye, pero no se agregó ni ejecutó una suite Vitest específica de Correos. La prueba manual autenticada del navegador sigue pendiente.
+- El XLSX real llegó por Nginx y se **analizó** correctamente, pero no se confirmó/importó: la sesión usada para el segundo request no fue reenviada por PowerShell. No afirmar importación E2E completa.
+- El importador persiste el XLSX íntegro como BLOB en `lotes_importacion_correo`, herencia de 0025. Funciona en el entorno aislado, pero el siguiente agente debe evaluar coste de almacenamiento antes de cargas repetidas grandes.
+- La página consulta historial, pero aún no muestra el detalle de errores de cada lote aunque el endpoint existe.
+
+## Trabajo pendiente, en prioridad
+
+1. Resolver y repetir la sesión HTTP/browser para confirmar el lote real ya analizado (`cb189146-a0c4-4628-8231-97b2bb67d5be`) o crear un lote nuevo; validar dashboard, filtros, detalle y SQL sin duplicados.
+2. Configurar una clave efímera sólo en `sits-correos-local` y ejecutar E2E n8n por proxy: sin token 401, inválido 401, válido 201 y replay 200/único. Nunca imprimir la clave.
+3. Ejecutar migración limpia `0024 → 0025 → 0026`, downgrade a 0024 y nuevo upgrade; verificar índices/constraints.
+4. Añadir y correr tests frontend específicos de importación, errores, historial, filtros, paginación, detalle y KPI. Correr suites completas backend/frontend.
+5. Revisar UX de errores por lote y el rendimiento de insertar/auditar decenas de miles de correos antes de declarar el módulo cerrado.
+
+## Base de datos
+
+- Head Alembic local: `0026_correos_operational_hardening`.
+- Restricción natural: `correos.id_externo_correo` única; adicionalmente `idempotency_key` única.
+- Índices existentes: fecha de recibido, categoría, estado, estado de categoría y errores por lote/fila. No se modificó ninguna base de producción.
+- Orígenes guardados: `XLSX`, `N8N` o `MANUAL`; las categorías se distinguen como `VALIDA`, `SIN_CATEGORIA`, `DESCONOCIDA` u `OTROS`.
+
+## Endpoints y n8n
+
+- Sesión SITS: `GET /api/v1/correos/resumen`, `GET /api/v1/correos`, `GET /api/v1/correos/{id}`, `POST /api/v1/correos`, `POST /api/v1/correos/{id}/seguimientos`, `POST /api/v1/correos/importar/analizar`, `POST /api/v1/correos/importar/{lote}/confirmar`, historial y errores.
+- Integración: `POST /api/v1/correos/integraciones/n8n`; variable requerida `N8N_SITS_API_KEY`; contrato `MessageId`, `Subject`, `From`, `To`, `CC`, `ReceivedTime`, `Importance`, `Body`, `HasAttachments`, `IsRead`, `Category`.
+- No configurar n8n real ni producción durante la continuación sin autorización explícita.
+
+## Docker/Nginx
+
+- Proyecto aislado: `sits-correos-local`; frontend `http://localhost:18081`, backend `http://localhost:18000`.
+- Al invocar Compose en una nueva consola, establecer siempre `$env:BACKEND_PORT='18000'` y `$env:FRONTEND_PORT='18081'`; omitirlos intenta ocupar 8000.
+- Última comprobación: ambos contenedores saludables; la inicialización aplicó 0026 en el volumen aislado.
+
+## Tests y evidencia
+
+- `docker compose -p sits-correos-local exec -T backend python -m unittest discover -s tests -p 'test_correos*.py' -v`: **8/8 PASS**. Cubre XLSX, errores por fila, duplicación en BD, seguimiento, permisos y n8n sin/incorrecta/válida/idempotente.
+- `cd frontend; npm.cmd exec tsc -- -b`: **PASS**.
+- `cd frontend; npm.cmd run build`: **PASS**; warning existente de chunk >500 kB, no fallo.
+- `git diff --check`: **PASS** antes de crear este handoff.
+- XLSX real: 30,189,403 bytes, análisis HTTP por Nginx/backend **201** y lote `ANALIZADO`; 37,591 filas totales/procesadas, 28,276 clasificadas, 9,314 revisión, 1 error, 0 omitidas, duración registrada 21,694 ms. Confirmación/importación y validación visual: **NO VERIFICADAS**.
+
+## NEXT ACTION
+
+En PowerShell, con los puertos aislados, autenticarse mediante un navegador real en `http://localhost:18081`, confirmar el lote `cb189146-a0c4-4628-8231-97b2bb67d5be` con `incluir_sin_clasificar=true`, y registrar los conteos, consulta SQL `GROUP BY id_externo_correo HAVING COUNT(*) > 1`, dashboard/filtros/detalle antes de continuar con n8n E2E.

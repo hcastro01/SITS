@@ -7,7 +7,7 @@ describe('navegación jerárquica de SITS', () => {
       'Trabajo Social', 'Repositorio de formularios', 'Administración',
     ]);
     expect(navigation[0].children?.map((node) => node.label)).toEqual([
-      'Inicio', 'Actividades', 'Departamento Médico', 'Producción', 'Oficina',
+      'Inicio', 'Actividades', 'Correos y seguimiento', 'Departamento Médico', 'Producción', 'Oficina',
     ]);
   });
 

@@ -23,6 +23,7 @@ export const navigation: readonly NavigationNode[] = [
       { id: 'actividades-registrar', label: 'Registrar actividad', icon: '+', permission: 'ACTIVIDADES', to: '/trabajo-social/actividades/registrar' },
       { id: 'actividades-formularios', label: 'Formularios', icon: '▤', permission: 'FORMULARIOS', to: '/trabajo-social/actividades/formularios' },
     ] },
+    { id: 'correos', label: 'Correos y seguimiento', icon: '✉', permission: 'CORREOS', to: '/trabajo-social/correos' },
     { id: 'departamento-medico', label: 'Departamento Médico', icon: '✚', children: [
       { id: 'medico-atenciones', label: 'Atenciones', icon: '+', permission: 'ATENCIONES', to: '/trabajo-social/departamento-medico/atenciones' },
       { id: 'riesgos', label: 'Riesgos de trabajo', icon: '!', permission: 'RIESGOS_TRABAJO', to: '/trabajo-social/departamento-medico/riesgos' },

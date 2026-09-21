@@ -37,3 +37,18 @@ backend/private_files/
 /n8n-sits/
 /recovery/
 /ui-login-desktop.png
+
+# InsForge & AI agent skills
+.insforge
+.agent
+.agents
+.augment
+.claude
+.cline
+.github/copilot*
+.kilocode
+.qoder
+.qwen
+.roo
+.trae
+.windsurf

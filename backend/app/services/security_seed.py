@@ -9,7 +9,7 @@ MODULES = (
     "DASHBOARD", "ATENCIONES", "CASOS", "NOVEDADES", "RECORRIDOS", "SEGUIMIENTOS",
     "DERIVACIONES", "COMPROMISOS", "PERSONAS", "FORMULARIOS", "RESPUESTAS", "CATALOGOS",
     "DOCUMENTOS", "BUSQUEDA", "REPORTES", "IMPORTACION", "AUDITORIA", "ADMINISTRACION",
-    "ACTIVIDADES", "RIESGOS_TRABAJO", "PRODUCCION", "OFICINA", "AUSENTISMO", "ACCIDENTES", "BENEFICIOS", "PRESTAMOS", "SEGUROS",
+    "ACTIVIDADES", "RIESGOS_TRABAJO", "PRODUCCION", "OFICINA", "AUSENTISMO", "ACCIDENTES", "BENEFICIOS", "PRESTAMOS", "SEGUROS", "CORREOS",
 )
 
 MODULOS_ARQUITECTURA = (
@@ -25,6 +25,8 @@ MODULOS_ARQUITECTURA = (
      "icono": "+", "padre_id_modulo": "sits-actividades", "orden": 22},
     {"id_modulo": "sits-actividades-formularios", "nombre": "Formularios", "permiso": "FORMULARIOS", "ruta": "/trabajo-social/actividades/formularios",
      "icono": "▤", "padre_id_modulo": "sits-actividades", "orden": 23},
+    {"id_modulo": "sits-correos", "nombre": "Correos y seguimiento", "permiso": "CORREOS", "ruta": "/trabajo-social/correos",
+     "icono": "✉", "padre_id_modulo": "sits-trabajo-social", "orden": 25},
     {"id_modulo": "sits-medico", "nombre": "Departamento Médico", "permiso": None, "ruta": None,
      "icono": "✚", "padre_id_modulo": "sits-trabajo-social", "orden": 30},
     {"id_modulo": "sits-riesgos", "nombre": "Riesgos de trabajo", "permiso": "RIESGOS_TRABAJO", "ruta": "/trabajo-social/departamento-medico/riesgos",
@@ -81,7 +83,7 @@ ROLE_DESCRIPTIONS = {
     "ROLE_CONSULTA": "Consulta sin modificacion segun permisos.",
     "ROLE_GERENCIA": "Indicadores y consulta agregada sin detalle sensible.",
 }
-OPERATIONAL = {"ATENCIONES", "CASOS", "NOVEDADES", "RECORRIDOS", "SEGUIMIENTOS", "DERIVACIONES", "COMPROMISOS", "RIESGOS_TRABAJO", "PRODUCCION"}
+OPERATIONAL = {"ATENCIONES", "CASOS", "NOVEDADES", "RECORRIDOS", "SEGUIMIENTOS", "DERIVACIONES", "COMPROMISOS", "RIESGOS_TRABAJO", "PRODUCCION", "CORREOS"}
 BASE_READ = OPERATIONAL | {"DASHBOARD", "PERSONAS", "FORMULARIOS", "RESPUESTAS", "CATALOGOS", "DOCUMENTOS", "BUSQUEDA", "REPORTES"}
 
 # Mapea la acción RPC (AuthService.gs:2, ACTION_COLUMNS) a la columna en español.
@@ -114,6 +116,8 @@ def initial_rights(role: str, module: str) -> dict[str, bool]:
     elif role == "ROLE_GERENCIA":
         rights.update(read=module in OPERATIONAL | {"DASHBOARD", "BUSQUEDA", "REPORTES", "CATALOGOS"},
                       export=module == "REPORTES")
+    if role in {"ROLE_COORDINADOR", "ROLE_TRABAJADOR_SOCIAL"} and module == "CORREOS":
+        rights["sensitive"] = True
     return rights
 
 
