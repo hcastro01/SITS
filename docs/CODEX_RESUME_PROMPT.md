@@ -8,4 +8,4 @@ La UI ya permite revisar errores y confirmar lotes `ANALIZADO` desde el historia
 
 Puertos Compose: fijar `BACKEND_PORT=18000` y `FRONTEND_PORT=18081` en cada terminal. Para Python dentro del contenedor usa `/opt/venv/bin/python`, pues `docker compose exec` no hereda el `PATH` del servicio.
 
-QA visual está completado en navegador integrado aislado; un fixture sintético verificó el flujo UI sin modificar el lote real. Las últimas validaciones de código no comprometido son backend 325/325, frontend 158/158, TypeScript/build y smoke Docker PASS. El pendiente ejecutable es el checkpoint selectivo/push y luego el PR: `gh` no tiene sesión, PR abierto=0. Nunca extraigas tokens/cookies, no hagas merge ni producción.
+QA visual está completado en navegador integrado aislado; un fixture sintético verificó el flujo UI sin modificar el lote real. El checkpoint `35860b5` incluye backend 325/325, frontend 158/158, TypeScript/build y smoke Docker PASS, y coincide en local/upstream/remoto. El pendiente externo es el PR: `gh` no tiene sesión, PR abierto=0. Nunca extraigas tokens/cookies, no hagas merge ni producción.

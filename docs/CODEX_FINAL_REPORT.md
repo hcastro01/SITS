@@ -18,7 +18,7 @@ Crear PR con autenticación GitHub, configuración/workflow real n8n, merge y de
 
 ## Git
 
-Rama `codex/correos-n8n-production-readiness`, remoto comprobado en `d687cbe` antes del checkpoint final. `gh` no tiene sesión y PR abierto=0. No hubo merge.
+Rama `codex/correos-n8n-production-readiness`, checkpoint `35860b5` publicado y comprobado en local/upstream/remoto. `gh` no tiene sesión y PR abierto=0. No hubo merge.
 
 ## Producción
 

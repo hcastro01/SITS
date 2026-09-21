@@ -94,4 +94,4 @@ Instalar el navegador local solicitado por la herramienta, autenticar en `http:/
 - Se corrigieron dos defectos detectados por QA: el login local no reflejaba `development_email`, y un seguimiento exitoso mostraba falso error después de recibir `201`. Ambos tienen pruebas unitarias/regresión.
 - El fixture XLSX sintético, no versionado, produjo un lote `CONFIRMADO` con 3 procesadas, 1 importada, 1 revisión y 1 error. El lote real se preservó sin reimportar ni alterar.
 - Pruebas posteriores al cambio: backend 325/325, frontend 158/158, TypeScript/build y smoke Docker PASS. Los logs y fixture locales están en `outputs/`, excluidos de Git.
-- Próxima acción externa: tras publicar el checkpoint, iniciar sesión en GitHub con el usuario autorizado, crear/actualizar el PR hacia `master`, y revisar checks del SHA publicado. No merge ni producción.
+- El checkpoint `35860b5` quedó publicado y coincide en local/upstream/remoto. Próxima acción externa: iniciar sesión en GitHub con el usuario autorizado, crear/actualizar el PR hacia `master`, y revisar checks de ese SHA. No merge ni producción.

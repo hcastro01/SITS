@@ -16,4 +16,4 @@
 | 2026-09-21 | `frontend: npm.cmd test -- --pool=forks --maxWorkers=1 --reporter=verbose` | 158/158 PASS, 25 archivos, 103.43 s, exit 0 |
 | 2026-09-21 | `frontend: npm.cmd exec tsc -- -b` y `npm.cmd run build` | PASS, exit 0; advertencia no bloqueante de chunk JS 535.81 kB |
 
-Las 156/156 y 324/324 anteriores corresponden al checkpoint `f139c6d`; los totales 158/158 y 325/325 corresponden al árbol de código posterior a las correcciones de QA, antes del commit final.
+Las 156/156 y 324/324 anteriores corresponden al checkpoint `f139c6d`; los totales 158/158 y 325/325 corresponden al código publicado en `35860b5`.
