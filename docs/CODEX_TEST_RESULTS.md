@@ -20,3 +20,8 @@ Las 156/156 y 324/324 anteriores corresponden al checkpoint `f139c6d`; los total
 
 | 2026-09-21 | PythonAnywhere: `python -m app.cli.production_check` sobre el backend `08246df` | PASS: entorno productivo, SQLite persistente, `quick_check`, claves foráneas, revisión Alembic, administración y contraseñas correctas |
 | 2026-09-21 | PythonAnywhere: `python -m app.cli.backup_sqlite --output-dir backups` y apertura read-only | PASS: respaldo consistente creado por API SQLite y `PRAGMA integrity_check = ok`; referencia privada fuera de Git |
+| 2026-09-21 | PythonAnywhere: `git pull --ff-only`, dependencias fijadas, `app.cli.initialize` y Alembic | PASS: `c857995` desplegado; `0024_contexto_medico_atenciones → 0026_correos_operational_hardening (head)`; catálogos verificados |
+| 2026-09-21 | PythonAnywhere: `python -m app.cli.production_check` posterior y Reload | PASS: todos los controles de configuración, SQLite, migraciones y credenciales; `Reload successful` |
+| 2026-09-21 | Vercel Production | PASS: deployment `c857995` marcado `Ready` en el proyecto `sits` |
+| 2026-09-21 | Dominio habitual: sesión autenticada, Inicio y Correos | PASS: sesión administrativa vigente, ruta de Correos disponible, resumen vacío y filtros visibles; consola sin errores ni advertencias |
+| 2026-09-21 | XLSX histórico local en modo solo lectura | PASS para prevalidación: SHA-256 `EB8311DF5F2EE3407A7D09D7B812D1C094B3ECCBDC32CD42A27A973901D86D32`, 30.189.403 bytes, 37.591 filas fuente, 1 ID ausente, 0 IDs duplicados y sin marcadores de prueba inspeccionados |

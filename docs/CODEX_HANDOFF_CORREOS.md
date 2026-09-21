@@ -83,8 +83,9 @@ Instalar el navegador local solicitado por la herramienta, autenticar en `http:/
 
 - El usuario autorizó la publicación completa; la especificación vigente es `docs/CODEX_PRODUCTION_MASTER.md`.
 - Recuperación actual: candidata `e6bd629`, base `08246df`, GitHub autenticado y sin PR abierto. Vercel `hector-f6fc/sits` y PythonAnywhere `hector00999` están disponibles.
-- PythonAnywhere fue comprobado en modo solo lectura: checkout limpio en `08246df`, preflight de producción PASS y respaldo SQLite consistente creado y validado por apertura read-only. La referencia privada está fuera de Git.
-- Continúa con un único PR, checks del SHA exacto y merge con commit de merge. Después actualiza el backend con avance rápido, dependencias fijadas, `app.cli.initialize`, `production_check`, recarga, Vercel Production, importación deduplicada y QA público. No vuelvas a confirmar ni reimportar el lote local.
+- PythonAnywhere fue comprobado en modo solo lectura, respaldado y luego actualizado por avance rápido a `c857995`; dependencias fijadas, `app.cli.initialize`, Alembic `0026_correos_operational_hardening`, `production_check` y Reload pasaron. La referencia privada del respaldo está fuera de Git.
+- El PR #12 fue integrado mediante commit de merge `c857995`. Vercel lo publicó como Production `Ready`; el dominio habitual abrió con sesión administrativa y el módulo Correos disponible. No volver a confirmar ni reimportar el lote local.
+- La importación productiva aún no se ejecutó: la extensión de Chrome bloqueó el acceso al XLSX antes de enviar bytes. Habilitar el acceso a URLs de archivo de la extensión y continuar sólo con el XLSX prevalidado, una vez; revisar el lote antes de confirmarlo. n8n permanece inactivo hasta identificar una instancia autenticada y un flujo exclusivamente de ingesta.
 
 ## Actualización 2026-09-21
 

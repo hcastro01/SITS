@@ -3,9 +3,11 @@
 ## Cierre productivo en curso (2026-09-21)
 
 - La misión vigente está en `docs/CODEX_PRODUCTION_MASTER.md`; sustituye los límites locales históricos dentro de su alcance.
-- GitHub, Vercel y PythonAnywhere fueron autenticados y comprobados. GitHub no tiene PR abierto; la candidata `e6bd629` está 11 commits por delante y 0 por detrás de `origin/master` `08246df`.
-- El backend productivo actual está limpio y alineado a `08246df`. Su preflight de solo lectura pasó y se creó un respaldo SQLite consistente, validado mediante apertura de solo lectura e `integrity_check`. Los identificadores privados permanecen en `recovery/production-deployment-manifest.md`, ignorado por Git.
-- Siguiente acción: crear un único PR de la candidata, revisar sus checks y hacer merge controlado antes de actualizar backend, esquema y frontend.
+- GitHub, Vercel y PythonAnywhere fueron autenticados y comprobados. El PR #12 se integró con commit de merge `c857995d8203d39e43a0b16e8fbf46a85b3255c9`; la rama de recuperación permanece publicada.
+- El backend productivo avanzó con `git pull --ff-only` a `c857995`, las dependencias fijadas se sincronizaron y el esquema avanzó de `0024_contexto_medico_atenciones` a `0026_correos_operational_hardening (head)`. El inicializador idempotente y el chequeo de producción posterior pasaron.
+- El respaldo SQLite previo al cambio fue consistente, abrió en solo lectura y pasó `integrity_check`. Sus identificadores privados permanecen en `recovery/production-deployment-manifest.md`, ignorado por Git.
+- PythonAnywhere confirmó `Reload successful`. Vercel publicó `c857995` como Production `Ready`; el dominio habitual cargó con sesión administrativa y el módulo Correos mostró correctamente su estado inicial vacío.
+- Siguiente acción bloqueada localmente: permitir a la extensión de Chrome acceso a archivos y volver a analizar el XLSX histórico en producción; no se ha transmitido el archivo ni creado un lote productivo.
 
 - Rama: `codex/correos-n8n-production-readiness`; checkpoint de código y QA publicado en `35860b5` (HEAD local, upstream y remoto coinciden).
 - Entorno aislado saludable: backend `18000`, frontend `18081`, SQLite local en revisión `0026_correos_operational_hardening`.
@@ -16,4 +18,4 @@
 - QA visual autenticado completado en el navegador aislado integrado: login por flujo normal local, navegación accesible al módulo, dashboard, historial y error, detalle sensible sintético, seguimientos, filtros, vacío, orden, paginación, recarga y viewport 390×844. Consola sin errores/advertencias. No se guardaron capturas ni trazas con datos reales.
 - Un fixture XLSX sintético fue analizado y confirmado desde UI: 3 procesadas, 1 clasificada importada, 1 revisión preservada y 1 error persistido. Es independiente del lote histórico.
 - GitHub: PR abierto=0. La única comprobación pública observada fue `Vercel Preview Comments`, finalizada con `success` tanto para `35860b5` (código) como para `da18465` (documentación); no se interpreta como sustituto de un PR ni de una suite CI completa.
-- Producción, merge y workflows reales n8n: no realizados.
+- Producción y merge: realizados. n8n real: no realizado; no existe una instancia autenticada ni un workflow de ingesta aislado identificado. La clave del backend fue generada exclusivamente en la configuración productiva, sin exposición ni activación de workflows.
