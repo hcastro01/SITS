@@ -3,7 +3,7 @@
 | 2026-09-21 | `docker compose build backend` y `docker compose run --rm backend python -m unittest tests.test_correos` | 7/7 PASS, exit 0; incluye importación de 1.001 filas y bloques SQL reducidos a 25. |
 | 2026-09-21 | Producción: SQLite, lote y deduplicación | PASS: `integrity_check=ok`; 37.590 correos; 0 grupos MessageId duplicados; 9.314 en revisión; lote `351a817e-772f-4cf1-8083-1b6ba674e5c5` = `CONFIRMADO:37589:1:1`. |
 | 2026-09-21 | QA navegador del dominio habitual | PASS: sesión, dashboard, origen 37.590, filtro combinado 9.314, paginación 51–100/9.314, orden A–Z, detalle y formulario sin escritura, historial y persistencia tras recarga; consola sin errores/advertencias. |
-| 2026-09-21 | Vista móvil del navegador integrado | PENDIENTE QA MANUAL: el override 390×844 no tomó efecto; no se declara PASS visual. |
+| 2026-09-21 | QA móvil autenticado de producción, objetivo 390×844 | **NO VERIFICADO**: el override del navegador integrado dejó `window.innerWidth×innerHeight=1707×735`, por lo que no cumplió el tamaño CSS. Se probó la alternativa de la pestaña Chrome con sesión existente, sin extraer ni copiar cookies, pero la conexión de automatización se interrumpió; tras reiniciar sólo permaneció el navegador integrado y no había ventana nativa controlable. No se realizaron interacciones ni se guardaron capturas con datos reales. |
 
 | Fecha | Entorno y comando | Resultado |
 | --- | --- | --- |

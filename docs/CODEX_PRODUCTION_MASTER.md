@@ -5,7 +5,7 @@
 - PR #15 redujo el lote SQL a 25 correos tras localizar el error de E/S en `executemany` de 500 filas. Se verificó en 7/7 pruebas aisladas, se fusionó como `1a28076` y se desplegó por fast-forward en PythonAnywhere con Reload successful. Vercel informó éxito.
 - El lote histórico productivo `351a817e-772f-4cf1-8083-1b6ba674e5c5` está `CONFIRMADO`: 37.591 procesadas, 37.589 incorporadas, 1 registro del intento inicial reconocido por deduplicación y 1 error trazado. La tabla contiene 37.590 correos, todos vinculados al lote; hay 0 grupos MessageId duplicados y 9.314 filas en revisión.
 - Respaldo privado previo, `integrity_check`, `production_check` y Alembic `0026` fueron verificados. No se restauró, sustituyó ni vació la SQLite productiva.
-- QA web del dominio habitual PASS para sesión, dashboard, filtros, paginación, orden, detalle, historial y persistencia. La vista móvil queda `PENDIENTE QA MANUAL`, pues el navegador integrado no aplicó la emulación solicitada.
+- QA web del dominio habitual PASS para sesión, dashboard, filtros, paginación, orden, detalle, historial y persistencia. La vista móvil queda **NO VERIFICADA**: el override solicitado 390×844 dejó 1707×735 CSS y la alternativa Chrome no fue controlable sin copiar sesión/cookies, operación que no se realizó. No se atribuye un defecto a la aplicación.
 - n8n queda explícitamente fuera de este cierre y pendiente como trabajo independiente.
 
 ## Autorización vigente

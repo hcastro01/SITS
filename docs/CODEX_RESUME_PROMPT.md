@@ -6,7 +6,7 @@ La importación histórica está cerrada. Lote `351a817e-772f-4cf1-8083-1b6ba674
 
 Producción funcional: `1a28076`; Vercel en éxito, PythonAnywhere actualizado, `production_check` e integridad SQLite PASS, Alembic `0026`. QA desktop del dominio habitual PASS para sesión, dashboard, filtros, paginación, orden, detalle, historial y persistencia. No se creó un seguimiento ficticio.
 
-Pendiente exacto: QA visual manual móvil, porque el navegador integrado no aplicó el viewport solicitado. n8n es pendiente independiente y está fuera de este cierre.
+Pendiente exacto: QA visual manual móvil. Resultado actual **NO VERIFICADO**: el override 390×844 del navegador integrado dejó 1707×735 CSS y la alternativa Chrome no estuvo controlable sin copiar sesión/cookies, cosa que no se hizo. La siguiente ejecución debe confirmar 390×844 CSS efectivos y aplicar la lista manual de `CODEX_HANDOFF_CORREOS.md`; n8n es pendiente independiente y está fuera de este cierre.
 
 Continúa en `C:\Proyectos`, rama `codex/correos-n8n-production-readiness`. Lee `AGENTS.md`, `docs/CODEX_PRODUCTION_MASTER.md`, `docs/CODEX_STATE.md`, `docs/CODEX_BLOCKERS.md`, `docs/CODEX_DECISIONS.md`, `docs/CODEX_TEST_RESULTS.md` y `docs/CODEX_HANDOFF_CORREOS.md` antes de actuar.
 
