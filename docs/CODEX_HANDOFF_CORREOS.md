@@ -87,3 +87,11 @@ Instalar el navegador local solicitado por la herramienta, autenticar en `http:/
 - Validaciones finales: backend 324/324 PASS; frontend 156/156 PASS; TypeScript y build PASS; migración desechable ida/vuelta PASS; n8n HTTP local: 401/401/201/200/422/401 según escenario.
 - No se completó QA visual autenticado porque el navegador requerido no está instalado. No existe PR abierto y `gh` no está autenticado. No hubo producción, merge ni workflow n8n real.
 - Los cambios de esta actualización se publicaron en `f139c6d` sobre `origin/codex/correos-n8n-production-readiness`.
+
+## Actualización de cierre QA 2026-09-21
+
+- Se usó el navegador integrado aislado como alternativa válida al wrapper gstack defectuoso en Windows. Login local normal, navegación accesible, dashboard, historial, incidencia, filtros combinados, orden, vacío, paginación, detalle y seguimiento fueron comprobados. La vista 390×844 también mostró el módulo y un resultado sintético; la consola quedó sin errores ni advertencias.
+- Se corrigieron dos defectos detectados por QA: el login local no reflejaba `development_email`, y un seguimiento exitoso mostraba falso error después de recibir `201`. Ambos tienen pruebas unitarias/regresión.
+- El fixture XLSX sintético, no versionado, produjo un lote `CONFIRMADO` con 3 procesadas, 1 importada, 1 revisión y 1 error. El lote real se preservó sin reimportar ni alterar.
+- Pruebas posteriores al cambio: backend 325/325, frontend 158/158, TypeScript/build y smoke Docker PASS. Los logs y fixture locales están en `outputs/`, excluidos de Git.
+- Próxima acción externa: tras publicar el checkpoint, iniciar sesión en GitHub con el usuario autorizado, crear/actualizar el PR hacia `master`, y revisar checks del SHA publicado. No merge ni producción.

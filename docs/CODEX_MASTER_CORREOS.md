@@ -34,3 +34,7 @@ La fuente de autoridad es `C:\Users\HCast\Downloads\CODEX_MAESTRO_UNIFICADO_CORR
 ## Evidencia inicial de recuperación
 
 Se creó un respaldo consistente de la SQLite local en el volumen aislado antes de E2E. No se versiona. Su hash SHA-256 está registrado únicamente en el contexto operativo de esta sesión, no en documentación pública.
+
+## Actualización de QA local
+
+El QA visual autenticado se completó usando el navegador integrado aislado: no hizo falta instalar ni modificar perfiles personales. El wrapper gstack no pudo localizar su `server.ts` en Windows, pero esa limitación no afectó la prueba. El lote real fue consultado sin reimportar; un fixture sintético verificó análisis, confirmación conservadora y errores. Las correcciones derivadas cubren el requisito de contraseña en desarrollo y el falso error posterior a crear un seguimiento.

@@ -17,6 +17,15 @@ const lot = {
   filas_omitidas: 0, filas_error: 1, duracion_ms: 120, fecha_creacion: '2026-09-21T10:00:00-05:00', version: 1,
 };
 
+const correo = {
+  id_correo: 'correo-qa', id_externo_correo: 'message-qa', asunto: 'Correo QA', remitente: 'qa@example.test',
+  destinatarios: 'social@example.test', cc: null, fecha_recibido: '2026-09-21T10:00:00-05:00', importancia: null,
+  tiene_adjuntos: false, leido: false, categoria_macro: 'CASOS_TALENTO_HUMANO', categoria_nombre: 'Casos',
+  estado_categoria: 'VALIDA' as const, regla_disparadora: null, estado_clasificacion: 'CLASIFICADO' as const,
+  estado_requerimiento: 'PENDIENTE' as const, responsable_seguimiento: null, origen: 'N8N',
+  fecha_creacion: null, fecha_actualizacion: null, version: 1,
+};
+
 function renderPage() { return render(<FeedbackProvider><CorreosDashboardPage /></FeedbackProvider>); }
 
 beforeEach(() => {
@@ -75,5 +84,22 @@ describe('CorreosDashboardPage', () => {
       expect(params?.get('tiene_adjuntos')).toBe('true');
       expect(params?.get('orden')).toBe('asunto_asc');
     });
+  });
+
+  it('mantiene el éxito del seguimiento después de reiniciar su formulario', async () => {
+    vi.mocked(api.listarCorreos).mockResolvedValue({ items: [correo], total: 1, limite: 50, offset: 0 });
+    vi.mocked(api.obtenerCorreo).mockResolvedValue({ correo: { ...correo, cuerpo: 'Contenido QA' }, seguimientos: [] });
+    vi.mocked(api.crearSeguimientoCorreo).mockResolvedValue({
+      correo: { ...correo, version: 2 },
+      seguimiento: { id_seguimiento: 'seguimiento-qa', fecha_seguimiento: '2026-09-21T11:00:00-05:00', detalle_seguimiento: 'Seguimiento QA', seguimiento_por: 'QA', estado_requerimiento: 'PENDIENTE' },
+    });
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Ver detalle' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.type(within(dialog).getByLabelText('Detalle del seguimiento'), 'Seguimiento QA');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Registrar seguimiento' }));
+    await waitFor(() => expect(api.crearSeguimientoCorreo).toHaveBeenCalledWith('correo-qa', expect.objectContaining({ detalle_seguimiento: 'Seguimiento QA', expected_version: 1 })));
+    expect(within(dialog).queryByText('No fue posible guardar el seguimiento.')).not.toBeInTheDocument();
+    expect(within(dialog).getByText('Seguimiento QA')).toBeInTheDocument();
   });
 });

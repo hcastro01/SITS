@@ -131,7 +131,8 @@ function CorreosDashboardContent() {
   async function saveFollowUp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!detail || savingFollowUp) return;
-    const data = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const data = new FormData(form);
     setSavingFollowUp(true); setDetailError(null);
     try {
       const result = await crearSeguimientoCorreo(detail.correo.id_correo, {
@@ -141,7 +142,7 @@ function CorreosDashboardContent() {
         estado_requerimiento: String(data.get('estado_requerimiento')) as EstadoRequerimiento,
       });
       setDetail((current) => current ? { correo: { ...current.correo, ...result.correo }, seguimientos: [result.seguimiento, ...current.seguimientos] } : current);
-      event.currentTarget.reset(); notify('Seguimiento registrado.'); await load();
+      form.reset(); notify('Seguimiento registrado.'); await load();
     } catch (caught) { setDetailError(errorText(caught, 'No fue posible guardar el seguimiento.')); }
     finally { setSavingFollowUp(false); }
   }

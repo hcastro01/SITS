@@ -9,3 +9,5 @@
 - Las filas `REVISION` no se incluirán en futuras pruebas de confirmación: es el criterio conservador local. El lote histórico ya fue confirmado antes de esta continuación con 37.590 registros; no se revierte ni se altera por SQL.
 - Los permisos `sensitive` de `CORREOS` no se otorgan automáticamente a roles no administradores. El detalle y los seguimientos requieren una concesión explícita, coherente con la matriz de seguridad existente.
 - El modelo ORM replica los índices realmente creados por 0025/0026. Se corrigió el modelo, no las migraciones publicadas.
+- El formulario de acceso consulta `GET /api/v1/auth/requisitos`: en `development_email` permite contraseña vacía; ante error conserva la exigencia estricta. El backend continúa imponiendo contraseña cuando `auth_mode=password`.
+- El seguimiento captura la referencia del formulario antes de `await`; así un `201 Created` no se convierte en un falso error al ejecutar el reset del formulario.

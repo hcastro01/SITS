@@ -1,7 +1,8 @@
 # Estado remoto y PR
 
 - Upstream: `origin` apunta a `https://github.com/hcastro01/SITS.git`.
-- La rama remota `codex/correos-n8n-production-readiness` está actualizada en `f139c6d5f8bbc42a3e10749cf217a2038d727780`.
+- La rama remota `codex/correos-n8n-production-readiness` está comprobada en `d687cbe53bc7221143f043fab206c3b9b8cfbe93` antes del checkpoint final.
 - Consulta pública GitHub: no existe PR contra `master` para esa rama.
-- `gh` está instalado, pero no autenticado; no se creó PR. El push de la rama sí fue exitoso.
+- `gh` está instalado, pero no autenticado; no se creó PR. La consulta pública devolvió 0 PR abiertos contra `master` para la rama.
+- El siguiente checkpoint incluye QA visual y correcciones de login/seguimiento. Tras el push hay que reconsultar PR y checks para el SHA nuevo; no usar resultados de `d687cbe` como CI del nuevo SHA.
 - No hubo merge ni auto-merge.

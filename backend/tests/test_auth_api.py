@@ -15,7 +15,7 @@ from fastapi import Response
 from sqlalchemy.orm import Session
 
 import app.db.session as db_session
-from app.api.auth import LoginRequest, login, login_throttle, me
+from app.api.auth import LoginRequest, login, login_throttle, me, requisitos
 from app.core.errors import AppError
 from app.core.permissions import resolve_current_user
 from app.db.session import build_engine
@@ -76,6 +76,14 @@ class AuthApiTests(unittest.TestCase):
             perfil = me(user)
             self.assertEqual(perfil.id_usuario, user.id_usuario)
             self.assertEqual(perfil.rol_nombre, user.rol_nombre)
+
+    def test_requisitos_only_exposes_if_password_is_required(self):
+        settings = SimpleNamespace(auth_mode="development_email")
+        with patch("app.api.auth.get_settings", return_value=settings):
+            self.assertFalse(requisitos().password_required)
+        settings.auth_mode = "password"
+        with patch("app.api.auth.get_settings", return_value=settings):
+            self.assertTrue(requisitos().password_required)
 
     def test_password_mode_accepts_only_the_configured_password(self):
         settings = SimpleNamespace(auth_mode="password", cookie_secure=True, cookie_samesite="none", session_ttl_hours=12)
