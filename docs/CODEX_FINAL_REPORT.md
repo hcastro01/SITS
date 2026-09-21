@@ -12,6 +12,10 @@ El archivo local mide 30.189.403 bytes. El lote `cb189146-a0c4-4628-8231-97b2bb6
 
 QA visual autenticado, crear PR con autenticación GitHub, configuración/workflow real n8n, merge y despliegue.
 
+## Git
+
+Rama `codex/correos-n8n-production-readiness`, commit `f139c6d`, push exitoso a `origin`. No hubo merge.
+
 ## Producción
 
 **NO SE REALIZARON CAMBIOS EN PRODUCCIÓN.**

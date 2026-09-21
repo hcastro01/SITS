@@ -86,3 +86,4 @@ Instalar el navegador local solicitado por la herramienta, autenticar en `http:/
 - Se corrigieron dos regresiones: metadata de índices ORM versus migraciones, y permiso sensible implícito para roles no administradores. No se reescribieron 0025/0026.
 - Validaciones finales: backend 324/324 PASS; frontend 156/156 PASS; TypeScript y build PASS; migración desechable ida/vuelta PASS; n8n HTTP local: 401/401/201/200/422/401 según escenario.
 - No se completó QA visual autenticado porque el navegador requerido no está instalado. No existe PR abierto y `gh` no está autenticado. No hubo producción, merge ni workflow n8n real.
+- Los cambios de esta actualización se publicaron en `f139c6d` sobre `origin/codex/correos-n8n-production-readiness`.
