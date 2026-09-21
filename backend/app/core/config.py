@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     # Documentos conserva sus BLOB comprimidos en la base de datos. Estos límites
     # se centralizan aquí para que todos los routers usen la misma política.
     max_upload_bytes: int = Field(default=10 * 1024 * 1024, ge=1, le=100 * 1024 * 1024)
+    max_email_xlsx_bytes: int = Field(default=50 * 1024 * 1024, ge=1 * 1024 * 1024, le=100 * 1024 * 1024)
+    n8n_sits_api_key: str | None = None
     max_documents_per_record: int = Field(default=10, ge=1, le=100)
 
     # Pendientes de decisión (MIGRACION_FASE_1.md §10): quedan sin valor por defecto útil

@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../app/AuthContext';
 import { HttpError } from '../../api/client';
+import { fetchAuthenticationRequirements } from '../../api/auth';
 import { SongaBrand, songaLogo } from '../../components/SongaBrand';
 
 export function LoginPage() {
@@ -12,6 +13,16 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [passwordRequired, setPasswordRequired] = useState(true);
+
+  useEffect(() => {
+    let activo = true;
+    fetchAuthenticationRequirements()
+      .then(({ password_required }) => { if (activo) setPasswordRequired(password_required); })
+      // Si esta consulta falla, el formulario conserva el requisito más estricto.
+      .catch(() => undefined);
+    return () => { activo = false; };
+  }, []);
 
   if (!cargando && usuario) {
     const destino = (location.state as { from?: string } | null)?.from ?? '/';
@@ -23,7 +34,7 @@ export function LoginPage() {
     setError(null);
     setEnviando(true);
     try {
-      await login(correo, password);
+      await login(correo, password || undefined);
       navigate('/', { replace: true });
     } catch (err) {
       setError(err instanceof HttpError ? err.message : 'No fue posible iniciar sesión.');
@@ -62,14 +73,14 @@ export function LoginPage() {
               value={correo}
               onChange={(event) => setCorreo(event.target.value)}
             />
-            <label htmlFor="password">Contraseña</label>
+            <label htmlFor="password">{passwordRequired ? 'Contraseña' : 'Contraseña (opcional en este entorno)'}</label>
             <input
               id="password"
               name="password"
               type="password"
               autoComplete="current-password"
-              required
-              minLength={12}
+              required={passwordRequired}
+              minLength={passwordRequired ? 12 : undefined}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
             />

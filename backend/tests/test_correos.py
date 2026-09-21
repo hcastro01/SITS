@@ -1,0 +1,133 @@
+import unittest
+from io import BytesIO
+from tempfile import TemporaryDirectory
+
+from alembic import command
+from alembic.config import Config
+from openpyxl import Workbook
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+import app.db.session as db_session
+from app.core.errors import AppError
+from app.core.permissions import resolve_current_user
+from app.db.session import build_engine
+from app.models import Correo, ErrorImportacionCorreo, SeguimientoCorreo, User
+from app.services.correos import add_follow_up, analyze_import, confirm_import, create_from_post
+from app.services.security_seed import seed_security
+
+
+HEADERS = ["ID", "Subject", "From", "ReceivedTime", "Body", "categoria_macro", "categoria_nombre", "estado_clasificacion", "n8n_enviar_post", "n8n_estado_envio"]
+
+
+def xlsx(rows):
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Correos_POST"
+    sheet.append(["Carga de prueba"])
+    sheet.append([])
+    sheet.append([])
+    sheet.append([])
+    sheet.append(HEADERS)
+    for row in rows:
+        sheet.append(row)
+    stream = BytesIO()
+    workbook.save(stream)
+    workbook.close()
+    return stream.getvalue()
+
+
+class CorreosServiceTests(unittest.TestCase):
+    def setUp(self):
+        self.directory = TemporaryDirectory()
+        self.engine = build_engine(f"sqlite:///{self.directory.name}/test.db")
+        self.original_engine = db_session.engine
+        db_session.engine = self.engine
+        command.upgrade(Config("alembic.ini"), "head")
+        with Session(self.engine) as session, session.begin():
+            seed_security(session)
+            session.add_all([
+                User(id_usuario="admin", correo="admin@example.com", nombre="Admin", rol_id="ROLE_ADMIN", estado="ACTIVO"),
+                User(id_usuario="consulta", correo="consulta@example.com", nombre="Consulta", rol_id="ROLE_CONSULTA", estado="ACTIVO"),
+            ])
+
+    def tearDown(self):
+        db_session.engine = self.original_engine
+        self.engine.dispose()
+        self.directory.cleanup()
+
+    def user(self, session, email="admin@example.com"):
+        return resolve_current_user(session, email)
+
+    def content(self):
+        return xlsx([
+            ["mail-1", "Permiso", "ana@example.com", "2026-09-20T10:00:00", "Contenido privado 1", "PERMISOS_VACACIONES_LICENCIAS", "Permisos", "CLASIFICADO", "SI", "PENDIENTE"],
+            ["mail-2", "Sin patrón", "luis@example.com", "2026-09-21T10:00:00", "Contenido privado 2", "REVISION_MANUAL", "Revisión manual", "REVISION", "SI", "PENDIENTE"],
+            ["mail-3", "Omitido", "ana@example.com", "2026-09-22T10:00:00", "No se carga", "SALUD_OCUPACIONAL", "Salud", "CLASIFICADO", "NO", "PENDIENTE"],
+        ])
+
+    def test_analysis_detects_unclassified_and_preview_orders_latest(self):
+        with Session(self.engine) as session, session.begin():
+            lot, preview = analyze_import(session, self.user(session), filename="correos.xlsx", content=self.content(), correlation_id="test")
+            self.assertEqual((lot.total_filas, lot.filas_clasificadas, lot.filas_revision), (3, 2, 1))
+            self.assertEqual(preview[0]["id_externo_correo"], "mail-3")
+            self.assertEqual(session.scalars(select(Correo)).all(), [])
+
+    def test_confirmation_excludes_revision_when_user_declines_it(self):
+        with Session(self.engine) as session, session.begin():
+            lot, _ = analyze_import(session, self.user(session), filename="correos.xlsx", content=self.content(), correlation_id="test")
+            confirmed, selected, inserted, duplicates = confirm_import(session, self.user(session), lot.id_lote, include_revision=False, correlation_id="test")
+            rows = session.scalars(select(Correo)).all()
+            self.assertEqual((confirmed.estado, selected, inserted, duplicates, len(rows)), ("CONFIRMADO", 2, 2, 0, 2))
+            self.assertEqual(rows[0].id_externo_correo, "mail-1")
+
+    def test_post_is_idempotent_and_follow_up_updates_state(self):
+        payload = {
+            "id_externo_correo": "mail-api", "idempotency_key": "correo:mail-api", "asunto": "Caso",
+            "remitente": "ana@example.com", "destinatarios": None, "cc": None, "fecha_recibido": "2026-09-20T10:00:00",
+            "importancia": None, "cuerpo": "Contenido privado", "tiene_adjuntos": False, "leido": False,
+            "categoria_macro": "CASOS_TALENTO_HUMANO", "categoria_nombre": "Casos de talento humano",
+            "regla_disparadora": "caso", "estado_clasificacion": "CLASIFICADO",
+        }
+        with Session(self.engine) as session, session.begin():
+            record, created = create_from_post(session, self.user(session), payload, correlation_id="test")
+            existing, created_again = create_from_post(session, self.user(session), payload, correlation_id="test")
+            updated, follow = add_follow_up(session, self.user(session), record.id_correo, expected_version=record.version, detail="Se contactó al remitente", responsible="Admin", state="EN_PROCESO", correlation_id="test")
+            self.assertTrue(created)
+            self.assertFalse(created_again)
+            self.assertEqual(existing.id_correo, record.id_correo)
+            self.assertEqual((updated.estado_requerimiento, follow.estado_requerimiento), ("EN_PROCESO", "EN_PROCESO"))
+            self.assertEqual(len(session.scalars(select(SeguimientoCorreo)).all()), 1)
+
+    def test_consultation_role_cannot_analyze_file(self):
+        with Session(self.engine) as session, session.begin(), self.assertRaises(AppError) as context:
+            analyze_import(session, self.user(session, "consulta@example.com"), filename="correos.xlsx", content=self.content(), correlation_id="test")
+        self.assertEqual(context.exception.code, "FORBIDDEN")
+
+    def test_invalid_rows_are_traced_without_discarding_valid_rows(self):
+        content = xlsx([
+            ["ok-1", "Asunto", "ana@example.com", "2026-09-20T10:00:00", "Cuerpo", "CASOS_TALENTO_HUMANO", "Casos", "CLASIFICADO", "SI", "PENDIENTE"],
+            ["", "Sin identificador", "ana@example.com", "2026-09-20T10:00:00", "Cuerpo", "CASOS_TALENTO_HUMANO", "Casos", "CLASIFICADO", "SI", "PENDIENTE"],
+            ["bad-date", "Fecha", "ana@example.com", "no es fecha", "Cuerpo", "CASOS_TALENTO_HUMANO", "Casos", "CLASIFICADO", "SI", "PENDIENTE"],
+            ["ok-1", "Duplicado", "ana@example.com", "2026-09-20T10:00:00", "Cuerpo", "CASOS_TALENTO_HUMANO", "Casos", "CLASIFICADO", "SI", "PENDIENTE"],
+        ])
+        with Session(self.engine) as session, session.begin():
+            lot, _ = analyze_import(session, self.user(session), filename="correos.xlsx", content=content, correlation_id="test")
+            errors = session.scalars(select(ErrorImportacionCorreo).where(ErrorImportacionCorreo.lote_id == lot.id_lote)).all()
+            self.assertEqual((lot.total_filas, lot.filas_procesadas, lot.filas_error, len(errors)), (4, 4, 3, 3))
+            self.assertEqual({error.codigo for error in errors}, {"MESSAGE_ID_REQUIRED", "INVALID_RECEIVED_TIME", "DUPLICATE_IN_FILE"})
+            _, selected, inserted, duplicates = confirm_import(session, self.user(session), lot.id_lote, include_revision=True, correlation_id="test")
+            self.assertEqual((selected, inserted, duplicates), (1, 1, 0))
+
+    def test_database_deduplication_is_visible_in_import_result(self):
+        with Session(self.engine) as session, session.begin():
+            first, _ = analyze_import(session, self.user(session), filename="first.xlsx", content=self.content(), correlation_id="first")
+            confirm_import(session, self.user(session), first.id_lote, include_revision=True, correlation_id="first")
+            second, _ = analyze_import(session, self.user(session), filename="second.xlsx", content=self.content(), correlation_id="second")
+            _, selected, inserted, duplicates = confirm_import(session, self.user(session), second.id_lote, include_revision=True, correlation_id="second")
+            self.assertEqual((selected, inserted, duplicates), (3, 0, 3))
+            self.assertEqual(len(session.scalars(select(Correo)).all()), 3)
+
+
+if __name__ == "__main__":
+    unittest.main()

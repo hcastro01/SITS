@@ -29,3 +29,26 @@ backend/private_files/
 **/*.key
 **/*.egg-info/
 .claude/
+
+# Local-only audit, browser, workflow, and recovery artifacts
+/.chrome-ui-audit/
+/.ui-audit/
+/.ui-v2-backup/
+/n8n-sits/
+/recovery/
+/ui-login-desktop.png
+
+# InsForge & AI agent skills
+.insforge
+.agent
+.agents
+.augment
+.claude
+.cline
+.github/copilot*
+.kilocode
+.qoder
+.qwen
+.roo
+.trae
+.windsurf

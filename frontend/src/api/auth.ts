@@ -12,6 +12,10 @@ export interface UsuarioActual {
   permisos: PermissionMatrix;
 }
 
+export interface RequisitosAutenticacion {
+  password_required: boolean;
+}
+
 export function canAccess(
   usuario: UsuarioActual | null | undefined, module: string, action: PermissionAction,
 ): boolean {
@@ -28,4 +32,8 @@ export function logout(): Promise<{ status: string }> {
 
 export function fetchCurrentUser(): Promise<UsuarioActual> {
   return get<UsuarioActual>('/auth/me');
+}
+
+export function fetchAuthenticationRequirements(): Promise<RequisitosAutenticacion> {
+  return get<RequisitosAutenticacion>('/auth/requisitos');
 }

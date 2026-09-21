@@ -37,6 +37,10 @@ class UsuarioActual(BaseModel):
     permisos: dict[str, dict[str, bool]]
 
 
+class RequisitosAutenticacion(BaseModel):
+    password_required: bool
+
+
 def _usuario_actual(user: AuthenticatedUser) -> UsuarioActual:
     return UsuarioActual(id_usuario=user.id_usuario, correo=user.correo, nombre=user.nombre,
                           rol_id=user.rol_id, rol_nombre=user.rol_nombre, permisos=user.permisos)
@@ -48,6 +52,12 @@ def _set_session_cookie(response: Response, token: str) -> None:
         key=COOKIE_NAME, value=token, httponly=True, secure=settings.cookie_secure,
         samesite=settings.cookie_samesite, path="/", max_age=settings.session_ttl_hours * 3600,
     )
+
+
+@router.get("/requisitos", response_model=RequisitosAutenticacion)
+def requisitos() -> RequisitosAutenticacion:
+    """Expone únicamente el requisito de contraseña para adaptar el formulario local."""
+    return RequisitosAutenticacion(password_required=get_settings().auth_mode == "password")
 
 
 @router.post("/login", response_model=UsuarioActual)

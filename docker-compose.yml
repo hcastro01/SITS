@@ -10,6 +10,8 @@ services:
       CORS_ORIGINS: '${CORS_ORIGINS:-["http://localhost:8081"]}'
       LOGIN_MAX_ATTEMPTS: ${LOGIN_MAX_ATTEMPTS:-5}
       LOGIN_WINDOW_SECONDS: ${LOGIN_WINDOW_SECONDS:-300}
+      MAX_EMAIL_XLSX_BYTES: ${MAX_EMAIL_XLSX_BYTES:-52428800}
+      N8N_SITS_API_KEY: ${N8N_SITS_API_KEY:-}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     volumes:
@@ -46,7 +48,8 @@ services:
       - app
     read_only: true
     tmpfs:
-      - /tmp:rw,noexec,nosuid,size=32m,mode=1777
+      # Nginx usa /tmp para el cuerpo multipart durante la carga de XLSX de correos.
+      - /tmp:rw,noexec,nosuid,size=96m,mode=1777
     cap_drop:
       - ALL
     security_opt:

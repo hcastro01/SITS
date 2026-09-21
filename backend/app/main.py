@@ -19,6 +19,7 @@ from app.api.busqueda import router as busqueda_router
 from app.api.casos import router as casos_router
 from app.api.dashboard import router as dashboard_router
 from app.api.documentos import router as documentos_router
+from app.api.correos import router as correos_router
 from app.api.formularios import router as formularios_router
 from app.api.importaciones_ausentismos import router as importaciones_ausentismos_router
 from app.api.importaciones_accidentes import router as importaciones_accidentes_router
@@ -128,5 +129,6 @@ app.include_router(formularios_router)
 app.include_router(busqueda_router)
 app.include_router(admin_router)
 app.include_router(documentos_router)
+app.include_router(correos_router)
 app.include_router(dashboard_router)
 
