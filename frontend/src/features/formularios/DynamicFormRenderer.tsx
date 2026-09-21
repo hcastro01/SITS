@@ -30,8 +30,9 @@ function matches(rule: FormRule, value: FieldValue | undefined): boolean {
     rule.operador === 'LT' ? left < right : rule.operador === 'LTE' ? left <= right : false;
 }
 
-function FileField({ question, files, required, disabled, onChange }: { question: FormQuestion; files: File[]; required: boolean; disabled: boolean; onChange: (files: File[]) => void }) {
+function FileField({ question, files, hasStoredFiles, required, disabled, onChange }: { question: FormQuestion; files: File[]; hasStoredFiles: boolean; required: boolean; disabled: boolean; onChange: (files: File[]) => void }) {
   const [preview, setPreview] = useState<string | null>(null);
+  const [selectionError, setSelectionError] = useState<string | null>(null);
   useEffect(() => {
     if (question.tipo !== 'FOTOGRAFIA' || !files[0]) { setPreview(null); return; }
     const url = URL.createObjectURL(files[0]); setPreview(url);
@@ -40,9 +41,17 @@ function FileField({ question, files, required, disabled, onChange }: { question
   const maxFiles = Math.min(Number(question.configuracion.max_files ?? 1), 10);
   const maxBytes = Math.min(Number(question.configuracion.max_size_mb ?? 10), 10) * 1024 * 1024;
   const accept = question.tipo === 'FOTOGRAFIA' ? 'image/jpeg,image/png,image/webp' : '.pdf,.jpg,.jpeg,.png,.webp';
-  return <div className="file-field"><input id={question.id_pregunta} type="file" required={required && files.length === 0}
+  return <div className="file-field"><input id={question.id_pregunta} type="file" required={required && files.length === 0 && !hasStoredFiles}
     disabled={disabled} multiple={maxFiles > 1} accept={accept} capture={question.tipo === 'FOTOGRAFIA' ? 'environment' : undefined}
-    onChange={(event) => onChange(Array.from(event.target.files ?? []).filter((file) => file.size <= maxBytes).slice(0, maxFiles))} />
+    onChange={(event) => {
+      const selected = Array.from(event.target.files ?? []);
+      const oversized = selected.filter((file) => file.size > maxBytes);
+      const accepted = selected.filter((file) => file.size <= maxBytes).slice(0, maxFiles);
+      setSelectionError(oversized.length ? `Cada archivo debe pesar como máximo ${Math.round(maxBytes / 1024 / 1024)} MB.` : null);
+      if (oversized.length || selected.length > maxFiles) event.currentTarget.value = '';
+      onChange(accepted);
+    }} />
+    {selectionError && <p className="form-error" role="alert">{selectionError}</p>}
     {files.length > 0 && <ul className="selected-files">{files.map((file, index) => <li key={`${file.name}-${file.size}-${index}`}>{file.name} <button type="button" className="ghost" disabled={disabled} onClick={() => onChange(files.filter((_, item) => item !== index))}>Quitar</button></li>)}</ul>}
     {preview && <img className="image-preview" src={preview} alt="Vista previa seleccionada" />}
   </div>;
@@ -144,7 +153,7 @@ function DynamicField({ question, value, required, disabled, onChange, onAutocom
     const files = rawItems.filter((item): item is File => item instanceof File);
     const savedFiles = rawItems.filter((item): item is StoredAttachment => typeof item === 'object' && !(item instanceof File));
     if (disabled && savedFiles.length > 0) return <StoredFiles files={savedFiles} responseId={responseId} />;
-    return <FileField question={question} files={files} required={required} disabled={disabled} onChange={onChange} />;
+    return <>{savedFiles.length > 0 && <StoredFiles files={savedFiles} responseId={responseId} />}<FileField question={question} files={files} hasStoredFiles={savedFiles.length > 0} required={required} disabled={disabled} onChange={onChange} /></>;
   }
   return <input {...common} type="text" value={text(value)} onChange={(e) => onChange(e.target.value)} />;
 }
