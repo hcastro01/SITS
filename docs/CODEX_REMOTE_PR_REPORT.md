@@ -1,15 +1,15 @@
 # Estado remoto y PR
 
 - Upstream: `origin` apunta a `https://github.com/hcastro01/SITS.git`.
-- La rama remota `codex/correos-n8n-production-readiness` está en `e6bd6298f33df6e285e852ccd009595371c799b9`; los cambios posteriores a `35860b5` son documentación de evidencia.
-- `gh` está autenticado como `hcastro01` con permiso administrador. No existe aún un PR contra `master` para esta rama.
-- La candidata está 11 commits por delante y 0 por detrás de `origin/master` `08246dfbff1db6dcb63d4fb560fc18e3ce556a99`.
-- Checks del SHA candidato: `Vercel Preview Comments` y `Vercel` finalizaron `success`. No hay Actions ni checks de backend/frontend remotos; los resultados locales vigentes son 325/325 backend y 158/158 frontend.
+- La rama remota `codex/correos-n8n-production-readiness` conserva el checkpoint `9feb395d95c152ccaecc28f68e4aa192a8674831`; el código funcional pertenece a `35860b5` y la documentación posterior registra evidencia.
+- `gh` está autenticado como `hcastro01` con permiso administrador. El PR #12 se creó contra `master`, se verificó como `CLEAN` y `MERGEABLE`, y se integró con commit de merge `c857995d8203d39e43a0b16e8fbf46a85b3255c9`.
+- Checks observados del SHA de PR: `Vercel Preview Comments` y `Vercel` finalizaron `success`. No hubo Actions de backend/frontend remotas; los resultados locales vigentes son 325/325 backend y 158/158 frontend.
+- Vercel creó el deployment Production de `c857995` y lo marcó `Ready`. PythonAnywhere aplicó el mismo SHA mediante avance rápido, migró a `0026_correos_operational_hardening` y confirmó la recarga.
 
-## PR preparado, no creado
+## PR #12 integrado
 
+- URL: `https://github.com/hcastro01/SITS/pull/12`.
 - Título: `feat(correos): cerrar importación y seguimiento con n8n seguro`.
-- Base: `master`; head: `codex/correos-n8n-production-readiness`.
-- Descripción: incluye migraciones `0025`/`0026`, importación XLSX trazable y deduplicada, dashboard/filtros/detalle/seguimientos, endpoint n8n Bearer idempotente validado sólo localmente, lote histórico comprobado, fixture UI sintético y QA visual. Señalar explícitamente: sin workflow n8n real, sin merge, sin despliegue ni cambios de producción.
-- Procedimiento humano mínimo: ejecutar `gh auth login --web --hostname github.com`, crear el PR contra `master` con la rama anterior y revisar los checks asociados a `35860b5`. No usar tokens/cookies extraídos ni force-push.
-- No hubo merge ni auto-merge.
+- Base: `master`; head: `codex/correos-n8n-production-readiness`; SHA de la cabeza al integrar: `9feb395`.
+- Método: commit de merge, sin auto-merge, sin squash, sin rebase y sin borrar la rama.
+- No crear otro PR para repetir el despliegue de código. Sólo abrir una nueva actualización documental cuando se cierre la importación o se resuelva el bloqueo externo de n8n.

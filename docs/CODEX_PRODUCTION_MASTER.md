@@ -6,29 +6,24 @@ El usuario autorizó el 2026-09-21 el cierre completo de la versión de Correos 
 
 ## Versión candidata y alcance
 
-- Candidata: `e6bd6298f33df6e285e852ccd009595371c799b9` en `codex/correos-n8n-production-readiness`.
-- Base comprobada: `08246dfbff1db6dcb63d4fb560fc18e3ce556a99` (`origin/master`); candidata 11 commits por delante y 0 por detrás.
-- Código funcional: `35860b5`; los commits posteriores son exclusivamente documentación de evidencia.
+- La candidata `e6bd6298f33df6e285e852ccd009595371c799b9` fue integrada mediante el PR #12 con commit de merge `c857995d8203d39e43a0b16e8fbf46a85b3255c9`.
+- Código funcional: `35860b5`; los cambios posteriores que llegaron mediante el merge son documentación de evidencia.
 - Incluye Correos y seguimiento, las migraciones `0025_correos_seguimientos` y `0026_correos_operational_hardening`, catálogo/permiso `CORREOS`, endpoint n8n de mínimo privilegio y las correcciones heredadas de catálogo autorizadas.
 
-## Preflight de producción
+## Preflight de producción y despliegue realizado
 
-- GitHub autenticado como `hcastro01`, con acceso administrador a `hcastro01/SITS`; no hay PR abierto ni protección de rama configurada.
-- Vercel existente: equipo `hector-f6fc`, proyecto `sits`, dominio productivo válido `sits-wheat.vercel.app`. El candidato tiene un deployment Preview `Ready`; el deployment productivo actual corresponde a `08246df`.
-- PythonAnywhere existente: aplicación ASGI de `hector00999.pythonanywhere.com`; checkout limpio, en `master` y alineado a `08246df`.
+- GitHub autenticado como `hcastro01`, con acceso administrador a `hcastro01/SITS`. El PR #12 pasó sus checks observados, era mergeable y fue integrado con commit de merge; la rama de recuperación se preservó.
+- Vercel existente: equipo `hector-f6fc`, proyecto `sits`, dominio productivo válido `sits-wheat.vercel.app`. El deployment Production de `c857995` está `Ready`.
+- PythonAnywhere existente: aplicación ASGI de `hector00999.pythonanywhere.com`; el checkout avanzó con `git pull --ff-only` a `c857995`, se sincronizaron dependencias fijadas, se aplicaron las migraciones y se recargó la aplicación correctamente.
 - El preflight de solo lectura pasó: configuración productiva, SQLite persistente, integridad, revisión Alembic actual, administrador con contraseña y credenciales de usuarios.
-- Se creó un respaldo SQLite consistente y se validó su apertura e integridad en modo solo lectura. La referencia y evidencia privada están en el manifiesto ignorado de recuperación.
+- Se creó un respaldo SQLite consistente antes de escribir en producción y se validó su apertura e integridad en modo solo lectura. La referencia y evidencia privada están en el manifiesto ignorado de recuperación.
+- Alembic avanzó de `0024_contexto_medico_atenciones` a `0026_correos_operational_hardening (head)`. El inicializador confirmó las semillas idempotentes y el chequeo posterior de producción pasó.
 
-## Secuencia aprobada
+## Pendiente controlado
 
-1. Terminar la revisión del candidato y crear un único PR hacia `master`.
-2. Verificar los checks del SHA del PR y el estado justo antes del merge.
-3. Hacer merge con commit de merge, conservando la rama de recuperación.
-4. Actualizar PythonAnywhere mediante avance rápido, dependencias fijadas, migraciones y semillas explícitas idempotentes; validar catálogo, permisos y backend cargado.
-5. Esperar y verificar el deployment Production de Vercel generado desde `master`, incluido el dominio habitual y la conexión HTTPS al backend.
-6. Cargar únicamente el histórico productivo faltante mediante el importador validado, con trazabilidad e idempotencia.
-7. Configurar y verificar n8n solo si se identifica un workflow de ingesta aislado y una credencial de mínimo privilegio; nunca activar acciones sobre el buzón.
-8. Ejecutar QA autenticado en producción y actualizar los documentos de cierre.
+1. Habilitar una vez el acceso local de la extensión de Chrome a archivos para que el navegador pueda transmitir el XLSX histórico verificado al importador productivo. El intento no llegó a enviar el archivo ni creó lote alguno.
+2. Analizar y confirmar el lote en la UI; comprobar conteos, deduplicación, filtros, paginación, detalle y seguimiento con datos productivos.
+3. Identificar una instancia autenticada de n8n y un workflow exclusivamente de ingesta. La clave de backend ya fue generada y guardada sólo en el entorno productivo; no se activará ningún workflow que opere el buzón.
 
 ## Recuperación
 
@@ -36,4 +31,4 @@ El backend anterior y el deployment Production anterior se conservan como puntos
 
 ## Estado actual
 
-`IN_PROGRESS`: preflight, acceso y respaldo productivo completos. Siguiente acción: crear y revisar el PR del SHA candidato.
+`BLOCKED_EXTERNAL`: código y despliegues productivos completados. Faltan la transferencia controlada del XLSX por el permiso local de Chrome y el acceso a una instancia/workflow n8n aislado; no declarar cierre total hasta verificarlos.
