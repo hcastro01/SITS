@@ -34,6 +34,22 @@ describe('navegación de Departamento Médico', () => {
   });
 });
 
+describe('visibilidad del alcance de reparación de catálogo', () => {
+  it('muestra Actividades y las tres opciones de Oficina sólo con sus permisos de sidebar', async () => {
+    auth.usuario.permisos = {
+      ACTIVIDADES: { read: true }, BENEFICIOS: { read: true }, PRESTAMOS: { read: true }, SEGUROS: { read: true },
+    };
+    renderLayout();
+    await userEvent.click(screen.getByRole('button', { name: /^actividades$/i }));
+    expect(screen.getByRole('link', { name: 'Tabla de actividades' })).toHaveAttribute('href', '/trabajo-social/actividades');
+    expect(screen.getByRole('link', { name: 'Registrar actividad' })).toHaveAttribute('href', '/trabajo-social/actividades/registrar');
+    await userEvent.click(screen.getByRole('button', { name: /^oficina$/i }));
+    expect(screen.getByRole('link', { name: 'Beneficios' })).toHaveAttribute('href', '/trabajo-social/oficina/beneficios');
+    expect(screen.getByRole('link', { name: 'Préstamos' })).toHaveAttribute('href', '/trabajo-social/oficina/prestamos');
+    expect(screen.getByRole('link', { name: 'Seguro' })).toHaveAttribute('href', '/trabajo-social/oficina/seguro');
+  });
+});
+
 describe('expansión controlada del sidebar', () => {
   beforeEach(() => {
     auth.usuario.permisos = {
