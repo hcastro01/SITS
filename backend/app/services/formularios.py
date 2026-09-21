@@ -49,7 +49,11 @@ def create_formulario(session: Session, user: AuthenticatedUser, *, motivo_audit
     proceso = str(campos.get("proceso") or "").strip().upper()
     aliases = {"CASO": "CASOS", "ATENCION": "ATENCIONES", "NOVEDAD": "NOVEDADES",
                "RECORRIDO": "RECORRIDOS", "PERSONA": "PERSONAS"}
-    sync_destinations(session, record.id_formulario, destinos or [aliases.get(proceso, proceso or "GENERAL")], user.correo)
+    # Una lista vacía es intencional: los formularios nuevos pueden usar únicamente
+    # el catálogo jerárquico. Solo se conserva el destino GENERAL por omisión para
+    # clientes históricos que no envían el campo ``destinos``.
+    legacy_destinations = destinos if destinos is not None else [aliases.get(proceso, proceso or "GENERAL")]
+    sync_destinations(session, record.id_formulario, legacy_destinations, user.correo)
     log_change(session, "formularios", record.id_formulario, "CREATE", {}, _snapshot(record),
                user.correo, motivo_auditoria, correlation_id)
     return record
@@ -91,7 +95,8 @@ def change_status(session: Session, user: AuthenticatedUser, id_formulario: str,
         if not total_preguntas:
             raise AppError("FORM_WITHOUT_QUESTIONS", "Agregue al menos una pregunta antes de publicar.", 422)
         from app.services.form_builder import create_version, get_definition
-        if not get_definition(session, id_formulario)["destinos"]:
+        definition = get_definition(session, id_formulario)
+        if not definition["destinos"] and not definition["destinos_jerarquicos"]:
             raise AppError("FORM_WITHOUT_DESTINATIONS", "Seleccione al menos un módulo de destino.", 422)
     before = _snapshot(record)
     record.estado = estado_normalizado
